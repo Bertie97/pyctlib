@@ -4,6 +4,10 @@
 from pyctlib.typehint import *
 
 def override(*arg):
+    """
+    Usage 1:
+
+    """
     if len(arg) == 1: arg = arg[0]
     if not iterable(arg):
         func = arg
@@ -13,13 +17,15 @@ def override(*arg):
 
             def __call__(self, *args, **kwargs):
                 if not kwargs and len(args) == 1 and callable(args[0]):
-                    self.func_list.append(params(args[0])); return
+                    if (args[0].__name__ == "_" or func.__name__ in args[0].__name__) and \
+                        not isoftype(args, func.__annotations__.get(func.__code__.co_varnames[0], int)):
+                        self.func_list.append(params(args[0])); return
                 for f in self.func_list:
                     try: return f(*args, **kwargs)
                     except TypeHintError: continue
                 try:
                     ret = self.default(*args, *kwargs)
-                    if callable(ret) or iterable(ret) and all([callable(x) for x in ret]):
+                    if len(self.func_list) == 0 and (callable(ret) or iterable(ret) and all([callable(x) for x in ret])):
                         if callable(ret): ret = (ret,)
                         if iterable(ret):
                             for f in ret:
@@ -36,7 +42,9 @@ def override(*arg):
                                 .format(func=func.__name__, args=', '.join([repr(x) for x in args] + ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])))
 
         owrapper = override_wrapper(func)
-        return lambda *x: owrapper(*x)
+        @wraps(func)
+        def final_wrapper(*x): return owrapper(*x)
+        return final_wrapper
     else:
         functionlist = arg
         def wrap(func):

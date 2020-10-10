@@ -101,6 +101,7 @@ class Type:
     def __init__(self, *_T, shape=tuple(), ext=False, itypes=None):
         if len([0 for t in _T if not isatype(t)]) > 0 or len(_T) <= 0:
             raise SyntaxError("Wrong parameter type. ")
+        self.inv = False
         self.types = Type.extractType(_T)
         self.shape = shape
         self.extendable = ext
@@ -152,6 +153,10 @@ class Type:
     def __pos__(self):
         return Type(self.types, shape=self.shape, ext=True, itypes=self.itemtypes)
 
+    def __invert__(self):
+        self.inv = True
+        return self
+
     def __str__(self):
         string = '<'
         if len(self.shape) > 0:
@@ -181,6 +186,8 @@ class Type:
         if len(self.shape) == 0: raise TypeHintError(self.__str__() + " is not iterable. ")
 
     def __call__(self, *args):
+        true = not self.inv
+        false = self.inv
         if len(args) > 1:
             if len([0 for x in args if not isatype(x)]) > 0:
                 raise TypeHintError("Unsupported arguments: " + self.strT(args) + ". ")
@@ -191,7 +198,7 @@ class Type:
             elif len(self.shape) == 1 and (len(args[0]) == self.shape[0] or self.shape[0] in (None, -1)): pass
             elif len(self.shape) > 1 and shape in args[0].__dict__ and \
                 all([a==b or b in (None, -1) for a, b in zip(args[0].shape, self.shape)]): pass
-            else: return False
+            else: return false
             if self.itemtypes != None:
                 if isinstance(self.itemtypes, dict):
                     if len(self.itemtypes) > 1 or len(self.itemtypes) <= 0:
@@ -199,17 +206,17 @@ class Type:
                     keytype = list(self.itemtypes.keys())[0]
                     valtype = list(self.itemtypes.values())[0]
                     for k, v in args[0].items():
-                        if not isoftype(k, keytype) or not isoftype(v, valtype): return False
+                        if not isoftype(k, keytype) or not isoftype(v, valtype): return false
                 elif iterable(self.itemtypes):
                     if len(self.itemtypes) == 1: self.itemtypes *= len(args[0])
                     for x, xt in zip(args[0], self.itemtypes):
-                        if not isoftype(x, xt): return False
+                        if not isoftype(x, xt): return false
                 elif isatype(self.itemtypes):
                     for x in args[0]:
                         if not isoftype(x, self.itemtypes): return False
                 else: raise TypeHintError("Invalid item types after @, please use iterable or types.")
-            return True
-        elif not isatype(args[0]): return False
+            return true
+        elif not isatype(args[0]): return false
         self.itemtypes = args
         return self
 
