@@ -10,16 +10,18 @@ def override(*arg):
     """
     if len(arg) == 1: arg = arg[0]
     if not iterable(arg):
-        func = arg
+        func = arg.__func__ if '__func__' in dir(arg) else arg
         if not callable(func): raise SyntaxError("Wrong usage of @override. ")
         class override_wrapper:
             def __init__(self, f): self.default = f; self.func_list = []
 
             def __call__(self, *args, **kwargs):
-                if not kwargs and len(args) == 1 and callable(args[0]):
-                    if (args[0].__name__ == "_" or func.__name__ in args[0].__name__) and \
-                        not isoftype(args, func.__annotations__.get(func.__code__.co_varnames[0], int)):
-                        self.func_list.append(params(args[0])); return
+                f = args[0].__func__ if '__func__' in dir(args[0]) else args[0]
+                if not kwargs and len(args) == 1 and callable(f):
+                    if (f.__name__ == "_" or func.__name__ in f.__name__) and \
+                        not isoftype(f, func.__annotations__.get(func.__code__.co_varnames[0], int)):
+                        self.func_list.append(params(f)); return
+                if '__func__' in dir(arg) and arg.__func__.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 for f in self.func_list:
                     try: return f(*args, **kwargs)
                     except TypeHintError: continue
