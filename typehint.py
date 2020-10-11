@@ -252,9 +252,9 @@ def T(*types):
     all_available_types = [x for x in types if isinstance(x, type)]
     if len(all_available_types) > 1: all_available_types = all_available_types[:1]
     try:
-        class defaults(Type, *all_available_types):
+        class defaults(*all_available_types, Type):
             def __init__(self):
-                super().__init__(*types)
+                Type.__init__(self, *types)
         return defaults()
     except TypeError: return Type(*types)
 
