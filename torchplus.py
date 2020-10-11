@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from pyctlib.basicstype import vector
+from pyctlib.basictype import vector
 from pyctlib.override import override
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -23,4 +23,4 @@ class Tensor(torch.Tensor):
     def batch_size(self):
         if self.batch_dimension is None:
             raise ValueError("there is no dimension provided for this tensor")
-        return 
+        return self.shape[self.batch_dimension]

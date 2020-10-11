@@ -8,7 +8,7 @@
 
 import os, re
 from pyctlib import vector, methoddispatch, touch
-from pyctlib.basicstype import generator_wrapper
+from pyctlib.basictype import generator_wrapper
 from typing import List, TextIO
 import struct
 import numpy as np
