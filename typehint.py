@@ -252,15 +252,26 @@ def T(*types):
     all_available_types = [x for x in types if isinstance(x, type)]
     if len(all_available_types) > 1: all_available_types = all_available_types[:1]
     try:
-        class defaults(*all_available_types, Type):
+        class defaults(Type, *all_available_types):
             def __init__(self):
                 Type.__init__(self, *types)
+                if all_available_types:
+                    all_available_types
         return defaults()
     except TypeError: return Type(*types)
 
-Int = T(int)
+class int_(Type, int):
+    def __init__(self):
+        Type.__init__(self, int)
+        int.__init__(self)
+Int = int_()
 Str = T(str)
 Set = T(set)
+class list_(Type, list):
+    def __init__(self):
+        Type.__init__(self, list)
+        list.__init__(self)
+List = list_()
 List = T(list)
 Bool = T(bool)
 Dict = T(dict)
