@@ -6,13 +6,11 @@
 ########################################
 
 
-import os, re
-from pyctlib import vector, methoddispatch, touch
-from pyctlib.basictype import generator_wrapper
-from typing import List, TextIO
-import struct
-import numpy as np
+import os, re, struct
+from pyctlib.exception import touch
+from pyctlib.basictype import vector, generator_wrapper
 from pyctlib.override import override
+from typing import TextIO
 
 def totuple(num):
     if isinstance(num, str): return (num,)
@@ -304,10 +302,8 @@ class file(path):
     @staticmethod
     def _to_byte(data):
         print("default")
-        try:
-            import torch
-        except:
-            pass
+        try: import torch
+        except ImportError: pass
         if touch(lambda: isinstance(data, torch.Tensor)):
             np_array = data.cpu().detach().numpy()
             np_array_content, np_array_content_len = file._to_byte(np_array)
@@ -443,14 +439,15 @@ class file(path):
                 import torch
                 data = file._read(fp)
                 data = torch.Tensor(data.copy())
-            except:
-                return None
+            except: return None
         elif len(data_type) == 0:
             return None
         return data
 
     @staticmethod
     def _read_numpy(fp: TextIO):
+        try: import numpy as np
+        except ImportError: return None
         total_length = file.pointer_length(fp)
         ss = file.streamstring(fp.read(total_length))
         shape = file._read(ss)
