@@ -1,19 +1,14 @@
-from functools import singledispatch, update_wrapper, wraps
+from functools import wraps
 from typing import Optional, List, Union
 from collections import Counter
-import torch
-import numpy as np
-from pyctlib.exceptionhandler import *
+from pyctlib.exception import *
 from pyctlib.override import override
 from types import GeneratorType
-
-def methoddispatch(func):
-    dispatcher = singledispatch(func)
-    def wrapper(*args, **kw):
-        return dispatcher.dispatch(args[1].__class__)(*args, **kw)
-    wrapper.register = dispatcher.register
-    update_wrapper(wrapper, func)
-    return wrapper
+try:
+    import torch
+    import numpy as np
+except ImportError:
+    pass
 
 class _Vector_Dict(dict):
 
@@ -38,7 +33,7 @@ class vector(list):
     def check_type(self, instance):
         return all(self.map(lambda x: isinstance(x, instance)))
 
-    @methoddispatch
+    @override
     def __mul__(self, other):
         if touch(lambda: self.check_type(tuple) and other.check_type(tuple)):
             return vector(zip(self, other)).map(lambda x: (*x[0], *x[1]))
@@ -49,11 +44,10 @@ class vector(list):
         else:
             return vector(zip(self, other))
 
-    @__mul__.register(int)
+    @__mul__
     def _(self, times: int):
         return vector(super().__mul__(times))
 
-    @methoddispatch
     def __pow__(self, other):
         return vector([(i, j) for i in self for j in other])
 
@@ -65,62 +59,62 @@ class vector(list):
             return element
         return func(element)
 
-    @methoddispatch
+    @override
     def __eq__(self, element):
         return self.map(lambda x: x == element)
 
-    @__eq__.register(list)
-    def _(self, other):
+    @__eq__
+    def _(self, other: list):
         return vector(zip(self, other)).map(lambda x: x[0] == x[1])
 
-    @methoddispatch
+    @override
     def __neq__(self, element):
         return self.map(lambda x: x != element)
 
-    @__neq__.register(list)
-    def _(self, other):
+    @__neq__
+    def _(self, other: list):
         return vector(zip(self, other)).map(lambda x: x[0] != x[1])
 
-    @methoddispatch
+    @override
     def __lt__(self, element):
         return self.map(lambda x: x < element)
 
-    @__lt__.register(list)
-    def _(self, other):
+    @__lt__
+    def _(self, other: list):
         return vector(zip(self, other)).map(lambda x: x[0] < x[1])
 
-    @methoddispatch
+    @override
     def __gt__(self, element):
         return self.map(lambda x: x > element)
 
-    @__gt__.register(list)
-    def _(self, other):
+    @__gt__
+    def _(self, other: list):
         return vector(zip(self, other)).map(lambda x: x[0] > x[1])
 
-    @methoddispatch
+    @override
     def __le__(self, element):
         return self.map(lambda x: x < element)
 
-    @__le__.register(list)
-    def _(self, other):
+    @__le__
+    def _(self, other: list):
         return vector(zip(self, other)).map(lambda x: x[0] <= x[1])
 
-    @methoddispatch
+    @override
     def __ge__(self, element):
         return self.map(lambda x: x >= element)
 
-    @__ge__.register(list)
-    def _(self, other):
+    @__ge__
+    def _(self, other: list):
         return vector(zip(self, other)).map(lambda x: x[0] >= x[1])
 
-    @methoddispatch
+    @override
     def __getitem__(self, index):
         if isinstance(index, slice):
             return vector(super().__getitem__(index))
         return super().__getitem__(index)
 
-    @__getitem__.register(list)
-    def _(self, index_list):
+    @__getitem__
+    def _(self, index_list: list):
         assert len(self) == len(index_list)
         return vector(zip(self, index_list)).filter(lambda x: x[1]).map(lambda x: x[0])
 
@@ -217,6 +211,9 @@ class vector(list):
     def flatten(self):
         return self.reduce(lambda x, y: x + y)
 
+    def generator(self):
+        return ctgenerator(self)
+
 def raw_function(func):
     if "__func__" in func.__dir__():
         return func.__func__
@@ -285,48 +282,3 @@ class ctgenerator:
 
     def vector(self):
         return vector(self)
-
-class moving_average:
-
-    def __init__(self, lam=0.99, recorded=False):
-        self._average = 0
-        self.n = 0
-        self._b = 0
-        self._d = 0
-        self.lam = lam
-        self._recorded=recorded
-        if recorded:
-            self.history = vector()
-
-    @methoddispatch
-    def update(self, x: float):
-        self._b = x + self._b * self.lam
-        self._d = 1 + self._d * self.lam
-        self._average = self._b / self._d
-        if self._recorded:
-            self.history.append(x)
-
-    @update.register(torch.Tensor)
-    def _(self, x):
-        self.update(x.item())
-
-    @update.register(np.ndarray)
-    def _(self, x):
-        self.update(x[0])
-
-    @property
-    def average(self):
-        return self._average
-
-    @average.setter
-    def average(self, x):
-        self.update(x)
-
-    def __str__(self):
-        return str(self.average)
-
-    def __repr__(self):
-        return str(self.average)
-
-    def __lshift__(self, x):
-        return self.update(x)
