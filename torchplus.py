@@ -1,4 +1,5 @@
-import torch
+try: import torch
+except ImportError: raise ImportError("'pyctlib.torchplus' cannot be used without dependency 'torch'.")
 import torch.nn as nn
 from pyctlib.basictype import vector
 from pyctlib.override import override
