@@ -23,3 +23,4 @@ class Tensor(torch.Tensor):
     def batch_size(self):
         if self.batch_dimension is None:
             raise ValueError("there is no dimension provided for this tensor")
+        return 
