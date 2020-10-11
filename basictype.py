@@ -3,6 +3,7 @@ from typing import Optional, List, Union
 from collections import Counter
 from pyctlib.exception import *
 from pyctlib.override import override
+from pyctlib.typehint import isatype
 from types import GeneratorType
 try:
     import torch
@@ -24,6 +25,12 @@ class vector(list):
         if func is None:
             return self
         return vector([a for a in self if func(a)])
+
+    def test(self, func):
+        return vector([a for a in self if test(lambda: func(a))])
+
+    def testnot(self, func):
+        return vector([a for a in self if not test(lambda: func(a))])
 
     def map(self, func=None):
         if func is None:
@@ -229,6 +236,17 @@ def generator_wrapper(*args, **kwargs):
     else:
         raise TypeError("function is not callable")
 
+class return_type_wrapper:
+
+    def __init__(self, _type):
+        self._type = _type
+
+    def __call__(self, func):
+        func = raw_function(func)
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return self._type(func(*args, **kwargs))
+        return wrapper
 
 class ctgenerator:
 
