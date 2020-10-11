@@ -272,7 +272,6 @@ class list_(Type, list):
         Type.__init__(self, list)
         list.__init__(self)
 List = list_()
-List = T(list)
 Bool = T(bool)
 Dict = T(dict)
 Float = T(float)
