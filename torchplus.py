@@ -7,9 +7,9 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Tensor(torch.Tensor):
 
-    def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls, *args, **kwargs).to(device)
-        self._batch_dimension = kwargs.get("with_batch", None)
+    def __new__(cls, data, dtype=None, device=None, requires_grad=False, batch_dimension=None):
+        self = super().__new__(cls, data, dtype=dtype, requires_grad=requires_grad).to(device)
+        self._batch_dimension = batch_dimension
         return self
 
     def __init__(self, *args, **kwargs):
@@ -24,3 +24,5 @@ class Tensor(torch.Tensor):
         if self.batch_dimension is None:
             raise ValueError("there is no dimension provided for this tensor")
         return self.shape[self.batch_dimension]
+
+x = torch.Tensor()
