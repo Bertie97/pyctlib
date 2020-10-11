@@ -248,43 +248,44 @@ class Type:
             return true
         return false
 
-def T(*types):
-    all_available_types = [x for x in types if isinstance(x, type)]
-    if len(all_available_types) > 1: all_available_types = all_available_types[:1]
-    try:
-        class defaults(Type, *all_available_types):
-            def __init__(self):
-                Type.__init__(self, *types)
-                if all_available_types:
-                    all_available_types
-        return defaults()
-    except TypeError: return Type(*types)
+# def T(*types):
+#     all_available_types = [x for x in types if isinstance(x, type)]
+#     if len(all_available_types) > 1: all_available_types = all_available_types[:1]
+#     try:
+#         class defaults(Type, *all_available_types):
+#             def __init__(self):
+#                 Type.__init__(self, *types)
+#                 if all_available_types:
+#                     all_available_types
+#         return defaults()
+#     except TypeError: return Type(*types)
 
-class int_(Type, int):
-    def __init__(self):
-        Type.__init__(self, int)
-        int.__init__(self)
-Int = int_()
-Str = T(str)
-Set = T(set)
-class list_(Type, list):
-    def __init__(self):
-        Type.__init__(self, list)
-        list.__init__(self)
-List = list_()
-Bool = T(bool)
-Dict = T(dict)
-Float = T(float)
-Tuple = T(tuple)
+Bool = Type(bool)
+class Int(int):
+    def __new__(cls): return Type(int) 
+class Float(float):
+    def __new__(cls): return Type(float)
+class Set(str):
+    def __new__(cls): return Type(str)
+class Set(set):
+    def __new__(cls): return Type(set)
+class List(list):
+    def __new__(cls): return Type(list)
+class Dict(dict):
+    def __new__(cls): return Type(dict)
+class Tuple(tuple):
+    def __new__(cls): return Type(tuple)
 
 Callable = callable
-Func = T(type(iterable))
-Method = T(type("".split), type(Int.__str__))
-Lambda = T(type(lambda: None))
-Null = T(None)
-Real = T([int, float])
-Iterable = T([list, tuple, dict, set])
+Func = Type(type(iterable))
+Method = Type(type(Bool.isextendable), type("".split), type(Int.__str__))
+Lambda = Type(type(lambda: None))
+class Real(float):
+    def __new__(cls): return Type(int, float)
+class Iterable(tuple):
+    def __new__(cls): return Type(list, tuple, dict, set)
 null = type(None)
+Null = Type(null)
 real = [int, float]
 
 def extendable(t): return type(t) == Type and t.isextendable()
