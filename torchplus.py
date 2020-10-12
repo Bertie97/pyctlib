@@ -26,32 +26,56 @@ def return_tensor_wrapper(func):
         return result
     return wrapper
 
+# def tofloat(x):
+#     if isinstance(x, Tensor):
+#         return x._float()
+#     if isinstance(x, torch.Tensor):
+#         return x.float()
+#     else:
+#         return x
+
+def totensor(x) -> 'Tensor':
+    if isinstance(x, Tensor):
+        return x
+    elif isinstance(x, torch.Tensor):
+        return x
+    elif isinstance(x, np.array):
+        return torch.tensor(x)
+    else:
+        x = np.array(x)
+        return torch.tensor(x)
+
 def tofloat(x):
+    # if x.dim() == 0:
+    #     x = torch.unsqueeze(x, 0)
     if isinstance(x, Tensor):
         return x._float()
-    if isinstance(x, torch.Tensor):
+    elif isinstance(x, torch.Tensor):
         return x.float()
-    else:
-        return x
 
-# class test(torch.Tensor):
-
-#     @staticmethod
-#     def __new__(cls, data):
-#         self = super().__new__(cls, device=None)
-#         self.data = data.data
-#         self.requires_grad = data.requires_grad
-#         return self
 
 class Tensor(torch.Tensor):
 
     wrapper = return_tensor_wrapper
 
-    def __new__(cls, data):
+    def __new__(cls, data, auto_device=True):
+        data = totensor(data)
+        if auto_device:
+            if isinstance(data, Tensor):
+                data = data._to(Device)
+            elif isinstance(data, torch.Tensor):
+                data = data.to(Device)
+        default_tensor_dtype = torch.get_default_dtype()
+        torch.set_default_tensor_type(torch.cuda.FloatTensor if data.is_cuda else torch.FloatTensor)
         if data.dim() == 0:
             data = torch.unsqueeze(data, 0)
-        self = torch.Tensor.__new__(cls, tofloat(data))
+        if data.is_leaf:
+            self = torch.Tensor.__new__(cls, tofloat(data.detach()))
+            self.requires_grad = data.requires_grad
+        else:
+            self = torch.Tensor.__new__(cls, tofloat(data))
         self.data = data.data
+        torch.set_default_tensor_type(default_tensor_type)
         return self
 
     # def __new__(cls, data, dtype=None, device=None, requires_grad=None, batch_dimension=None, auto_device=True):
