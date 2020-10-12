@@ -102,7 +102,7 @@ class Tensor(torch.Tensor):
             self = torch.Tensor.__new__(cls, tofloat(data))
         self.data = self.data.type(data.data.type())
         self._dim_zero = dim_zero
-        if dim_zero:
+        if dim_zero and data.grad_fn is not None:
             self.__grad_fn = GradWrapper(old_grad_fn.__class__.__name__, data.grad_fn)
         else:
             self.__grad_fn = data.grad_fn
