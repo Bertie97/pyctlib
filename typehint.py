@@ -122,7 +122,7 @@ class Type(type):
         if len([0 for t in _T if not isatype(t)]) > 0 or len(_T) <= 0:
             raise SyntaxError("Wrong parameter type. ")
         if len(_T) == 1 and type(_T[0]) == Type:
-            self.super().__new__(cls, _T[0].__name__, _T[0].__bases__, {})
+            self = super().__new__(cls, _T[0].__name__, _T[0].__bases__, {})
             self.copyfrom(_T[0])
         else:
             _T = Type.extractType(_T)
@@ -277,24 +277,31 @@ class Type(type):
             return true
         return false
 
-Bool = Type(bool)
-Int = Type(int)
-Float = Type(float)
-Str = Type(str)
-Set = Type(set)
-List = Type(list)
-Dict = Type(dict)
-Tuple = Type(tuple)
+def T(main_type, *args):
+    class Default_Type(Type):
+        def __call__(self, arg):
+            if super().__call__(arg): return main_type
+            else: return None
+    return Default_Type(main_type, *args)
+
+Bool = T(bool)
+Int = T(int)
+Float = T(float)
+Str = T(str)
+Set = T(set)
+List = T(list)
+Dict = T(dict)
+Tuple = T(tuple)
 
 
 Callable = callable
-Func = Type(type(iterable))
-Method = Type(type(Bool.isextendable), type("".split), type(Int.__str__))
-Lambda = Type(type(lambda: None))
-Real = Type(float, int)
-Iterable = Type(tuple, list, dict, set)
+Func = T(type(iterable))
+Method = T(type(Bool.isextendable), type("".split), type(Int.__str__))
+Lambda = T(type(lambda: None))
+Real = T(float, int)
+Iterable = T(tuple, list, dict, set)
 null = type(None)
-Null = Type(null)
+Null = T(null)
 real = [int, float]
 
 def extendable(t): return type(t) == Type and t.isextendable()
