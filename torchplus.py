@@ -85,6 +85,7 @@ class Tensor(torch.Tensor):
                 data = data.to(Device)
         default_tensor_type = Tensor.get_default_tensor_type()
         torch.set_default_tensor_type(torch.cuda.FloatTensor if data.is_cuda else torch.FloatTensor)
+        # __grad_fn = data.grad_fn
         if data.dim() == 0:
             data = torch.unsqueeze(data, 0)
             dim_zero = True
@@ -95,9 +96,12 @@ class Tensor(torch.Tensor):
             self.requires_grad = data.requires_grad
         else:
             self = torch.Tensor.__new__(cls, tofloat(data))
-        self.data = data.data
+        self.data = self.data.type(data.data.type())
         self._dim_zero = dim_zero
+        self.__grad_fn = data.grad_fn
         torch.set_default_tensor_type(default_tensor_type)
+        if requires_grad == True:
+            self.requires_grad_()
         return self
 
     # def __new__(cls, data, dtype=None, device=None, requires_grad=None, batch_dimension=None, auto_device=True):
@@ -8264,6 +8268,14 @@ class Tensor(torch.Tensor):
         if self._dim_zero:
             return torch.Size([])
         return super().shape
+
+    @property
+    def grad_fn(self):
+        return self.__grad_fn
+
+    # @property
+    # def dtype(self):
+    #     return self._dtype
 
 # import torch
 # x = torch.Tensor([1, 2, 3])
