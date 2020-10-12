@@ -1,5 +1,6 @@
 try:
     import torch
+    import numpy as np
 except ImportError:
     raise ImportError("'pyctlib.torchplus' cannot be used without dependency 'torch'.")
 import torch.nn as nn
@@ -16,6 +17,8 @@ def return_tensor_wrapper(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
+        if isinstance(result, Tensor):
+            pass
         if isinstance(result, torch.Tensor):
             result = Tensor(result)
         elif isinstance(result, tuple):
@@ -31,26 +34,54 @@ def tofloat(x):
     else:
         return x
 
+# class test(torch.Tensor):
+
+#     @staticmethod
+#     def __new__(cls, data):
+#         self = super().__new__(cls, device=None)
+#         self.data = data.data
+#         self.requires_grad = data.requires_grad
+#         return self
+
 class Tensor(torch.Tensor):
 
     wrapper = return_tensor_wrapper
 
-    def __new__(cls, data, dtype=None, device=None, requires_grad=False, batch_dimension=None, auto_device=True):
-        if dtype is None and isinstance(data, torch.Tensor):
-            dtype = data.type()
-        self = super().__new__(cls, tofloat(data))
-        if dtype is not None:
-            self = self._type(dtype)
-        if device is not None:
-            self = self._to(device) if isinstance(self, Tensor) else self.to(device)
-        elif auto_device:
-            self = self._to(Device) if isinstance(self, Tensor) else self.to(device)
-        self.requires_grad = requires_grad
-        self._auto_device=auto_device
-        self._batch_dimension = batch_dimension
+    def __new__(cls, data):
+        if data.dim() == 0:
+            data = torch.unsqueeze(data, 0)
+        self = torch.Tensor.__new__(cls, tofloat(data))
+        self.data = data.data
         return self
 
-    def __init__(self, *args, **kwargs):
+    # def __new__(cls, data, dtype=None, device=None, requires_grad=None, batch_dimension=None, auto_device=True):
+    #     if device is None:
+    #         if isinstance(data, Tensor):
+    #             device = data.device
+    #         elif auto_device:
+    #             device = Device
+    #         else:
+    #             device = torch.device("cpu")
+    #     if requires_grad is None:
+    #         if isinstance(data, torch.Tensor):
+    #             requires_grad = data.requires_grad
+    #         else:
+    #             requires_grad = False
+
+    #     self = super().__new__(cls, [])
+    #     if isinstance(data, torch.Tensor):
+    #         data = data.to(device)
+    #     else:
+    #         data = torch.tensor(data).to(device)
+    #     if dtype is not None:
+    #         data = data.type(dtype)
+    #     # print(data.grad_fn)
+    #     self.data = data.data  # cpu gpu
+    #     self.grad_fn_ = data.grad_fn
+    #     self.requires_grad = requires_grad
+    #     return self
+
+    def __init__(self, data, dtype=None, device=None, requires_grad=False, batch_dimension=None, auto_device=True):
         pass
 
     @property
@@ -65,6 +96,9 @@ class Tensor(torch.Tensor):
 
     def numpy(self: 'Tensor'):
         return self.cpu().detach().numpy()
+
+    def dim(self):
+        return super().dim()
 
     @property
     @return_tensor_wrapper
@@ -6810,7 +6844,7 @@ class Tensor(torch.Tensor):
         return super().sub_(other, alpha=alpha)
 
     @return_tensor_wrapper
-    def sum(self, dim=None, keepdim=False, dtype=None) -> 'Tensor':
+    def sum(self, *args, **kwargs) -> 'Tensor':
         """
         sum(input, dtype=None) -> Tensor
 
@@ -6865,7 +6899,7 @@ class Tensor(torch.Tensor):
             >>> torch.sum(b, (2, 1))
             tensor([  435.,  1335.,  2235.,  3135.])
         """
-        return super().sum(dim=dim, keepdim=keepdim, dtype=dtype)
+        return super().sum(*args, **kwargs)
 
     @return_tensor_wrapper
     def sum_to_size(self, *size) -> 'Tensor':
@@ -7768,30 +7802,6 @@ class Tensor(torch.Tensor):
         return super().coalesce(*args, **kwargs)
 
     @return_tensor_wrapper
-    def data(self, *args, **kwargs):
-        return super().data(*args, **kwargs)
-
-    @return_tensor_wrapper
-    def device(self, *args, **kwargs):
-        return super().device(*args, **kwargs)
-
-    @return_tensor_wrapper
-    def dtype(self, *args, **kwargs):
-        return super().dtype(*args, **kwargs)
-
-    @return_tensor_wrapper
-    def grad(self, *args, **kwargs):
-        return super().grad(*args, **kwargs)
-
-    @return_tensor_wrapper
-    def grad_fn(self, *args, **kwargs):
-        return super().grad_fn(*args, **kwargs)
-
-    @return_tensor_wrapper
-    def imag(self, *args, **kwargs):
-        return super().imag(*args, **kwargs)
-
-    @return_tensor_wrapper
     def is_coalesced(self, *args, **kwargs):
         return super().is_coalesced(*args, **kwargs)
 
@@ -7808,10 +7818,6 @@ class Tensor(torch.Tensor):
         return super().is_same_size(*args, **kwargs)
 
     @return_tensor_wrapper
-    def layout(self, *args, **kwargs):
-        return super().layout(*args, **kwargs)
-
-    @return_tensor_wrapper
     def log_softmax(self, *args, **kwargs):
         return super().log_softmax(*args, **kwargs)
 
@@ -7820,20 +7826,12 @@ class Tensor(torch.Tensor):
         return super().map2_(*args, **kwargs)
 
     @return_tensor_wrapper
-    def name(self, *args, **kwargs):
-        return super().name(*args, **kwargs)
-
-    @return_tensor_wrapper
     def new(self, *args, **kwargs):
         return super().new(*args, **kwargs)
 
     @return_tensor_wrapper
     def prelu(self, *args, **kwargs):
         return super().prelu(*args, **kwargs)
-
-    @return_tensor_wrapper
-    def real(self, *args, **kwargs):
-        return super().real(*args, **kwargs)
 
     @return_tensor_wrapper
     def reinforce(self, *args, **kwargs):
@@ -7854,10 +7852,6 @@ class Tensor(torch.Tensor):
     @return_tensor_wrapper
     def resize_as(self, *args, **kwargs):
         return super().resize_as(*args, **kwargs)
-
-    @return_tensor_wrapper
-    def shape(self, *args, **kwargs):
-        return super().shape(*args, **kwargs)
 
     @return_tensor_wrapper
     def smm(self, *args, **kwargs):
@@ -7886,6 +7880,334 @@ class Tensor(torch.Tensor):
     @return_tensor_wrapper
     def to_dense(self, *args, **kwargs):
         return super().to_dense(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __abs__(self, *args, **kwargs):
+        return super().__abs__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __add__(self, *args, **kwargs):
+        return super().__add__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __and__(self, *args, **kwargs):
+        return super().__and__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __array__(self, *args, **kwargs):
+        return super().__array__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __array_wrap__(self, *args, **kwargs):
+        return super().__array_wrap__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __bool__(self, *args, **kwargs):
+        return super().__bool__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __class__(self, *args, **kwargs):
+        return super().__class__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __contains__(self, *args, **kwargs):
+        return super().__contains__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __deepcopy__(self, *args, **kwargs):
+        return super().__deepcopy__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __delattr__(self, *args, **kwargs):
+        return super().__delattr__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __delitem__(self, *args, **kwargs):
+        return super().__delitem__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __dir__(self, *args, **kwargs):
+        return super().__dir__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __div__(self, *args, **kwargs):
+        return super().__div__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __eq__(self, *args, **kwargs):
+        return super().__eq__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __float__(self, *args, **kwargs):
+        return super().__float__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __floordiv__(self, *args, **kwargs):
+        return super().__floordiv__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __format__(self, *args, **kwargs):
+        return super().__format__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __ge__(self, *args, **kwargs):
+        return super().__ge__(*args, **kwargs)
+
+    # @return_tensor_wrapper
+    # def __getattribute__(self, *args, **kwargs):
+    #     return super().__getattribute__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __getitem__(self, *args, **kwargs):
+        return super().__getitem__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __gt__(self, *args, **kwargs):
+        return super().__gt__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __hash__(self, *args, **kwargs):
+        return super().__hash__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __iadd__(self, *args, **kwargs):
+        return super().__iadd__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __iand__(self, *args, **kwargs):
+        return super().__iand__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __idiv__(self, *args, **kwargs):
+        return super().__idiv__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __ifloordiv__(self, *args, **kwargs):
+        return super().__ifloordiv__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __ilshift__(self, *args, **kwargs):
+        return super().__ilshift__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __imul__(self, *args, **kwargs):
+        return super().__imul__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __index__(self, *args, **kwargs):
+        return super().__index__(*args, **kwargs)
+
+    # @return_tensor_wrapper
+    # def __init_subclass__(self, *args, **kwargs):
+    #     return super().__init_subclass__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __int__(self, *args, **kwargs):
+        return super().__int__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __invert__(self, *args, **kwargs):
+        return super().__invert__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __ior__(self, *args, **kwargs):
+        return super().__ior__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __ipow__(self, *args, **kwargs):
+        return super().__ipow__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __irshift__(self, *args, **kwargs):
+        return super().__irshift__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __isub__(self, *args, **kwargs):
+        return super().__isub__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __iter__(self, *args, **kwargs):
+        return super().__iter__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __itruediv__(self, *args, **kwargs):
+        return super().__itruediv__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __ixor__(self, *args, **kwargs):
+        return super().__ixor__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __le__(self, *args, **kwargs):
+        return super().__le__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __len__(self, *args, **kwargs):
+        return super().__len__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __long__(self, *args, **kwargs):
+        return super().__long__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __lshift__(self, *args, **kwargs):
+        return super().__lshift__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __lt__(self, *args, **kwargs):
+        return super().__lt__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __matmul__(self, *args, **kwargs):
+        return super().__matmul__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __mod__(self, *args, **kwargs):
+        return super().__mod__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __mul__(self, *args, **kwargs):
+        return super().__mul__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __ne__(self, *args, **kwargs):
+        return super().__ne__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __neg__(self, *args, **kwargs):
+        return super().__neg__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __nonzero__(self, *args, **kwargs):
+        return super().__nonzero__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __or__(self, *args, **kwargs):
+        return super().__or__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __pow__(self, *args, **kwargs):
+        return super().__pow__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __radd__(self, *args, **kwargs):
+        return super().__radd__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __rdiv__(self, *args, **kwargs):
+        return super().__rdiv__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __reduce__(self, *args, **kwargs):
+        return super().__reduce__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __reduce_ex__(self, *args, **kwargs):
+        return super().__reduce_ex__(*args, **kwargs)
+
+    # @return_tensor_wrapper
+    def __repr__(self, *args, **kwargs):
+        return super().__repr__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __reversed__(self, *args, **kwargs):
+        return super().__reversed__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __rfloordiv__(self, *args, **kwargs):
+        return super().__rfloordiv__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __rmul__(self, *args, **kwargs):
+        return super().__rmul__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __rpow__(self, *args, **kwargs):
+        return super().__rpow__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __rshift__(self, *args, **kwargs):
+        return super().__rshift__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __rsub__(self, *args, **kwargs):
+        return super().__rsub__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __rtruediv__(self, *args, **kwargs):
+        return super().__rtruediv__(*args, **kwargs)
+
+    # @return_tensor_wrapper
+    # def __setattr__(self, *args, **kwargs):
+    #     return super().__setattr__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __setitem__(self, *args, **kwargs):
+        return super().__setitem__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __setstate__(self, *args, **kwargs):
+        return super().__setstate__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __sizeof__(self, *args, **kwargs):
+        return super().__sizeof__(*args, **kwargs)
+
+    # @return_tensor_wrapper
+    def __str__(self, *args, **kwargs):
+        return super().__str__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __sub__(self, *args, **kwargs):
+        return super().__sub__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __subclasshook__(self, *args, **kwargs):
+        return super().__subclasshook__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __truediv__(self, *args, **kwargs):
+        return super().__truediv__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def __xor__(self, *args, **kwargs):
+        return super().__xor__(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _coalesced_(self, *args, **kwargs):
+        return super()._coalesced_(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _dimI(self, *args, **kwargs):
+        return super()._dimI(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _dimV(self, *args, **kwargs):
+        return super()._dimV(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _indices(self, *args, **kwargs):
+        return super()._indices(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _is_view(self, *args, **kwargs):
+        return super()._is_view(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _make_subclass(self, *args, **kwargs):
+        return super()._make_subclass(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _nnz(self, *args, **kwargs):
+        return super()._nnz(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _update_names(self, *args, **kwargs):
+        return super()._update_names(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def _values(self, *args, **kwargs):
+        return super()._values(*args, **kwargs)
 
 # import torch
 # x = torch.Tensor([1, 2, 3])
@@ -7942,7 +8264,8 @@ class Tensor(torch.Tensor):
 #         return True
 #     return False
 
-# p = vector(x.__dir__()).filter(lambda x: x[0] != "_")
+# p = vector(x.__dir__()).filter(lambda t: touch(lambda: callable(x.__getattribute__(t)))).filter(lambda x: x[0] != "_")
+# p_ = vector(x.__dir__()).filter(lambda t: touch(lambda: callable(x.__getattribute__(t)))).filter(lambda x: x[0] == "_")
 # error_p = p.filter(lambda x: getgooddoc(x)[1] == -1)
 # p = p.filter(lambda x: getgooddoc(x)[1] != -1)
 # rt_p = p.filter(returnTensor)
@@ -7968,7 +8291,7 @@ class Tensor(torch.Tensor):
 # f = file(path(".").abs() / "error_Torch.py")
 
 # content = vector()
-# for (d, r) in error_p.map(simple_def):
+# for (d, r) in p_.map(simple_def):
 #     content.append("@return_tensor_wrapper")
 #     content.append(d)
 #     content.append("    " + r.strip())

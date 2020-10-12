@@ -276,6 +276,7 @@ class Dict(dict):
 class Tuple(tuple):
     def __new__(cls): return Type(tuple)
 
+
 Callable = callable
 Func = Type(type(iterable))
 Method = Type(type(Bool.isextendable), type("".split), type(Int.__str__))
