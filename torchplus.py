@@ -39,10 +39,9 @@ def totensor(x) -> 'Tensor':
         return x
     elif isinstance(x, torch.Tensor):
         return x
-    elif isinstance(x, np.array):
+    elif isinstance(x, np.ndarray):
         return torch.tensor(x)
     else:
-        x = np.array(x)
         return torch.tensor(x)
 
 def tofloat(x):
@@ -53,6 +52,11 @@ def tofloat(x):
     elif isinstance(x, torch.Tensor):
         return x.float()
 
+class GradWrapper:
+    def __init__(self, name, gf): self.gf = gf; self.__class__.__name__ = name
+    def __str__(self): return "<{} object at {}>".format(self.__class__.__name__, '%x'%id(self.gf))
+    __repr__ = __str__
+    def __call__(self, *args, **kwargs): return self.gf(*args, **kwargs)
 
 class Tensor(torch.Tensor):
 
@@ -86,6 +90,7 @@ class Tensor(torch.Tensor):
         default_tensor_type = Tensor.get_default_tensor_type()
         torch.set_default_tensor_type(torch.cuda.FloatTensor if data.is_cuda else torch.FloatTensor)
         if data.dim() == 0:
+            old_grad_fn = data.old_grad_fn
             data = torch.unsqueeze(data, 0)
             dim_zero = True
         else:
@@ -95,37 +100,16 @@ class Tensor(torch.Tensor):
             self.requires_grad = data.requires_grad
         else:
             self = torch.Tensor.__new__(cls, tofloat(data))
-        self.data = data.data
+        self.data = self.data.type(data.data.type())
         self._dim_zero = dim_zero
+        if dim_zero:
+            self.__grad_fn = GradWrapper(old_grad_fn.__class__.__name__, data.grad_fn)
+        else:
+            self.__grad_fn = data.grad_fn
         torch.set_default_tensor_type(default_tensor_type)
+        if requires_grad == True:
+            self.requires_grad_()
         return self
-
-    # def __new__(cls, data, dtype=None, device=None, requires_grad=None, batch_dimension=None, auto_device=True):
-    #     if device is None:
-    #         if isinstance(data, Tensor):
-    #             device = data.device
-    #         elif auto_device:
-    #             device = Device
-    #         else:
-    #             device = torch.device("cpu")
-    #     if requires_grad is None:
-    #         if isinstance(data, torch.Tensor):
-    #             requires_grad = data.requires_grad
-    #         else:
-    #             requires_grad = False
-
-    #     self = super().__new__(cls, [])
-    #     if isinstance(data, torch.Tensor):
-    #         data = data.to(device)
-    #     else:
-    #         data = torch.tensor(data).to(device)
-    #     if dtype is not None:
-    #         data = data.type(dtype)
-    #     # print(data.grad_fn)
-    #     self.data = data.data  # cpu gpu
-    #     self.grad_fn_ = data.grad_fn
-    #     self.requires_grad = requires_grad
-    #     return self
 
     def __init__(self, data, dtype=None, device=None, requires_grad=False, batch_dimension=None, auto_device=True):
         pass
@@ -8264,6 +8248,14 @@ class Tensor(torch.Tensor):
         if self._dim_zero:
             return torch.Size([])
         return super().shape
+
+    @property
+    def grad_fn(self):
+        return self.__grad_fn
+
+    # @property
+    # def dtype(self):
+    #     return self._dtype
 
 # import torch
 # x = torch.Tensor([1, 2, 3])
