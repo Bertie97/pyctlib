@@ -97,6 +97,8 @@ class Tensor(torch.Tensor):
         else:
             self = torch.Tensor.__new__(cls, tofloat(data))
         self.data = self.data.type(data.data.type())
+        # if dim_zero:
+        #     self.data = self.data.view([])
         self._dim_zero = dim_zero
         self.__grad_fn = data.grad_fn
         torch.set_default_tensor_type(default_tensor_type)
