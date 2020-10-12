@@ -87,12 +87,16 @@ class Tensor(torch.Tensor):
         torch.set_default_tensor_type(torch.cuda.FloatTensor if data.is_cuda else torch.FloatTensor)
         if data.dim() == 0:
             data = torch.unsqueeze(data, 0)
+            dim_zero = True
+        else:
+            dim_zero = False
         if data.is_leaf:
             self = torch.Tensor.__new__(cls, tofloat(data.detach()))
             self.requires_grad = data.requires_grad
         else:
             self = torch.Tensor.__new__(cls, tofloat(data))
         self.data = data.data
+        self._dim_zero = dim_zero
         torch.set_default_tensor_type(default_tensor_type)
         return self
 
@@ -140,6 +144,8 @@ class Tensor(torch.Tensor):
         return self.cpu().detach().numpy()
 
     def dim(self):
+        if self._dim_zero:
+            return 0
         return super().dim()
 
     @property
@@ -8252,6 +8258,12 @@ class Tensor(torch.Tensor):
     @return_tensor_wrapper
     def _values(self, *args, **kwargs):
         return super()._values(*args, **kwargs)
+
+    @property
+    def shape(self):
+        if self._dim_zero:
+            return torch.Size([])
+        return super().shape
 
 # import torch
 # x = torch.Tensor([1, 2, 3])
