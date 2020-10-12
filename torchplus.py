@@ -104,33 +104,6 @@ class Tensor(torch.Tensor):
             self.requires_grad_()
         return self
 
-    # def __new__(cls, data, dtype=None, device=None, requires_grad=None, batch_dimension=None, auto_device=True):
-    #     if device is None:
-    #         if isinstance(data, Tensor):
-    #             device = data.device
-    #         elif auto_device:
-    #             device = Device
-    #         else:
-    #             device = torch.device("cpu")
-    #     if requires_grad is None:
-    #         if isinstance(data, torch.Tensor):
-    #             requires_grad = data.requires_grad
-    #         else:
-    #             requires_grad = False
-
-    #     self = super().__new__(cls, [])
-    #     if isinstance(data, torch.Tensor):
-    #         data = data.to(device)
-    #     else:
-    #         data = torch.tensor(data).to(device)
-    #     if dtype is not None:
-    #         data = data.type(dtype)
-    #     # print(data.grad_fn)
-    #     self.data = data.data  # cpu gpu
-    #     self.grad_fn_ = data.grad_fn
-    #     self.requires_grad = requires_grad
-    #     return self
-
     def __init__(self, data, dtype=None, device=None, requires_grad=False, batch_dimension=None, auto_device=True):
         pass
 
