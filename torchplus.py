@@ -90,7 +90,7 @@ class Tensor(torch.Tensor):
         default_tensor_type = Tensor.get_default_tensor_type()
         torch.set_default_tensor_type(torch.cuda.FloatTensor if data.is_cuda else torch.FloatTensor)
         if data.dim() == 0:
-            old_grad_fn = data.old_grad_fn
+            old_grad_fn = data.grad_fn
             data = torch.unsqueeze(data, 0)
             dim_zero = True
         else:
