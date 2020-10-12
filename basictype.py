@@ -1,9 +1,10 @@
-from functools import wraps
+
 from typing import Optional, List, Union
 from collections import Counter
 from pyctlib.exception import *
 from pyctlib.override import override
 from pyctlib.typehint import isatype
+from pyctlib.wrapper import *
 from types import GeneratorType
 try:
     import torch
@@ -220,11 +221,6 @@ class vector(list):
 
     def generator(self):
         return ctgenerator(self)
-
-def raw_function(func):
-    if "__func__" in func.__dir__():
-        return func.__func__
-    return func
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):

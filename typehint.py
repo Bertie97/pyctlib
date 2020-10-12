@@ -2,9 +2,15 @@
 #  -*- coding: utf-8 -*-
 
 import re, sys
-from functools import wraps
+from pyctlib.wrapper import *
 
 class TypeHintError(Exception): pass
+
+def inheritable(x):
+    try:
+        class tmp(x): pass
+        return True
+    except TypeError: return False
 
 def iterable(x):
     # Test types
@@ -54,6 +60,7 @@ def isoftype(x, xtype):
     if xtype == type: return isatype(x)
     if xtype is None: return True
     if isinstance(xtype, type):
+        if isinstance(xtype, Type): return xtype(x)
         if isinstance(x, xtype): return True
         return False
     if type(xtype) in (list, tuple, set):
@@ -65,6 +72,8 @@ def isoftype(x, xtype):
     return False
 
 def isclassmethod(x):
+    if not callable(x): return False
+    if '__qualname__' not in dir(x): return False
     p = x.__qualname__.split('.')
     if len(p) <= 1: return False
     try:
@@ -78,8 +87,8 @@ def listargs(*_T):
     Expand the args to arguments if they are in a list.
     '''
     if len(_T) == 1 and iterable(_T[0]): _T = _T[0]
+    @decorator
     def wrap(func):
-        @wraps(func)
         def wrapper(*args, **kwargs):
             if isclassmethod(func):
                 pre = args[:1]
@@ -97,7 +106,7 @@ def listargs(*_T):
         return wrapper
     return wrap
 
-class Type:
+class Type(type):
 
     @staticmethod
     def extractType(array):
@@ -109,25 +118,45 @@ class Type:
         return output
 
     @listargs(type)
-    def __init__(self, *_T, shape=tuple(), ext=False, itypes=None):
+    def __new__(cls, *_T, shape=tuple(), ext=False, itypes=None):
         if len([0 for t in _T if not isatype(t)]) > 0 or len(_T) <= 0:
             raise SyntaxError("Wrong parameter type. ")
-        self.inv = False
-        self.types = Type.extractType(_T)
-        self.shape = shape
-        self.extendable = ext
-        self.itemtypes = itypes
-        if len(_T) == 1 and type(_T[0]) == Type: self.copyfrom(_T[0])
+        if len(_T) == 1 and type(_T[0]) == Type:
+            self.super().__new__(cls, _T[0].__name__, _T[0].__bases__, {})
+            self.copyfrom(_T[0])
+        else:
+            _T = Type.extractType(_T)
+            tmpT = []
+            have_basic = False
+            for t in _T:
+                while True:
+                    if inheritable(t):
+                        if t.__bases__ and t.__bases__[0] == object:
+                            if have_basic: break
+                            else: have_basic = True
+                        if t in tmpT: break
+                        tmpT.append(t); break
+                    t = t.__bases__[0]
+            self = super().__new__(cls, cls.__name__ + '.' + Type.strT(*_T), tuple(tmpT), {})
+            self.inv = False
+            self.types = _T
+            self.shape = shape
+            self.extendable = ext
+            self.itemtypes = itypes
+        return self
+
+    def __init__(*args, **kwargs): pass
 
     @listargs(type)
-    def strT(self, *_T):
+    @staticmethod
+    def strT(*_T):
         mid = lambda x: x[1] if len(x) > 1 else x[0]
         rawname = lambda s: mid(str(s).split("'"))
         if isoftype(_T, (list, tuple, set)) and len(_T) > 1:
-            return '(' + ', '.join([self.strT(t) for t in _T]) + ')'
+            return '(' + ', '.join([Type.strT(t) for t in _T]) + ')'
         if iterable(_T) and len(_T) == 1 and isoftype(_T[0], dict): _T = _T[0]
         if isoftype(_T, dict):
-            return '{' + ', '.join([':'.join((self.strT(k), self.strT(v))) for k, v in _T.items()]) + '}'
+            return '{' + ', '.join([':'.join((Type.strT(k), Type.strT(v))) for k, v in _T.items()]) + '}'
         return rawname(_T[0])
 
     def isextendable(self): return self.extendable
@@ -186,13 +215,13 @@ class Type:
         string = '<'
         if len(self.shape) > 0:
             string += "extendable " if self.extendable else ''
-            string += self.strT(self.types)
+            string += Type.strT(self.types)
             string += str(list(self.shape))
-            if self.itemtypes != None: string += " of types " + self.strT(self.itemtypes)
+            if self.itemtypes != None: string += " of types " + Type.strT(self.itemtypes)
         else:
             string += "Extendable t" if self.extendable else 'T'
-            string += "ype " + ('' if len(self.types) == 1 else "in ") + self.strT(self.types)
-            if self.itemtypes != None: string += " of type " + self.strT(self.itemtypes)
+            string += "ype " + ('' if len(self.types) == 1 else "in ") + Type.strT(self.types)
+            if self.itemtypes != None: string += " of type " + Type.strT(self.itemtypes)
         string += '>'
         return string
 
@@ -248,42 +277,21 @@ class Type:
             return true
         return false
 
-# def T(*types):
-#     all_available_types = [x for x in types if isinstance(x, type)]
-#     if len(all_available_types) > 1: all_available_types = all_available_types[:1]
-#     try:
-#         class defaults(Type, *all_available_types):
-#             def __init__(self):
-#                 Type.__init__(self, *types)
-#                 if all_available_types:
-#                     all_available_types
-#         return defaults()
-#     except TypeError: return Type(*types)
-
 Bool = Type(bool)
-class Int(int):
-    def __new__(cls): return Type(int) 
-class Float(float):
-    def __new__(cls): return Type(float)
-class Str(str):
-    def __new__(cls): return Type(str)
-class Set(set):
-    def __new__(cls): return Type(set)
-class List(list):
-    def __new__(cls): return Type(list)
-class Dict(dict):
-    def __new__(cls): return Type(dict)
-class Tuple(tuple):
-    def __new__(cls): return Type(tuple)
+Int = Type(int)
+Float = Type(float)
+Str = Type(str)
+Set = Type(set)
+List = Type(list)
+Dict = Type(dict)
+Tuple = Type(tuple)
 
 Callable = callable
 Func = Type(type(iterable))
 Method = Type(type(Bool.isextendable), type("".split), type(Int.__str__))
 Lambda = Type(type(lambda: None))
-class Real(float):
-    def __new__(cls): return Type(int, float)
-class Iterable(tuple):
-    def __new__(cls): return Type(list, tuple, dict, set)
+Real = Type(float, int)
+Iterable = Type(tuple, list, dict, set)
 null = type(None)
 Null = Type(null)
 real = [int, float]
@@ -296,25 +304,31 @@ class strIO:
     def __str__(self): return self._str_
     def split(self, c=None): return self._str_.split(c)
 
-try:
-    def Numpy(x):
-        import numpy as np
-        return T(np.ndarray)(x)
-except ImportError: pass
-try:
-    def Torch(x):
-        import torch
-        return T(torch.Tensor)(x)
-except ImportError: pass
-try:
-    def TensorFlow(x):
-        ss = strIO()
-        olderr = sys.stderr
-        sys.stderr = ss
-        import tensorflow as tf
-        sys.stderr = olderr
-        return T(tf.Tensor)(x)
-except ImportError: pass
+class A:
+    @property
+    def Numpy(self):
+        try:
+            import numpy as np
+            return Type(np.ndarray)
+        except ImportError: pass
+
+    @property
+    def Torch(self):
+        try:
+            import torch
+            return Type(torch.Tensor)
+        except ImportError: pass
+
+    @property
+    def TensorFlow(self):
+        try:
+            ss = strIO()
+            olderr = sys.stderr
+            sys.stderr = ss
+            import tensorflow as tf
+            sys.stderr = olderr
+            return Type(tf.Tensor)
+        except ImportError: pass
 
 def getDeclaration(func):
     ss = strIO()
@@ -380,8 +394,8 @@ argument " + repr(var))
 def params(*types, **kwtypes):
     israw = len(kwtypes) == 0 and len(types) == 1 and \
             callable(types[0]) and not isatype(types[0])
+    @decorator
     def wrap(func):
-        @wraps(func)
         def wrapper(*args, **kwargs):
             dec = getDeclaration(func)
             eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", dec))

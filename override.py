@@ -10,13 +10,13 @@ def override(*arg):
     """
     if len(arg) == 1: arg = arg[0]
     if not iterable(arg):
-        func = arg.__func__ if '__func__' in dir(arg) else arg
+        func = raw_function(arg)
         if not callable(func): raise SyntaxError("Wrong usage of @override. ")
         class override_wrapper:
             def __init__(self, f): self.default = f; self.func_list = []
 
             def __call__(self, *args, **kwargs):
-                f = args[0].__func__ if '__func__' in dir(args[0]) else args[0]
+                f = raw_function(args[0])
                 if not kwargs and len(args) == 1 and callable(f):
                     if (f.__name__ == "_" or func.__name__ in f.__name__) and \
                         not isoftype(f, func.__annotations__.get(func.__code__.co_varnames[0], int)):
@@ -49,8 +49,8 @@ def override(*arg):
         return final_wrapper
     else:
         functionlist = arg
+        @decorator
         def wrap(func):
-            @wraps(func)
             def wrapper(*args, **kwargs):
                 for function in functionlist:
                     # print(function.__name__, args, kwargs)
