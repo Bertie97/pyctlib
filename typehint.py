@@ -265,7 +265,7 @@ class Int(int):
     def __new__(cls): return Type(int) 
 class Float(float):
     def __new__(cls): return Type(float)
-class Set(str):
+class Str(str):
     def __new__(cls): return Type(str)
 class Set(set):
     def __new__(cls): return Type(set)
