@@ -286,6 +286,7 @@ List = Type(list)
 Dict = Type(dict)
 Tuple = Type(tuple)
 
+
 Callable = callable
 Func = Type(type(iterable))
 Method = Type(type(Bool.isextendable), type("".split), type(Int.__str__))
