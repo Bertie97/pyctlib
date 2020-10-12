@@ -109,6 +109,13 @@ class Tensor(torch.Tensor):
         torch.set_default_tensor_type(default_tensor_type)
         if requires_grad == True:
             self.requires_grad_()
+
+        # Wrong Inplement: looks find but can not backpropograte
+        # self = torch.Tensor.__new__(cls, device=data.device)
+        # self.data = data.data
+        # self.__grad_fn = data.grad_fn
+        # self.requires_grad = data.requires_grad
+
         return self
 
     def __init__(self, data, dtype=None, device=None, requires_grad=False, batch_dimension=None, auto_device=True):
