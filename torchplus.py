@@ -58,6 +58,24 @@ class Tensor(torch.Tensor):
 
     wrapper = return_tensor_wrapper
 
+    @staticmethod
+    def get_default_tensor_type():
+        default_dtype = torch.get_default_dtype()
+        if torch.Tensor(1).is_cuda:
+            if default_dtype == torch.float32:
+                return torch.cuda.FloatTensor
+            if default_dtype == torch.float64:
+                return torch.cuda.DoubleTensor
+            if default_dtype == torch.float16:
+                return torch.cuda.ShortTensor
+        else:
+            if default_dtype == torch.float32:
+                return torch.FloatTensor
+            if default_dtype == torch.float64:
+                return torch.DoubleTensor
+            if default_dtype == torch.float16:
+                return torch.ShortTensor
+
     def __new__(cls, data, auto_device=True):
         data = totensor(data)
         if auto_device:
@@ -65,7 +83,7 @@ class Tensor(torch.Tensor):
                 data = data._to(Device)
             elif isinstance(data, torch.Tensor):
                 data = data.to(Device)
-        default_tensor_dtype = torch.get_default_dtype()
+        default_tensor_type = Tensor.get_default_tensor_type()
         torch.set_default_tensor_type(torch.cuda.FloatTensor if data.is_cuda else torch.FloatTensor)
         if data.dim() == 0:
             data = torch.unsqueeze(data, 0)
