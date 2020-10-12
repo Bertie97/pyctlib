@@ -76,7 +76,7 @@ class Tensor(torch.Tensor):
             if default_dtype == torch.float16:
                 return torch.ShortTensor
 
-    def __new__(cls, data, auto_device=True):
+    def __new__(cls, data, auto_device=True, requires_grad=None):
         data = totensor(data)
         if auto_device:
             if isinstance(data, Tensor):
@@ -6792,6 +6792,8 @@ class Tensor(torch.Tensor):
             >>> y.size()
             torch.Size([2, 2, 1, 2])
         """
+        if dim is None:
+            return super().squeeze()
         return super().squeeze(dim=dim)
 
     @return_tensor_wrapper
