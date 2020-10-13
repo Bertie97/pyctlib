@@ -1,10 +1,13 @@
 #! python3 -u
 #  -*- coding: utf-8 -*-
 
-import re, sys
+import re
 from pyctlib.wrapper import *
 
 class TypeHintError(Exception): pass
+
+mid = lambda x: x[1] if len(x) > 1 else x[0]
+rawname = lambda s: mid(str(s).split("'"))
 
 def inheritable(x):
     try:
@@ -87,6 +90,21 @@ def isclassmethod(x):
         else: return False
     except: return False
 
+class strIO:
+    def __init__(self): self._str_ = ''
+    def write(self, s): self._str_ += s
+    def __str__(self): return self._str_
+    def split(self, c=None): return self._str_.split(c)
+
+def getDeclaration(func):
+    ss = strIO()
+    oldout = sys.stdout
+    sys.stdout = ss
+    help(func)
+    sys.stdout = oldout
+    dec = [l for l in ss.split('\n') if len(l) > 0 and 'Help' not in l][0].replace("def ", '').strip().strip(':')
+    return dec[dec.index('('):]
+
 def listargs(*_T):
     '''
     Expand the args to arguments if they are in a list.
@@ -155,8 +173,6 @@ class Type(type):
     @listargs(type)
     @staticmethod
     def strT(*_T):
-        mid = lambda x: x[1] if len(x) > 1 else x[0]
-        rawname = lambda s: mid(str(s).split("'"))
         if isoftype(_T, (list, tuple, set)) and len(_T) > 1:
             return '(' + ', '.join([Type.strT(t) for t in _T]) + ')'
         if iterable(_T) and len(_T) == 1 and isoftype(_T[0], dict): _T = _T[0]
@@ -267,7 +283,6 @@ class Type(type):
                     for x, xt in zip(arg, self.itemtypes):
                         if not isoftype(x, xt): return false
                 elif isarray(arg):
-                    rawname = lambda s: mid(str(s).split("'"))
                     dname = lambda dt: re.findall(r'\b\w+\b', repr(dt))[-1]
                     if not iterable(self.itemtypes): itypes = [self.itemtypes]
                     else: itypes = self.itemtypes
@@ -288,6 +303,8 @@ def T(main_type, *args):
         def __call__(self, arg):
             if super().__call__(arg): return main_type
             else: return None
+        def __str__(self): return f"<Type '{rawname(self.types[0]).capitalize()}''>"
+        __repr__ = __str__
     return Default_Type(main_type, *args)
 
 Bool = T(bool)
@@ -311,12 +328,6 @@ Null = T(null)
 real = [int, float]
 
 def extendable(t): return type(t) == Type and t.isextendable()
-
-class strIO:
-    def __init__(self): self._str_ = ''
-    def write(self, s): self._str_ += s
-    def __str__(self): return self._str_
-    def split(self, c=None): return self._str_.split(c)
 
 class ArrayType:
     @property
@@ -345,14 +356,6 @@ class ArrayType:
         except ImportError: pass
 
 A = ArrayType()
-
-def getDeclaration(func):
-    ss = strIO()
-    oldout = sys.stdout
-    sys.stdout = ss
-    help(func)
-    sys.stdout = oldout
-    return [l for l in ss.split('\n') if len(l) > 0 and 'Help' not in l][0]
 
 def getArgs(func, *args, **kwargs):
     getTypes = False
@@ -403,7 +406,7 @@ argument " + repr(var))
     if len(kwargs) > 0: raise TypeHintError(func.__name__ + "() got an unexpected " + 
         "keyword argument " + repr(list(kwargs.keys())[0]))
     if len(inputargs) > 0: raise TypeHintError(func.__name__ +
-        "() takes from {lower} to {upper} positional arguments but {real} were given)"
+        "() takes from {lower} to {upper} positional arguments but {real} were given. "
         .format(lower=-rg[0], upper=rg[1] - rg[0], real=len(inputargs) + rg[1] - rg[0]))
     return allargs
 
@@ -413,14 +416,14 @@ def params(*types, **kwtypes):
             callable(types[0]) and not isatype(types[0])
     @decorator
     def wrap(func):
+        org_dec = getDeclaration(func)
+        if isclassmethod(func): alltypes = (None,) + types
+        else: alltypes = types
+        if israw: annotations = func.__annotations__
+        else: annotations = getArgs(func, *alltypes, **kwtypes, __type__=True)
         def wrapper(*args, **kwargs):
-            dec = getDeclaration(func)
-            eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", dec))
-            ekwargs = ''.join(re.findall(r"[^*]\*{2} *(\w+)\b", dec))
-            if isclassmethod(func): alltypes = (None,) + types
-            else: alltypes = types
-            if israw: annotations = func.__annotations__
-            else: annotations = getArgs(func, *alltypes, **kwtypes, __type__=True)
+            eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", org_dec))
+            ekwargs = ''.join(re.findall(r"[^*]\*{2} *(\w+)\b", org_dec))
             values = getArgs(func, *args, **kwargs)
             if ekwargs:
                 assert ekwargs in values
@@ -456,6 +459,28 @@ def params(*types, **kwtypes):
                 raise TypeHintError(func.__name__ + "() returns an invalid value.")
             raise TypeHintError(func.__name__ + "() has argument " + arg + " of wrong type. \
 Expect type {type} but get {value}.".format(type=repr(annotations[arg]), value=repr(values[arg])))
+        org_dec = getDeclaration(func)
+        if not func.__doc__ or org_dec not in func.__doc__:
+            more_doc = '\n\n' + func.__doc__ if func.__doc__ else ''
+            dec = org_dec
+            for arg in annotations:
+                if arg == 'return':
+                    dec = dec[:dec.rindex(')')] + f") -> {rawname(annotations[arg])}"
+                    continue
+                res = re.search(rf"\b{arg}\b", dec)
+                if res:
+                    idx = res.span()[0]
+                    pairs = {')': '(', '}': '{', ']': '['}
+                    count = {}
+                    for i in range(idx, len(dec)):
+                        if dec[i] in pairs:
+                            if count.get(pairs[dec[i]], 0) <= 0: break
+                            count[pairs[dec[i]]] -= 1; continue
+                        if dec[i] in "'\"" and dec[i] in count and count[dec[i]] > 0: count[dec[i]] -= 1; continue
+                        if dec[i] in "({['\"": count[dec[i]] = count.get(dec[i], 0) + 1; continue
+                        if dec[i] == ',' and max(count.values()) == 0: break
+                    dec = dec[:idx] + f"{arg}:{rawname(annotations[arg])}" + dec[i:]
+            func.__doc__ = '\n'.join([org_dec, dec]) + more_doc
         return wrapper
     if israw: return wrap(types[0])
     else: return wrap
