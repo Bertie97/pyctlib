@@ -8270,7 +8270,15 @@ class Tensor(torch.Tensor):
 
     @return_tensor_wrapper
     def __sub__(self, *args, **kwargs):
-        return super().__sub__(*args, **kwargs)
+        if isinstance(other, torch.Tensor):
+            other = Tensor(other)
+            if self.dim() == other.dim():
+                return super().__sub__(other)
+            elif self.dim() < other.dim():
+                return self.expand_as(other).__sub__(other)
+            else:
+                return super().__sub__(other.expand_as(self))
+        return super().__sub__(other)
 
     @return_tensor_wrapper
     def __subclasshook__(self, *args, **kwargs):
