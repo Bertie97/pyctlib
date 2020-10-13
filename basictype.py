@@ -12,6 +12,10 @@ try:
 except ImportError:
     pass
 
+"""
+from pyctlib.basictype import *
+"""
+
 class _Vector_Dict(dict):
 
     def values(self):
@@ -25,7 +29,13 @@ class vector(list):
     def filter(self, func=None):
         if func is None:
             return self
-        return vector([a for a in self if func(a)])
+        try:
+            return vector([a for a in self if func(a)])
+        except:
+            pass
+        for index, a in enumerate(self):
+            if not test(lambda: func(a)):
+                raise RuntimeError("Exception raised in filter function at location {} for element {}".format(index, a))
 
     def test(self, func):
         return vector([a for a in self if test(lambda: func(a))])
@@ -36,7 +46,13 @@ class vector(list):
     def map(self, func=None):
         if func is None:
             return self
-        return vector([func(a) for a in self])
+        try:
+            return vector([func(a) for a in self])
+        except:
+            pass
+        for index, a in enumerate(self):
+            if not test(lambda: func(a)):
+                raise RuntimeError("Exception raised in map function at location {} for element {}".format(index, a))
 
     def check_type(self, instance):
         return all(self.map(lambda x: isinstance(x, instance)))
@@ -179,15 +195,6 @@ class vector(list):
                 pushfunc(x)
         return vector(unique_elements)
 
-    # def count(self, descend=True):
-    #     if len(self) == 0:
-    #         return vector([])
-    #     counter = Counter(self)
-    #     count_vector = vector(counter.items())
-    #     count_vector.sort(key=lambda x: x[1])
-    #     if descend:
-    #         return count_vector[::-1]
-    #     return count_vector
     def count(self, *args):
         if len(args) == 0:
             return len(self)
@@ -204,6 +211,18 @@ class vector(list):
             return i
         except Exception as e:
             return -1
+
+    def all(self, func=lambda x: x):
+        for t in self:
+            if not func(t):
+                return False
+        return True
+
+    def any(self, func=lambda x: x):
+        for t in self:
+            if func(t):
+                return True
+        return False
 
     def max(self, key=None):
         if len(self) == 0:
