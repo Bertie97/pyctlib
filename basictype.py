@@ -44,6 +44,9 @@ class vector(list):
         return vector([a for a in self if not test(lambda: func(a))])
 
     def map(self, func=None):
+        """
+        generate a new vector with each element x are replaced with func(x)
+        """
         if func is None:
             return self
         try:
