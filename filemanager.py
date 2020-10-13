@@ -562,7 +562,9 @@ class file(path):
         self.close()
 
     def clear(self):
-        open(self, "w")
+        with open(self, "w"):
+            pass
+        self.fp = None
 
     def read(self, length=-1, tag="b"):
         if self.fp is not None:

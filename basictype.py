@@ -3,7 +3,7 @@ from typing import Optional, List, Union
 from collections import Counter
 from pyctlib.exception import *
 from pyctlib.override import override
-from pyctlib.typehint import isatype
+from pyctlib.typehint import isatype, iterable
 from pyctlib.wrapper import *
 from types import GeneratorType
 try:
@@ -11,6 +11,10 @@ try:
     import numpy as np
 except ImportError:
     pass
+
+"""
+from pyctlib.basictype import *
+"""
 
 class _Vector_Dict(dict):
 
@@ -25,7 +29,13 @@ class vector(list):
     def filter(self, func=None):
         if func is None:
             return self
-        return vector([a for a in self if func(a)])
+        try:
+            return vector([a for a in self if func(a)])
+        except:
+            pass
+        for index, a in enumerate(self):
+            if not test(lambda: func(a)):
+                raise RuntimeError("Exception raised in filter function at location {} for element {}".format(index, a))
 
     def test(self, func):
         return vector([a for a in self if test(lambda: func(a))])
@@ -36,7 +46,13 @@ class vector(list):
     def map(self, func=None):
         if func is None:
             return self
-        return vector([func(a) for a in self])
+        try:
+            return vector([func(a) for a in self])
+        except:
+            pass
+        for index, a in enumerate(self):
+            if not test(lambda: func(a)):
+                raise RuntimeError("Exception raised in map function at location {} for element {}".format(index, a))
 
     def check_type(self, instance):
         return all(self.map(lambda x: isinstance(x, instance)))
@@ -126,6 +142,37 @@ class vector(list):
         assert len(self) == len(index_list)
         return vector(zip(self, index_list)).filter(lambda x: x[1]).map(lambda x: x[0])
 
+    def __setitem__(self, i, t):
+        if isinstance(i, int):
+            super().__setitem__(i, t)
+        elif isinstance(i, slice):
+            super().__setitem__(i, t)
+        elif isinstance(i, list):
+            if all([isinstance(index, bool) for index in i]):
+                if iterable(t):
+                    p_index = 0
+                    for value in t:
+                        while i[p_index] == False:
+                            p_index += 1
+                        super().__setitem__(p_index, value)
+                else:
+                    for index in range(len(self)):
+                        if i[index] == True:
+                            super().__setitem__(index, t)
+            elif all([isinstance(index, int) for index in i]):
+                if iterable(t):
+                    p_index = 0
+                    for p_index, value in enumerate(t):
+                        super().__setitem__(i[p_index], value)
+                else:
+                    for index in i:
+                        super().__setitem__(index, t)
+            else:
+                raise TypeError("only support the following usages: \n [int] = \n [slice] = \n [list] = ")
+        else:
+            raise TypeError("only support the following usages: \n [int] = \n [slice] = \n [list] = ")
+
+
     def _hashable(self):
         return all(self.filter(lambda x: "__hash__" in x.__dir__()))
 
@@ -148,15 +195,10 @@ class vector(list):
                 pushfunc(x)
         return vector(unique_elements)
 
-    def count(self, descend=True):
-        if len(self) == 0:
-            return vector([])
-        counter = Counter(self)
-        count_vector = vector(counter.items())
-        count_vector.sort(key=lambda x: x[1])
-        if descend:
-            return count_vector[::-1]
-        return count_vector
+    def count(self, *args):
+        if len(args) == 0:
+            return len(self)
+        return super().count(args[0])
 
     def index(self, element):
         try:
@@ -169,6 +211,18 @@ class vector(list):
             return i
         except Exception as e:
             return -1
+
+    def all(self, func=lambda x: x):
+        for t in self:
+            if not func(t):
+                return False
+        return True
+
+    def any(self, func=lambda x: x):
+        for t in self:
+            if func(t):
+                return True
+        return False
 
     def max(self, key=None):
         if len(self) == 0:

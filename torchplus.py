@@ -9,6 +9,11 @@ from functools import wraps
 from pyctlib.override import override
 from pyctlib.exception import *
 from typing import Union, Tuple
+from pyctlib.typehint import iterable
+"""
+from pyctlib.torchplus import Tensor
+import pyctlib.torchplus as torchplus
+"""
 
 Device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -31,6 +36,32 @@ def return_tensor_wrapper(*args_out):
         return lambda func: output_wrapper(func, args_out[0])
     else:
         return output_wrapper(args_out[0])
+
+def _replace_key_with_sequence(original, sequence, key=-1):
+    sequence = list(sequence)
+    assert original.count(key) == len(sequence)
+    result = list()
+    index = 0
+    for t in original:
+        if t == key:
+            result.append(sequence[index])
+            index += 1
+        else:
+            result.append(t)
+    return original.__class__(result)
+
+def _replace_sequence_with_key(original, sequence, key=-1):
+    sequence = list(sequence)
+    result = list()
+    index = 0
+    for t in original:
+        if index < len(sequence) and t == sequence[index]:
+            result.append(key)
+            index += 1
+        else:
+            result.append(t)
+    assert index == len(sequence)
+    return original.__class__(result)
 
 def totensor(x) -> 'Tensor':
     if isinstance(x, Tensor):
@@ -79,6 +110,12 @@ class Tensor(torch.Tensor):
                 return torch.ShortTensor
 
     def __new__(cls, data, auto_device=True, requires_grad=None):
+        if isinstance(data, Tensor):
+            if auto_device:
+                data._to(Device)
+            if requires_grad is not None:
+                data.requires_grad = requires_grad
+            return data
         data = totensor(data)
         if auto_device:
             if isinstance(data, Tensor):
@@ -107,6 +144,7 @@ class Tensor(torch.Tensor):
         torch.set_default_tensor_type(default_tensor_type)
         if requires_grad == True:
             self.requires_grad_()
+        self._batch_dimension = None
 
         # Wrong Inplement: looks find but can not backpropograte
         # self = torch.Tensor.__new__(cls, device=data.device)
@@ -2745,7 +2783,7 @@ class Tensor(torch.Tensor):
         return super().exp_()
 
     @return_tensor_wrapper
-    def expand(self, *sizes) -> 'Tensor':
+    def expand(self, *sizes, strict: bool=False) -> 'Tensor':
         """
         expand(*sizes) -> Tensor
 
@@ -2789,7 +2827,22 @@ class Tensor(torch.Tensor):
                     [ 2,  2,  2,  2],
                     [ 3,  3,  3,  3]])
         """
-        return super().expand(*sizes)
+        if strict:
+            return super().expand(*sizes)
+        if len(sizes) == 1 and iterable(sizes[0]):
+            sizes = tuple(sizes[0])
+
+        assert len(sizes) >= self.dim()
+        assert 0 not in sizes
+
+        if len(sizes) == self.dim():
+            return super().expand(*sizes)
+        if sizes.count(-1) == self.dim():
+            new_dim = _replace_key_with_sequence(tuple(1 if x > 0 else -1 for x in sizes), self.shape)
+            return self.view(*new_dim).expand(*sizes)
+        if sizes.count(-1) == 0:
+            return self.expand(*_replace_sequence_with_key(sizes, self.shape))
+        return self.expand(sizes)
 
     @return_tensor_wrapper
     def expand_as(self, other) -> 'Tensor':
@@ -2805,7 +2858,7 @@ class Tensor(torch.Tensor):
             other (:class:`torch.Tensor`): The result tensor has the same size
                 as :attr:`other`.
         """
-        return super().expand_as(other)
+        return self.expand(other.shape)
 
     @return_tensor_wrapper
     def expm1(self) -> 'Tensor':
@@ -7925,8 +7978,16 @@ class Tensor(torch.Tensor):
         return super().__abs__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __add__(self, *args, **kwargs):
-        return super().__add__(*args, **kwargs)
+    def __add__(self, other):
+        if isinstance(other, torch.Tensor):
+            other = Tensor(other)
+            if self.dim() == other.dim():
+                return super().__add__(other)
+            elif self.dim() < other.dim():
+                return self.expand_as(other).__add__(other)
+            else:
+                return super().__add__(other.expand_as(self))
+        return super().__add__(other)
 
     @return_tensor_wrapper
     def __and__(self, *args, **kwargs):
@@ -8108,8 +8169,16 @@ class Tensor(torch.Tensor):
         return super().__mod__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __mul__(self, *args, **kwargs):
-        return super().__mul__(*args, **kwargs)
+    def __mul__(self, other):
+        if isinstance(other, torch.Tensor):
+            other = Tensor(other)
+            if self.dim() == other.dim():
+                return super().__mul__(other)
+            elif self.dim() < other.dim():
+                return self.expand_as(other).__mul__(other)
+            else:
+                return super().__mul__(other.expand_as(self))
+        return super().__mul__(other)
 
     @return_tensor_wrapper
     def __ne__(self, *args, **kwargs):
@@ -8201,7 +8270,15 @@ class Tensor(torch.Tensor):
 
     @return_tensor_wrapper
     def __sub__(self, *args, **kwargs):
-        return super().__sub__(*args, **kwargs)
+        if isinstance(other, torch.Tensor):
+            other = Tensor(other)
+            if self.dim() == other.dim():
+                return super().__sub__(other)
+            elif self.dim() < other.dim():
+                return self.expand_as(other).__sub__(other)
+            else:
+                return super().__sub__(other.expand_as(self))
+        return super().__sub__(other)
 
     @return_tensor_wrapper
     def __subclasshook__(self, *args, **kwargs):
@@ -8250,6 +8327,10 @@ class Tensor(torch.Tensor):
     @return_tensor_wrapper
     def _values(self, *args, **kwargs):
         return super()._values(*args, **kwargs)
+
+    @return_tensor_wrapper
+    def norm(self, *args, **kwargs):
+        return super().norm(*args, **kwargs)
 
     @property
     def shape(self):
