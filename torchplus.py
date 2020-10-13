@@ -12,27 +12,25 @@ from typing import Union, Tuple
 
 Device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def return_tensor_wrapper(func):
-    func = raw_function(func)
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        result = func(*args, **kwargs)
-        if isinstance(result, Tensor):
-            pass
-        if isinstance(result, torch.Tensor):
-            result = Tensor(result)
-        elif isinstance(result, tuple):
-            result = tuple(Tensor(x) if isinstance(x, Tensor) else x for x in result)
-        return result
-    return wrapper
+def return_tensor_wrapper(*args_out):
+    def output_wrapper(func, auto_device=True):
+        func = raw_function(func)
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            if isinstance(result, Tensor):
+                pass
+            elif isinstance(result, torch.Tensor):
+                result = Tensor(result, auto_device=auto_device)
+            elif isinstance(result, tuple):
+                result = tuple(Tensor(x) if isinstance(x, Tensor) else x for x in result)
+            return result
+        return wrapper
 
-# def tofloat(x):
-#     if isinstance(x, Tensor):
-#         return x._float()
-#     if isinstance(x, torch.Tensor):
-#         return x.float()
-#     else:
-#         return x
+    if len(args_out) == 1 and (args_out[0] == True or args_out[0] == False):
+        return lambda func: output_wrapper(func, args_out[0])
+    else:
+        return output_wrapper(args_out[0])
 
 def totensor(x) -> 'Tensor':
     if isinstance(x, Tensor):
@@ -102,7 +100,7 @@ class Tensor(torch.Tensor):
             self = torch.Tensor.__new__(cls, tofloat(data))
         self.data = self.data.type(data.data.type())
         self._dim_zero = dim_zero
-        if dim_zero:
+        if dim_zero and data.grad_fn is not None:
             self.__grad_fn = GradWrapper(old_grad_fn.__class__.__name__, data.grad_fn)
         else:
             self.__grad_fn = data.grad_fn
@@ -118,7 +116,7 @@ class Tensor(torch.Tensor):
 
         return self
 
-    def __init__(self, data, dtype=None, device=None, requires_grad=False, batch_dimension=None, auto_device=True):
+    def __init__(self, data, auto_device=True, requires_grad=None):
         pass
 
     @property
@@ -8148,7 +8146,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __repr__(self, *args, **kwargs):
-        return super().__repr__(*args, **kwargs)
+        return super().__repr__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __reversed__(self, *args, **kwargs):
@@ -8196,7 +8194,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __str__(self, *args, **kwargs):
-        return super().__str__(*args, **kwargs)
+        return super().__str__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __sub__(self, *args, **kwargs):
@@ -8259,6 +8257,15 @@ class Tensor(torch.Tensor):
     @property
     def grad_fn(self):
         return self.__grad_fn
+
+__all__ = ["Tensor", "return_tensor_wrapper", "tofloat", "totensor"]
+template = "@return_tensor_wrapper\ndef {key}(*args): return torch.{key}(*args)"
+for key in dir(torch):
+    if key.startswith("_"):
+        continue
+    if key not in ['torch', "Tensor"] + __all__:
+        exec(template.format(key = key))
+
 
     # @property
     # def dtype(self):
