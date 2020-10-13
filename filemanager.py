@@ -11,6 +11,7 @@ from pyctlib.exception import touch
 from pyctlib.basictype import vector, generator_wrapper
 from pyctlib.override import override
 from typing import TextIO
+import numpy as np
 
 def totuple(num):
     if isinstance(num, str): return (num,)
@@ -236,8 +237,9 @@ class file(path):
     Tuple = b'\x06'
     Dict = b'\x07'
     Set = b'\x08'
-    Tensor = b'\x09'
-    Vector = b'\x0A'
+    torch_Tensor = b'\x09'
+    Tensor_plus = b'\x0A'
+    Vector = b'\x0B'
 
     class streamstring:
 
@@ -301,14 +303,21 @@ class file(path):
     @override
     @staticmethod
     def _to_byte(data):
-        print("default")
-        try: import torch
+        # print("default")
+        try:
+            import torch
+            import pyctlib.torchplus as torchplus
         except ImportError: pass
+        if touch(lambda: isinstance(data, torchplus.Tensor)):
+            np_array = data.cpu().detach().numpy()
+            np_array_content, np_array_content_len = file._to_byte(np_array)
+            assert len(np_array_content) == np_array_content_len
+            return file.Tensor_plus + np_array_content, np_array_content_len + 1
         if touch(lambda: isinstance(data, torch.Tensor)):
             np_array = data.cpu().detach().numpy()
             np_array_content, np_array_content_len = file._to_byte(np_array)
             assert len(np_array_content) == np_array_content_len
-            return file.Tensor + np_array_content, np_array_content_len + 1
+            return file.torch_Tensor + np_array_content, np_array_content_len + 1
 
     @_to_byte
     @staticmethod
@@ -373,7 +382,7 @@ class file(path):
 
     @_to_byte
     @staticmethod
-    def _(data: 'np.ndarray'):
+    def _(data: np.ndarray):
         content = data.tobytes()
         shape = data.shape
         dtype = str(data.dtype)
@@ -402,9 +411,9 @@ class file(path):
     def __lshift__(self, data):
         if self.fp is None:
             with open(self, "ab") as _output:
-                _output.write(self._to_byte(data)[0])
+                _output.write(file._to_byte(data)[0])
         else:
-            self.fp.write(self._to_byte(data)[0])
+            self.fp.write(file._to_byte(data)[0])
         return self
 
     @staticmethod
@@ -434,11 +443,17 @@ class file(path):
             data = {x: y for x, y in zip(keys, values)}
         elif data_type == file.Numpy:
             data = file._read_numpy(fp)
-        elif data_type == file.Tensor:
+        elif data_type == file.torch_Tensor:
             try:
                 import torch
                 data = file._read(fp)
                 data = torch.Tensor(data.copy())
+            except: return None
+        elif data_type == file.Tensor_plus:
+            try:
+                import pyctlib.torchplus as torchplus
+                data = file._read(fp)
+                data = torchplus.Tensor(data.copy())
             except: return None
         elif len(data_type) == 0:
             return None

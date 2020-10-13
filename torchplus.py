@@ -1938,7 +1938,7 @@ class Tensor(torch.Tensor):
         """
         return super().cosh_()
 
-    @return_tensor_wrapper
+    @return_tensor_wrapper(False)
     def cpu(self, memory_format=torch.preserve_format) -> 'Tensor':
         """
         cpu(memory_format=torch.preserve_format) -> Tensor
@@ -2002,7 +2002,7 @@ class Tensor(torch.Tensor):
         """
         return super().cross(other, dim=dim)
 
-    @return_tensor_wrapper
+    @return_tensor_wrapper(False)
     def cuda(self, device=None, non_blocking=False, memory_format=torch.preserve_format) -> 'Tensor':
         """
         cuda(device=None, non_blocking=False, memory_format=torch.preserve_format) -> Tensor
@@ -7091,7 +7091,7 @@ class Tensor(torch.Tensor):
     def _to(self, *args, **kwargs) -> 'Tensor':
         return super().to(*args, **kwargs)
 
-    @return_tensor_wrapper
+    @return_tensor_wrapper(False)
     def to(self, *args, **kwargs) -> 'Tensor':
         """
         to(*args, **kwargs) -> Tensor
@@ -7964,9 +7964,12 @@ class Tensor(torch.Tensor):
     def __delitem__(self, *args, **kwargs):
         return super().__delitem__(*args, **kwargs)
 
-    @return_tensor_wrapper
     def __dir__(self, *args, **kwargs):
-        return super().__dir__(*args, **kwargs)
+        result = dir(torch.Tensor)
+        result.remove("volatile")
+        result.remove("__cuda_array_interface__")
+        result = result + ['get_default_tensor_type', 'batch_dimension', '_dim_zero', '__grad_fn', 'batch_size']
+        return result
 
     @return_tensor_wrapper
     def __div__(self, *args, **kwargs):
@@ -8332,7 +8335,7 @@ for key in dir(torch):
 # p = p.filter(lambda x: getgooddoc(x)[1] != -1)
 # rt_p = p.filter(returnTensor)
 
-# from pyctlib.filemanger import *
+# from pyctlib.filemanager import *
 # f = file(path(".").abs() / "Torch.py")
 
 # content = vector()
@@ -8349,7 +8352,7 @@ for key in dir(torch):
 # f.writelines(content)
 
 
-# from pyctlib.filemanger import *
+# from pyctlib.filemanager import *
 # f = file(path(".").abs() / "error_Torch.py")
 
 # content = vector()
