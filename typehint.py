@@ -55,8 +55,13 @@ def isatype(x):
 
 def isoftype(x, xtype):
     if isinstance(xtype, str):
+        frame = sys._getframe()
+        while "pyctlib" in str(frame.f_code): frame = frame.f_back
+        local_vars = frame.f_locals
+        local_vars.update(locals())
+        locals().update(local_vars)
         try: xtype = eval(xtype)
-        except: return False
+        except: return xtype in str(type(x).__mro__)
     if xtype == type: return isatype(x)
     if xtype is None: return True
     if isinstance(xtype, type):
@@ -208,8 +213,9 @@ class Type(type):
         return Type(self.types, shape=self.shape, ext=True, itypes=self.itemtypes)
 
     def __invert__(self):
-        self.inv = True
-        return self
+        invt = Type(self.types, shape=self.shape, ext=self.extendable, itypes=self.itemtypes)
+        invt.inv = not self.inv
+        return invt
 
     def __str__(self):
         string = '<'
@@ -293,11 +299,11 @@ List = T(list)
 Dict = T(dict)
 Tuple = T(tuple)
 
-
 Callable = callable
-Func = T(type(iterable))
+Function = T(type(iterable))
 Method = T(type(Bool.isextendable), type("".split), type(Int.__str__))
 Lambda = T(type(lambda: None))
+Func = T(type(iterable), Method, Lambda)
 Real = T(float, int)
 Iterable = T(tuple, list, dict, set)
 null = type(None)

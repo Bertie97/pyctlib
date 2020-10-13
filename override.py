@@ -23,12 +23,12 @@ def override(*arg):
 
             def __call__(self, *args, **kwargs):
                 f = raw_function(args[0])
-                if not kwargs and len(args) == 1 and callable(f):
+                if not kwargs and len(args) == 1 and Func(f):
                     fname = f.__name__.split('[')[0]
                     if (fname == "_" or func.__name__ in fname) and \
                         not isoftype(f, func.__annotations__.get(func.__code__.co_varnames[0], int)):
                         self.func_list.append(wraps(func)(wrap_params(f))); return
-                if '__func__' in dir(arg) and arg.__func__.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
+                if func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 for f in self.func_list:
                     try: return f(*args, **kwargs)
                     except TypeHintError: continue
