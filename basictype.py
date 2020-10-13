@@ -148,15 +148,19 @@ class vector(list):
                 pushfunc(x)
         return vector(unique_elements)
 
-    def count(self, descend=True):
-        if len(self) == 0:
-            return vector([])
-        counter = Counter(self)
-        count_vector = vector(counter.items())
-        count_vector.sort(key=lambda x: x[1])
-        if descend:
-            return count_vector[::-1]
-        return count_vector
+    # def count(self, descend=True):
+    #     if len(self) == 0:
+    #         return vector([])
+    #     counter = Counter(self)
+    #     count_vector = vector(counter.items())
+    #     count_vector.sort(key=lambda x: x[1])
+    #     if descend:
+    #         return count_vector[::-1]
+    #     return count_vector
+    def count(self, *args):
+        if len(args) == 0:
+            return len(self)
+        return super().count(args[0])
 
     def index(self, element):
         try:

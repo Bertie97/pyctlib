@@ -9,6 +9,7 @@ from functools import wraps
 from pyctlib.override import override
 from pyctlib.exception import *
 from typing import Union, Tuple
+from pyctlib.typehint import iterable
 
 Device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -31,6 +32,32 @@ def return_tensor_wrapper(*args_out):
         return lambda func: output_wrapper(func, args_out[0])
     else:
         return output_wrapper(args_out[0])
+
+def _replace_key_with_sequence(original, sequence, key=-1):
+    sequence = list(sequence)
+    assert original.count(key) == len(sequence)
+    result = list()
+    index = 0
+    for t in original:
+        if t == key:
+            result.append(sequence[index])
+            index += 1
+        else:
+            result.append(t)
+    return original.__class__(result)
+
+def _replace_sequence_with_key(original, sequence, key=-1):
+    sequence = list(sequence)
+    result = list()
+    index = 0
+    for t in original:
+        if index < len(sequence) and t == sequence[index]:
+            result.append(key)
+            index += 1
+        else:
+            result.append(t)
+    assert index == len(sequence)
+    return original.__class__(result)
 
 def totensor(x) -> 'Tensor':
     if isinstance(x, Tensor):
@@ -107,6 +134,7 @@ class Tensor(torch.Tensor):
         torch.set_default_tensor_type(default_tensor_type)
         if requires_grad == True:
             self.requires_grad_()
+        self._batch_dimension = None
 
         # Wrong Inplement: looks find but can not backpropograte
         # self = torch.Tensor.__new__(cls, device=data.device)
@@ -2745,7 +2773,7 @@ class Tensor(torch.Tensor):
         return super().exp_()
 
     @return_tensor_wrapper
-    def expand(self, *sizes) -> 'Tensor':
+    def expand(self, *sizes, strict: bool=False) -> 'Tensor':
         """
         expand(*sizes) -> Tensor
 
@@ -2789,6 +2817,21 @@ class Tensor(torch.Tensor):
                     [ 2,  2,  2,  2],
                     [ 3,  3,  3,  3]])
         """
+        if strict:
+            return super().expand(*sizes)
+        if len(sizes) == 1 and iterable(sizes):
+            sizes = tuple(sizes)
+
+        assert len(sizes) >= self.dim()
+        assert 0 not in sizes
+
+        if len(sizes) == self.dim():
+            return super().expand(*sizes)
+        if sizes.count(-1) == self.dim():
+            new_dim = _replace_key_with_sequence(tuple(1 if x > 0 else -1 for x in sizes), self.shape)
+            return self.view(*new_dim).expand(*sizes)
+        if sizes.count(-1) == 0:
+            return self.expand(*_replace_sequence_with_key(sizes, self.shape))
         return super().expand(*sizes)
 
     @return_tensor_wrapper
