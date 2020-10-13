@@ -460,27 +460,30 @@ def params(*types, **kwtypes):
             raise TypeHintError(func.__name__ + "() has argument " + arg + " of wrong type. \
 Expect type {type} but get {value}.".format(type=repr(annotations[arg]), value=repr(values[arg])))
         org_dec = getDeclaration(func)
-        if not func.__doc__ or org_dec not in func.__doc__:
-            more_doc = '\n\n' + func.__doc__ if func.__doc__ else ''
-            dec = org_dec
-            for arg in annotations:
-                if arg == 'return':
-                    dec = dec[:dec.rindex(')')] + f") -> {rawname(annotations[arg])}"
-                    continue
-                res = re.search(rf"\b{arg}\b", dec)
-                if res:
-                    idx = res.span()[0]
-                    pairs = {')': '(', '}': '{', ']': '['}
-                    count = {}
-                    for i in range(idx, len(dec)):
-                        if dec[i] in pairs:
-                            if count.get(pairs[dec[i]], 0) <= 0: break
-                            count[pairs[dec[i]]] -= 1; continue
-                        if dec[i] in "'\"" and dec[i] in count and count[dec[i]] > 0: count[dec[i]] -= 1; continue
-                        if dec[i] in "({['\"": count[dec[i]] = count.get(dec[i], 0) + 1; continue
-                        if dec[i] == ',' and max(count.values()) == 0: break
-                    dec = dec[:idx] + f"{arg}:{rawname(annotations[arg])}" + dec[i:]
-            func.__doc__ = '\n'.join([org_dec, dec]) + more_doc
+        dec = org_dec
+        for arg in annotations:
+            if arg == 'return':
+                dec = dec[:dec.rindex(')')] + f") -> {rawname(annotations[arg])}"
+                continue
+            res = re.search(rf"\b{arg}\b", dec)
+            if res:
+                idx = res.span()[0]
+                pairs = {')': '(', '}': '{', ']': '['}
+                count = {}
+                for i in range(idx, len(dec)):
+                    if dec[i] in pairs:
+                        if count.get(pairs[dec[i]], 0) <= 0: break
+                        count[pairs[dec[i]]] -= 1; continue
+                    if dec[i] in "'\"" and dec[i] in count and count[dec[i]] > 0: count[dec[i]] -= 1; continue
+                    if dec[i] in "({['\"": count[dec[i]] = count.get(dec[i], 0) + 1; continue
+                    if dec[i] == ',' and max(count.values()) == 0: break
+                dec = dec[:idx] + f"{arg}:{rawname(annotations[arg])}" + dec[i:]
+        if func.__doc__: lines = func.__doc__.strip().split('\n')
+        else: lines = []
+        if len(lines) < 1 or org_dec != lines[0]: lines.insert(0, org_dec)
+        if len(lines) < 2 or dec != lines[1]: lines.insert(1, dec)
+        if len(lines) >= 3: lines.insert(2, '')
+        func.__doc__ = '\n'.join(lines)
         return wrapper
     if israw: return wrap(types[0])
     else: return wrap
