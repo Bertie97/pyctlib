@@ -3,11 +3,17 @@
 
 from pyctlib.typehint import *
 
+@decorator
 def override(*arg):
     """
     Usage 1:
 
     """
+
+    def wrap_params(f):
+        if '__wrapped__' in dir(f) and '[params]' in f.__name__: return f
+        return params(f)
+
     if len(arg) == 1: arg = arg[0]
     if not iterable(arg):
         func = raw_function(arg)
@@ -18,9 +24,10 @@ def override(*arg):
             def __call__(self, *args, **kwargs):
                 f = raw_function(args[0])
                 if not kwargs and len(args) == 1 and callable(f):
-                    if (f.__name__ == "_" or func.__name__ in f.__name__) and \
+                    fname = f.__name__.split('[')[0]
+                    if (fname == "_" or func.__name__ in fname) and \
                         not isoftype(f, func.__annotations__.get(func.__code__.co_varnames[0], int)):
-                        self.func_list.append(params(f)); return
+                        self.func_list.append(wraps(func)(wrap_params(f))); return
                 if '__func__' in dir(arg) and arg.__func__.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 for f in self.func_list:
                     try: return f(*args, **kwargs)
@@ -31,14 +38,14 @@ def override(*arg):
                         if callable(ret): ret = (ret,)
                         if iterable(ret):
                             for f in ret:
-                                try: return f(*args, **kwargs)
+                                try: return wrap_params(f)(*args, **kwargs)
                                 except TypeHintError: continue
                     else: return ret
                 except TypeHintError: pass
                 for name, value in func.__globals__.items():
                     if callable(value) and (name.startswith(func.__name__) or
                                             name.endswith(func.__name__)) and name != func.__name__:
-                        try: return value(*args, **kwargs)
+                        try: return wraps_params(value)(*args, **kwargs)
                         except TypeHintError: continue
                 raise NameError("No {func}() matches arguments {args}.  "
                                 .format(func=func.__name__, args=', '.join([repr(x) for x in args] + ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])))

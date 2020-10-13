@@ -312,7 +312,7 @@ class strIO:
     def __str__(self): return self._str_
     def split(self, c=None): return self._str_.split(c)
 
-class A:
+class ArrayType:
     @property
     def Numpy(self):
         try:
@@ -337,6 +337,8 @@ class A:
             sys.stderr = olderr
             return Type(tf.Tensor)
         except ImportError: pass
+
+A = ArrayType()
 
 def getDeclaration(func):
     ss = strIO()
@@ -399,6 +401,7 @@ argument " + repr(var))
         .format(lower=-rg[0], upper=rg[1] - rg[0], real=len(inputargs) + rg[1] - rg[0]))
     return allargs
 
+@decorator
 def params(*types, **kwtypes):
     israw = len(kwtypes) == 0 and len(types) == 1 and \
             callable(types[0]) and not isatype(types[0])
