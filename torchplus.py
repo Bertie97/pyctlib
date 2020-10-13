@@ -1938,7 +1938,7 @@ class Tensor(torch.Tensor):
         """
         return super().cosh_()
 
-    @return_tensor_wrapper
+    @return_tensor_wrapper(False)
     def cpu(self, memory_format=torch.preserve_format) -> 'Tensor':
         """
         cpu(memory_format=torch.preserve_format) -> Tensor
@@ -2002,7 +2002,7 @@ class Tensor(torch.Tensor):
         """
         return super().cross(other, dim=dim)
 
-    @return_tensor_wrapper
+    @return_tensor_wrapper(False)
     def cuda(self, device=None, non_blocking=False, memory_format=torch.preserve_format) -> 'Tensor':
         """
         cuda(device=None, non_blocking=False, memory_format=torch.preserve_format) -> Tensor
@@ -7091,7 +7091,7 @@ class Tensor(torch.Tensor):
     def _to(self, *args, **kwargs) -> 'Tensor':
         return super().to(*args, **kwargs)
 
-    @return_tensor_wrapper
+    @return_tensor_wrapper(False)
     def to(self, *args, **kwargs) -> 'Tensor':
         """
         to(*args, **kwargs) -> Tensor
@@ -8332,7 +8332,7 @@ for key in dir(torch):
 # p = p.filter(lambda x: getgooddoc(x)[1] != -1)
 # rt_p = p.filter(returnTensor)
 
-# from pyctlib.filemanger import *
+# from pyctlib.filemanager import *
 # f = file(path(".").abs() / "Torch.py")
 
 # content = vector()
@@ -8349,7 +8349,7 @@ for key in dir(torch):
 # f.writelines(content)
 
 
-# from pyctlib.filemanger import *
+# from pyctlib.filemanager import *
 # f = file(path(".").abs() / "error_Torch.py")
 
 # content = vector()
