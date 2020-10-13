@@ -402,9 +402,9 @@ class file(path):
     def __lshift__(self, data):
         if self.fp is None:
             with open(self, "ab") as _output:
-                _output.write(self._to_byte(data)[0])
+                _output.write(file._to_byte(data)[0])
         else:
-            self.fp.write(self._to_byte(data)[0])
+            self.fp.write(file._to_byte(data)[0])
         return self
 
     @staticmethod
