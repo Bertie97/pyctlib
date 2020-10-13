@@ -3,15 +3,26 @@
 
 from pyctlib.typehint import *
 
+def _wrap_params(f):
+    if '__wrapped__' in dir(f) and '[params]' in f.__name__: return f
+    return params(f)
+
+def _collect_declarations(func, collection, place_first=False):
+    try_func = _wrap_params(func)
+    if try_func.__doc__:
+        lines = try_func.__doc__.split('\n')
+        if len(lines) > 1: toadd = lines[1]
+        else: toadd = lines[0]
+        if place_first: collection.insert(0, toadd)
+        else: collection.append(toadd)
+    return try_func
+
+@decorator(use_raw = False)
 def override(*arg):
     """
     Usage 1:
 
     """
-
-    def wrap_params(f):
-        if '__wrapped__' in dir(f) and '[params]' in f.__name__: return f
-        return params(f)
 
     if len(arg) == 1: arg = arg[0]
     if not iterable(arg):
@@ -26,31 +37,38 @@ def override(*arg):
                     fname = f.__name__.split('[')[0]
                     if (fname == "_" or func.__name__ in fname) and \
                         not isoftype(f, func.__annotations__.get(func.__code__.co_varnames[0], int)):
-                        self.func_list.append(wraps(func)(wrap_params(f))); return
+                        self.func_list.append(_wrap_params(f)); return
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
+                dec_list = []
                 for f in self.func_list:
-                    try: return f(*args, **kwargs)
+                    try: return _collect_declarations(f, dec_list)(*args, **kwargs)
                     except TypeHintError: continue
                 try:
-                    ret = self.default(*args, *kwargs)
+                    ret = _collect_declarations(self.default, dec_list, place_first=True)(*args, *kwargs)
                     if len(self.func_list) == 0 and (callable(ret) or iterable(ret) and all([callable(x) for x in ret])):
+                        dec_list.clear()
                         if callable(ret): ret = (ret,)
                         if iterable(ret):
                             for f in ret:
-                                try: return wrap_params(f)(*args, **kwargs)
+                                try: return _collect_declarations(f, dec_list)(*args, **kwargs)
                                 except TypeHintError: continue
                     else: return ret
                 except TypeHintError: pass
                 for name, value in func.__globals__.items():
                     if callable(value) and (name.startswith(func.__name__) or
                                             name.endswith(func.__name__)) and name != func.__name__:
-                        try: return wraps_params(value)(*args, **kwargs)
+                        try: return _collect_declarations(value, dec_list)(*args, **kwargs)
                         except TypeHintError: continue
-                raise NameError("No {func}() matches arguments {args}.  "
-                                .format(func=func.__name__, args=', '.join([repr(x) for x in args] + ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])))
+                func_name = self.default.__name__.split('[')[0]
+                dec_list = [func_name + x[x.index('('):] for x in dec_list]
+                raise NameError("No {func}() matches arguments {args}. ".format(
+                    func=func_name, 
+                    args=', '.join([repr(x) for x in args] + 
+                        ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])
+                ) + "All available usages are:\n{}".format('\n'.join(dec_list)))
 
         owrapper = override_wrapper(func)
-        @wraps(arg)
+        @wraps(func)
         def final_wrapper(*x): return owrapper(*x)
         return final_wrapper
     else:
@@ -58,13 +76,18 @@ def override(*arg):
         @decorator
         def wrap(func):
             def wrapper(*args, **kwargs):
+                dec_list = []
                 for function in functionlist:
-                    # print(function.__name__, args, kwargs)
                     if not callable(function): function = eval(function)
-                    try: return function(*args, **kwargs)
+                    try: return _collect_declarations(function, dec_list)(*args, **kwargs)
                     except TypeHintError: continue
-                raise NameError("No {func}() matches arguments {args}. "
-                                .format(func=func.__name__, args=', '.join([repr(x) for x in args] + ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])))
+                func_name = self.default.__name__.split('[')[0]
+                dec_list = [func_name + x[x.index('('):] for x in dec_list]
+                raise NameError("No {func}() matches arguments {args}. ".format(
+                    func=func_name, 
+                    args=', '.join([repr(x) for x in args] + 
+                        ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])
+                ) + "All available usages are:\n{}".format('\n'.join(dec_list)))
             return wrapper
         return wrap
 
