@@ -3,7 +3,7 @@ from typing import Optional, List, Union
 from collections import Counter
 from pyctlib.exception import *
 from pyctlib.override import override
-from pyctlib.typehint import isatype
+from pyctlib.typehint import isatype, iterable
 from pyctlib.wrapper import *
 from types import GeneratorType
 try:
@@ -125,6 +125,37 @@ class vector(list):
     def _(self, index_list: list):
         assert len(self) == len(index_list)
         return vector(zip(self, index_list)).filter(lambda x: x[1]).map(lambda x: x[0])
+
+    def __setitem__(self, i, t):
+        if isinstance(i, int):
+            super().__setitem__(i, t)
+        elif isinstance(i, slice):
+            super().__setitem__(i, t)
+        elif isinstance(i, list):
+            if all([isinstance(index, bool) for index in i]):
+                if iterable(t):
+                    p_index = 0
+                    for value in t:
+                        while i[p_index] == False:
+                            p_index += 1
+                        super().__setitem__(p_index, value)
+                else:
+                    for index in range(len(self)):
+                        if i[index] == True:
+                            super().__setitem__(index, t)
+            elif all([isinstance(index, int) for index in i]):
+                if iterable(t):
+                    p_index = 0
+                    for p_index, value in enumerate(t):
+                        super().__setitem__(i[p_index], value)
+                else:
+                    for index in i:
+                        super().__setitem__(index, t)
+            else:
+                raise TypeError("only support the following usages: \n [int] = \n [slice] = \n [list] = ")
+        else:
+            raise TypeError("only support the following usages: \n [int] = \n [slice] = \n [list] = ")
+
 
     def _hashable(self):
         return all(self.filter(lambda x: "__hash__" in x.__dir__()))
