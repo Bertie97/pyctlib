@@ -419,6 +419,19 @@ class file(path):
             self.fp.write(file._to_byte(data)[0])
         return self
 
+    def __rshift__(self, data):
+        try:
+            import torch
+            if isinstance(data, torch.nn.Module):
+                module_data = self.get()
+                data.load_state_dict(module_data)
+        except ImportError:
+            pass
+        return self
+
+    # @__rshift__
+    # def _(self, data: nn.Module)
+
     @staticmethod
     def _read(fp: TextIO):
         data_type = fp.read(1)
