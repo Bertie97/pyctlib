@@ -3,7 +3,6 @@
 
 from pyctlib.typehint import *
 
-@decorator
 def override(*arg):
     """
     Usage 1:
@@ -28,7 +27,7 @@ def override(*arg):
                     if (fname == "_" or func.__name__ in fname) and \
                         not isoftype(f, func.__annotations__.get(func.__code__.co_varnames[0], int)):
                         self.func_list.append(wraps(func)(wrap_params(f))); return
-                if func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
+                if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 for f in self.func_list:
                     try: return f(*args, **kwargs)
                     except TypeHintError: continue
@@ -51,7 +50,7 @@ def override(*arg):
                                 .format(func=func.__name__, args=', '.join([repr(x) for x in args] + ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])))
 
         owrapper = override_wrapper(func)
-        @wraps(func)
+        @wraps(arg)
         def final_wrapper(*x): return owrapper(*x)
         return final_wrapper
     else:
