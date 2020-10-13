@@ -7964,9 +7964,12 @@ class Tensor(torch.Tensor):
     def __delitem__(self, *args, **kwargs):
         return super().__delitem__(*args, **kwargs)
 
-    @return_tensor_wrapper
     def __dir__(self, *args, **kwargs):
-        return super().__dir__(*args, **kwargs)
+        result = dir(torch.Tensor)
+        result.remove("volatile")
+        result.remove("__cuda_array_interface__")
+        result = result + ['get_default_tensor_type', 'batch_dimension', '_dim_zero', '__grad_fn', 'batch_size']
+        return result
 
     @return_tensor_wrapper
     def __div__(self, *args, **kwargs):
