@@ -240,6 +240,7 @@ class file(path):
     torch_Tensor = b'\x09'
     Tensor_plus = b'\x0A'
     Vector = b'\x0B'
+    torch_Module = b'\x0C'
 
     class streamstring:
 
@@ -303,7 +304,6 @@ class file(path):
     @override
     @staticmethod
     def _to_byte(data):
-        # print("default")
         try:
             import torch
             import pyctlib.torchplus as torchplus
@@ -318,6 +318,9 @@ class file(path):
             np_array_content, np_array_content_len = file._to_byte(np_array)
             assert len(np_array_content) == np_array_content_len
             return file.torch_Tensor + np_array_content, np_array_content_len + 1
+        if touch(lambda: isinstance(data, torch.nn.Module)):
+            module_state_content, module_state_content_len = file._to_byte(data.state_dict())
+            return file.torch_Module + module_state_content, module_state_content_len + 1
 
     @_to_byte
     @staticmethod
@@ -449,6 +452,13 @@ class file(path):
                 data = file._read(fp)
                 data = torch.Tensor(data.copy())
             except: return None
+        elif data_type == file.torch_Module:
+            try:
+                import torch
+                state_dict = file._read(fp)
+                return state_dict
+            except:
+                return None
         elif data_type == file.Tensor_plus:
             try:
                 import pyctlib.torchplus as torchplus
