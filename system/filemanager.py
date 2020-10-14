@@ -1,17 +1,19 @@
-#!/usr/bin/env python3
+#! python3.8 -u
 #  -*- coding: utf-8 -*-
-########################################
-# author: @Bertie.
-# ©Yuncheng Zhou, all rights reserved. 
-########################################
 
+##############################
+## Package PyCTLib
+##############################
+__all__ = """
+    path
+    file
+""".split()
 
 import os, re, struct
-from pyctlib.exception import touch
-from pyctlib.basictype import vector, generator_wrapper
-from pyctlib.override import override
+from pyctlib.basics.touch import touch
+from pyctlib.basics.basictype import vector, generator_wrapper
+from pyctlib.basics.override import override
 from typing import TextIO
-import numpy as np
 
 def totuple(num):
     if isinstance(num, str): return (num,)
@@ -385,7 +387,7 @@ class file(path):
 
     @_to_byte
     @staticmethod
-    def _(data: np.ndarray):
+    def _(data: 'np.ndarray'):
         content = data.tobytes()
         shape = data.shape
         dtype = str(data.dtype)
@@ -484,14 +486,15 @@ class file(path):
 
     @staticmethod
     def _read_numpy(fp: TextIO):
-        try: import numpy as np
+        try:
+            import numpy as np
+            total_length = file.pointer_length(fp)
+            ss = file.streamstring(fp.read(total_length))
+            shape = file._read(ss)
+            dtype = file._read(ss)
+            content = ss.read()
+            return np.frombuffer(content, dtype=np.dtype(dtype)).reshape(shape)
         except ImportError: return None
-        total_length = file.pointer_length(fp)
-        ss = file.streamstring(fp.read(total_length))
-        shape = file._read(ss)
-        dtype = file._read(ss)
-        content = ss.read()
-        return np.frombuffer(content, dtype=np.dtype(dtype)).reshape(shape)
 
     @staticmethod
     def pointer_length(fp: TextIO):

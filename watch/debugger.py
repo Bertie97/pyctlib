@@ -1,6 +1,18 @@
-from functools import wraps
-from line_profiler import LineProfiler
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Package PyCTLib
+##############################
+__all__ = """
+    profile
+""".split()
+
 import sys
+from functools import wraps
+try: from line_profiler import LineProfiler
+except ImportError:
+    raise ImportError("'pyctlib.watch.debugger' cannot be used without dependency 'line_profiler'. ")
 
 def profile(*args, **kwargs):
     if len(args) == 1 and callable(args[0]):

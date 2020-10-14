@@ -1,9 +1,14 @@
-#! python3 -u
+#! python3.8 -u
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Author: Yuncheng Zhou
+## Package PyCTLib
 ##############################
+__all__ = """
+    raw_function
+    return_type_wrapper
+    decorator
+""".split()
 
 import sys
 from functools import wraps
@@ -12,6 +17,18 @@ def raw_function(func):
     if "__func__" in dir(func):
         return func.__func__
     return func
+
+class return_type_wrapper:
+
+    def __init__(self, _type):
+        self._type = _type
+
+    def __call__(self, func):
+        func = raw_function(func)
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return self._type(func(*args, **kwargs))
+        return wrapper
 
 def decorator(*wrapper_func, use_raw = True):
     if len(wrapper_func) > 2: raise TypeError("Too many arguments for @decorator")
@@ -30,5 +47,3 @@ def decorator(*wrapper_func, use_raw = True):
                 return wrapped_func
         return decorator(wrapper_func(*args, **kwargs))
     return wraps(wrapper_func)(wrapper)
-
-# def value(func): return func()

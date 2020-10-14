@@ -1,13 +1,47 @@
-#! python3 -u
+#! python3.8 -u
 #  -*- coding: utf-8 -*-
 
-import re
-from pyctlib.wrapper import *
+##############################
+## Package PyCTLib
+##############################
+__all__ = """
+    inheritable
+    iterable
+    isarray
+    isdtype
+    isatype
+    isoftype
+    isclassmethod
+
+    Type
+    listargs
+    params
+
+    Bool
+    Int
+    Float
+    Str
+    Set
+    List
+    Tuple
+    Dict
+    Callable
+    Function
+    Method
+    Lambda
+    Func
+    Real real
+    Iterable
+    Null null
+""".split()
+
+import re, sys
+from pyctlib.basics.wrapper import *
 
 class TypeHintError(Exception): pass
 
-mid = lambda x: x[1] if len(x) > 1 else x[0]
-rawname = lambda s: mid(str(s).split("'")).split('.')[-1]
+_mid = lambda x: x[1] if len(x) > 1 else x[0]
+_rawname = lambda s: _mid(str(s).split("'")).split('.')[-1]
 
 def inheritable(x):
     try:
@@ -142,7 +176,7 @@ class Type(type):
 
     @listargs(type)
     def __new__(cls, *_T, name=None, shape=tuple(), inv=False, ext=False, itypes=None):
-        if len([0 for t in _T if not isatype(t)]) > 0 or len(_T) <= 0:
+        if len([0 for t in _T if not isatype(t)]) > 0:
             raise SyntaxError("Wrong parameter type. ")
         if len(_T) == 1 and type(_T[0]) == Type:
             self = super().__new__(cls, _T[0].__name__, _T[0].__bases__, {})
@@ -179,7 +213,8 @@ class Type(type):
         if iterable(_T) and len(_T) == 1 and isoftype(_T[0], dict): _T = _T[0]
         if isoftype(_T, dict):
             return '{' + ', '.join([':'.join((Type.strT(k), Type.strT(v))) for k, v in _T.items()]) + '}'
-        return rawname(_T[0])
+        if len(_T) > 0: return _rawname(_T[0])
+        return ''
 
     def copyfrom(self, other):
         self.types = other.types
@@ -231,12 +266,12 @@ class Type(type):
         return Type(self.types, name=self.name, shape=self.shape, inv=not self.inv, ext=self.extendable, itypes=self.itemtypes)
 
     def __str__(self):
-        string = f"<Type '{'*' * self.extendable}{'non-' * self.inv}{self.name if self.name else rawname(self.types[0]).capitalize()}"
+        string = f"<Type '{'*' * self.extendable}{'non-' * self.inv}{self.name if self.name else _rawname(self.types[0]).capitalize()}"
         if self.itemtypes != None:
             if isinstance(self.itemtypes, Type):
                 string += f"<<{self.itemtypes.name}>>"
             elif isinstance(self.itemtypes, type):
-                string += f"<<{rawname(self.itemtypes)}>>"
+                string += f"<<{_rawname(self.itemtypes)}>>"
             else: string += str(self.itemtypes)
         if self.shape: string += str(list(self.shape))
         string += "'>"
@@ -283,7 +318,7 @@ class Type(type):
                     else: itypes = self.itemtypes
                     for dt in Type.extractType(itypes):
                         if isdtype(dt): dt = dname(dt)
-                        if isatype(dt): dt = rawname(dt)
+                        if isatype(dt): dt = _rawname(dt)
                         if dname(arg.dtype) == dt: return true
                     return false
                 elif isatype(self.itemtypes):
@@ -293,14 +328,12 @@ class Type(type):
             return true
         return false
 
-def T(main_type, *args):
+def T(main_type, *args, name=None):
     class Default_Type(Type):
         def __call__(self, arg):
             if super().__call__(arg): return main_type
             else: return None
-        def __str__(self): return f"<Type '{rawname(self.types[0]).capitalize()}''>"
-        __repr__ = __str__
-    return Default_Type(main_type, *args)
+    return Default_Type(main_type, *args, name=name)
 
 Bool = T(bool)
 Int = T(int)
@@ -311,13 +344,15 @@ List = T(list)
 Dict = T(dict)
 Tuple = T(tuple)
 
-Callable = callable
+class CallableType(Type):
+    def __call__(self, x): return callable(x)
+Callable = CallableType(name="Callable")
 Function = T(type(iterable))
-Method = T(type(Bool.copyfrom), type("".split), type(Int.__str__))
-Lambda = T(type(lambda: None))
-Func = T(type(iterable), Method, Lambda)
-Real = T(float, int)
-Iterable = T(tuple, list, dict, set)
+Method = T(type(Bool.copyfrom), type("".split), type(Int.__str__), name="Method")
+Lambda = T(type(lambda: None), name="Lambda")
+Func = T(type(iterable), Method, Lambda, name="FunctionType")
+Real = T(float, int, name="Real")
+Iterable = T(tuple, list, dict, set, name="Iterable")
 null = type(None)
 Null = T(null)
 real = [int, float]
@@ -414,7 +449,9 @@ def params(*types, **kwtypes):
         org_dec = getDeclaration(func)
         if isclassmethod(func): alltypes = (None,) + types
         else: alltypes = types
-        if israw: annotations = func.__annotations__
+        if israw:
+            annotations = func.__annotations__
+            annotations = {k: v.strip('\'"') if isinstance(v, str) else v for k, v in annotations.items()}
         else: annotations = getArgs(func, *alltypes, **kwtypes, __type__=True)
         def wrapper(*args, **kwargs):
             eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", org_dec))
@@ -458,7 +495,7 @@ Expect type {type} but get {value}.".format(type=repr(annotations[arg]), value=r
         dec = org_dec
         for arg in annotations:
             if arg == 'return':
-                dec = dec[:dec.rindex(')')] + f") -> {rawname(annotations[arg])}"
+                dec = dec[:dec.rindex(')')] + f") -> {_rawname(annotations[arg])}"
                 continue
             res = re.search(rf"\b{arg}\b", dec)
             if res:
@@ -471,8 +508,8 @@ Expect type {type} but get {value}.".format(type=repr(annotations[arg]), value=r
                         count[pairs[dec[i]]] -= 1; continue
                     if dec[i] in "'\"" and dec[i] in count and count[dec[i]] > 0: count[dec[i]] -= 1; continue
                     if dec[i] in "({['\"": count[dec[i]] = count.get(dec[i], 0) + 1; continue
-                    if dec[i] == ',' and max(count.values()) == 0: break
-                dec = dec[:idx] + f"{arg}:{rawname(annotations[arg])}" + dec[i:]
+                    if dec[i] == ',' and (len(count) == 0 or max(count.values()) == 0): break
+                dec = dec[:idx] + f"{arg}:{_rawname(annotations[arg])}" + dec[i:]
         if func.__doc__: lines = func.__doc__.strip().split('\n')
         else: lines = []
         if len(lines) < 1 or org_dec != lines[0]: lines.insert(0, org_dec)

@@ -5,5 +5,5 @@
 ## Package PyCTLib
 ##############################
 
-from pyctlib.basics import *
-from pyctlib.system import *
+from pyctlib.system.terminal import *
+from pyctlib.system.filemanager import *

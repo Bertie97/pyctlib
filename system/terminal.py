@@ -1,8 +1,16 @@
-# python3 -u
+#! python3.8 -u
 #  -*- coding: utf-8 -*-
 
+##############################
+## Package PyCTLib
+##############################
+__all__ = """
+    executor
+    shell
+""".split()
+
 import os, sys
-from pyctlib.override import *
+from pyctlib.basics.override import *
 
 class executor:
 
@@ -56,6 +64,8 @@ class executor:
     def set_wd(self, working_dir:str=''):
         if working_dir: self.working_dir = working_dir
         else: self.working_dir = os.path.abspath(os.path.curdir)
+
+shell = executor()
 
 if __name__ == '__main__': 
     shell = executor()

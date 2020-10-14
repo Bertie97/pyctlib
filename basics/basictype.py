@@ -1,19 +1,25 @@
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Package PyCTLib
+##############################
+__all__ = """
+    vector
+    ctgenerator
+""".split()
 
 from typing import Optional, List, Union
-from collections import Counter
-from pyctlib.exception import *
-from pyctlib.override import override
-from pyctlib.typehint import isatype, iterable
-from pyctlib.wrapper import *
 from types import GeneratorType
-try:
-    import torch
-    import numpy as np
-except ImportError:
-    pass
+from collections import Counter
+from pyctlib.basics.touch import touch
+from pyctlib.basics.override import override
+from pyctlib.basics.wrapper import raw_function
+from functools import wraps
 
 """
-from pyctlib.basictype import *
+Usage:
+from pyctlib.basics.basictype import *
 """
 
 class _Vector_Dict(dict):
@@ -34,14 +40,14 @@ class vector(list):
         except:
             pass
         for index, a in enumerate(self):
-            if not test(lambda: func(a)):
+            if touch(lambda: func(a)) is None:
                 raise RuntimeError("Exception raised in filter function at location {} for element {}".format(index, a))
 
     def test(self, func):
-        return vector([a for a in self if test(lambda: func(a))])
+        return vector([a for a in self if touch(lambda: func(a))])
 
     def testnot(self, func):
-        return vector([a for a in self if not test(lambda: func(a))])
+        return vector([a for a in self if not touch(lambda: func(a))])
 
     def map(self, func=None):
         """
@@ -54,7 +60,7 @@ class vector(list):
         except:
             pass
         for index, a in enumerate(self):
-            if not test(lambda: func(a)):
+            if touch(lambda: func(a)) is None:
                 raise RuntimeError("Exception raised in map function at location {} for element {}".format(index, a))
 
     def check_type(self, instance):
@@ -288,18 +294,6 @@ def generator_wrapper(*args, **kwargs):
         return wrapper
     else:
         raise TypeError("function is not callable")
-
-class return_type_wrapper:
-
-    def __init__(self, _type):
-        self._type = _type
-
-    def __call__(self, func):
-        func = raw_function(func)
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return self._type(func(*args, **kwargs))
-        return wrapper
 
 class ctgenerator:
 

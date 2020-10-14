@@ -5,5 +5,4 @@
 ## Package PyCTLib
 ##############################
 
-from pyctlib.basics import *
-from pyctlib.system import *
+from pyctlib.torchplus.tensor import *
