@@ -7,7 +7,7 @@ from pyctlib.wrapper import *
 class TypeHintError(Exception): pass
 
 mid = lambda x: x[1] if len(x) > 1 else x[0]
-rawname = lambda s: mid(str(s).split("'"))
+rawname = lambda s: mid(str(s).split("'")).split('.')[-1]
 
 def inheritable(x):
     try:
@@ -141,7 +141,7 @@ class Type(type):
         return output
 
     @listargs(type)
-    def __new__(cls, *_T, shape=tuple(), ext=False, itypes=None):
+    def __new__(cls, *_T, name=None, shape=tuple(), inv=False, ext=False, itypes=None):
         if len([0 for t in _T if not isatype(t)]) > 0 or len(_T) <= 0:
             raise SyntaxError("Wrong parameter type. ")
         if len(_T) == 1 and type(_T[0]) == Type:
@@ -161,7 +161,8 @@ class Type(type):
                         tmpT.append(t); break
                     t = t.__bases__[0]
             self = super().__new__(cls, cls.__name__ + '.' + Type.strT(*_T), tuple(tmpT), {})
-            self.inv = False
+            self.inv = inv
+            self.name = name
             self.types = _T
             self.shape = shape
             self.extendable = ext
@@ -180,13 +181,13 @@ class Type(type):
             return '{' + ', '.join([':'.join((Type.strT(k), Type.strT(v))) for k, v in _T.items()]) + '}'
         return rawname(_T[0])
 
-    def isextendable(self): return self.extendable
-
     def copyfrom(self, other):
         self.types = other.types
         if len(other.shape) > 0: self = self[other.shape]
         if other.extendable: self = +self
+        if other.inv: self = ~self
         self @= other.itemtypes
+        self.name = other.name
 
     def __getitem__(self, i=None):
         if i == 0 or i is None: i = tuple()
@@ -195,10 +196,8 @@ class Type(type):
         elif isoftype(i, [list, tuple]): pass
         else: raise TypeHintError("Wrong size specifier. ")
         if all([x is None or iterable(x) for x in self.types]):
-            return Type(self.types, shape=i, ext=self.extendable, itypes=self.itemtypes)
-        else: return Type([list, tuple, dict, set], shape=i, ext=self.extendable, itypes=self)
-        # else: raise TypeHintError(("Type " if len(self.types) == 1 else "Types ") + self.strT(self.types) +
-                            #   (" is" if len(self.types) == 1 else " are") + " not iterable. ")
+            return Type(self.types, name=self.name, shape=i, inv=self.inv, ext=self.extendable, itypes=self.itemtypes)
+        else: return Type([list, tuple, set], name=f"List", shape=i, inv=self.inv, ext=self.extendable, itypes=self)
 
     def __lshift__(self, i):
         if all([issubclass(x, dict) for x in self.types]) and len(i) == 2: return self@{i[0]: i[1]}
@@ -213,38 +212,34 @@ class Type(type):
 
     def __matmul__(self, other):
         if other is None: return
+        if not iterable(self): raise TypeError("Only iterable Type can use @ to specify the items. ")
         if isinstance(other, Type):
-            if iterable(other): return Type(self.types, shape=other.shape, ext=self.extendable, itypes=other.itemtypes)
-            else: return Type(self.types, shape=other.shape, ext=self.extendable, itypes=other)
+            return Type(self.types, name=self.name, shape=self.shape, inv=self.inv, ext=self.extendable, itypes=other.itemtypes if iterable(other) else other)
         if all([isarray(x) for x in self.types]) and isdtype(other):
-            return Type(self.types, shape=self.shape, ext=self.extendable, itypes=other)
+            return Type(self.types, name=self.name, shape=self.shape, inv=self.inv, ext=self.extendable, itypes=other)
         shape = self.shape
         if len(shape) == 0 and isoftype(other, (list, tuple)) and len(other) > 0: shape = [len(other)]
         if not iterable(other): other = (other,)
         if len(shape) == 1 and len(other) not in (1, shape[0]): raise TypeHintError("Wrong number of item types for @. ")
         if isinstance(other, dict) and not all([issubclass(x, dict) for x in self.types]): raise TypeHintError("Please do use {a:b} typehint for dicts.")
-        return Type(self.types, shape=shape, ext=self.extendable, itypes=other)
+        return Type(self.types, name=self.name, shape=shape, inv=self.inv, ext=self.extendable, itypes=other)
 
     def __pos__(self):
-        return Type(self.types, shape=self.shape, ext=True, itypes=self.itemtypes)
+        return Type(self.types, name=self.name, shape=self.shape, inv=self.inv, ext=True, itypes=self.itemtypes)
 
     def __invert__(self):
-        invt = Type(self.types, shape=self.shape, ext=self.extendable, itypes=self.itemtypes)
-        invt.inv = not self.inv
-        return invt
+        return Type(self.types, name=self.name, shape=self.shape, inv=not self.inv, ext=self.extendable, itypes=self.itemtypes)
 
     def __str__(self):
-        string = '<'
-        if len(self.shape) > 0:
-            string += "extendable " if self.extendable else ''
-            string += Type.strT(self.types)
-            string += str(list(self.shape))
-            if self.itemtypes != None: string += " of types " + Type.strT(self.itemtypes)
-        else:
-            string += "Extendable t" if self.extendable else 'T'
-            string += "ype " + ('' if len(self.types) == 1 else "in ") + Type.strT(self.types)
-            if self.itemtypes != None: string += " of type " + Type.strT(self.itemtypes)
-        string += '>'
+        string = f"<Type '{'*' * self.extendable}{'non-' * self.inv}{self.name if self.name else rawname(self.types[0]).capitalize()}"
+        if self.itemtypes != None:
+            if isinstance(self.itemtypes, Type):
+                string += f"<<{self.itemtypes.name}>>"
+            elif isinstance(self.itemtypes, type):
+                string += f"<<{rawname(self.itemtypes)}>>"
+            else: string += str(self.itemtypes)
+        if self.shape: string += str(list(self.shape))
+        string += "'>"
         return string
 
     __repr__ = __str__
@@ -318,7 +313,7 @@ Tuple = T(tuple)
 
 Callable = callable
 Function = T(type(iterable))
-Method = T(type(Bool.isextendable), type("".split), type(Int.__str__))
+Method = T(type(Bool.copyfrom), type("".split), type(Int.__str__))
 Lambda = T(type(lambda: None))
 Func = T(type(iterable), Method, Lambda)
 Real = T(float, int)
@@ -327,7 +322,7 @@ null = type(None)
 Null = T(null)
 real = [int, float]
 
-def extendable(t): return type(t) == Type and t.isextendable()
+def extendable(t): return type(t) == Type and t.extendable
 
 class ArrayType:
     @property

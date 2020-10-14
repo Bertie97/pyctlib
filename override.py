@@ -35,8 +35,7 @@ def override(*arg):
                 f = raw_function(args[0])
                 if not kwargs and len(args) == 1 and Func(f):
                     fname = f.__name__.split('[')[0]
-                    if (fname == "_" or func.__name__ in fname) and \
-                        not isoftype(f, func.__annotations__.get(func.__code__.co_varnames[0], int)):
+                    if fname == "_" or func.__name__ in fname:
                         self.func_list.append(_wrap_params(f)); return
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
@@ -45,7 +44,10 @@ def override(*arg):
                     except TypeHintError: continue
                 try:
                     ret = _collect_declarations(self.default, dec_list, place_first=True)(*args, *kwargs)
-                    if len(self.func_list) == 0 and (callable(ret) or iterable(ret) and all([callable(x) for x in ret])):
+                    if len(self.func_list) == 0 and (
+                        Func(ret) and ret.__name__.endswith('[params]') or 
+                        iterable(ret) and all([Func(x) and x.__name__.endswith('[params]') for x in ret])
+                    ):
                         dec_list.clear()
                         if callable(ret): ret = (ret,)
                         if iterable(ret):
