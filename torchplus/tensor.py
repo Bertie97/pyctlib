@@ -4,6 +4,7 @@
 ##############################
 ## Package PyCTLib
 ##############################
+
 __all__ = """
     Device
     Tensor
@@ -15,7 +16,8 @@ try:
 except ImportError:
     raise ImportError("'pyctlib.torchplus' cannot be used without dependency 'torch' and 'numpy'.")
 import torch.nn as nn
-from pyctlib.basics.basictype import vector, return_type_wrapper, raw_function
+from pyctlib.basics.basictype import vector, raw_function
+from pyctlib.basics.wrapper import return_type_wrapper
 from pyctlib.basics.override import override, params, iterable
 from pyctlib.basics.touch import touch
 from functools import wraps
@@ -8372,13 +8374,13 @@ class Tensor(torch.Tensor):
     def grad_fn(self):
         return self.__grad_fn
 
-__all__ = ["Tensor", "return_tensor_wrapper", "tofloat", "totensor"]
 template = "@return_tensor_wrapper\ndef {key}(*args): return torch.{key}(*args)"
 for key in dir(torch):
     if key.startswith("_"):
         continue
-    if key not in ['torch', "Tensor"] + __all__:
+    if key not in ['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor"]:
         exec(template.format(key = key))
+        __all__.append(key)
 
 
     # @property
