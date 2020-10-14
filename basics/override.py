@@ -46,10 +46,14 @@ def _collect_declarations(func, collection, place_first=False):
     try_func = _wrap_params(func)
     if try_func.__doc__:
         lines = try_func.__doc__.split('\n')
-        if len(lines) > 1: toadd = lines[1]
-        else: toadd = lines[0]
-        if place_first: collection.insert(0, toadd)
-        else: collection.append(toadd)
+        toadd = ''
+        for l in lines:
+            if not l.strip(): continue
+            if l.startswith(try_func.__name__.split('[')[0]): toadd = l
+            else: break
+        if toadd:
+            if place_first: collection.insert(0, toadd)
+            else: collection.append(toadd)
     return try_func
 
 @decorator(use_raw = False)

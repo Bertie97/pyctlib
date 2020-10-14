@@ -16,7 +16,7 @@ except ImportError:
     raise ImportError("'pyctlib.torchplus' cannot be used without dependency 'torch' and 'numpy'.")
 import torch.nn as nn
 from pyctlib.basics.basictype import vector, return_type_wrapper, raw_function
-from pyctlib.basics.override import override, iterable
+from pyctlib.basics.override import override, params, iterable
 from pyctlib.basics.touch import touch
 from functools import wraps
 from typing import Union, Tuple
@@ -119,7 +119,7 @@ class Tensor(torch.Tensor):
             if default_dtype == torch.float16:
                 return torch.ShortTensor
 
-    def __new__(cls, data, auto_device=True, requires_grad=None):
+    def __new__(cls, data, auto_device=True, requires_grad=None, batch_dimension=None):
         if isinstance(data, Tensor):
             if auto_device:
                 data._to(Device)
@@ -154,7 +154,7 @@ class Tensor(torch.Tensor):
         torch.set_default_tensor_type(default_tensor_type)
         if requires_grad == True:
             self.requires_grad_()
-        self._batch_dimension = None
+        self._batch_dimension = batch_dimension
 
         # Wrong Inplement: looks find but can not backpropograte
         # self = torch.Tensor.__new__(cls, device=data.device)
@@ -184,6 +184,26 @@ class Tensor(torch.Tensor):
         if self._dim_zero:
             return 0
         return super().dim()
+
+    @return_tensor_wrapper
+    @params
+    def sample(self, dim: int = None, number: int = 1, random: bool = True) -> 'Tensor':
+        """
+        sample(self, dim: int = self.batch_dimension, numbder: int = 1, random: bool = True) -> Tensor
+        
+        Sample a few subspaces from a given dimension. 
+        data.sample(2, 1, random = False) is equivalant to data[:, :, 0, ...].
+        """
+        if dim is None: dim = self.batch_dimension
+        if dim is None: raise TypeError("Argument 'dim' needed for Tensors with no batch dimension. ")
+        sample_indices = [slice(None)] * self.dim()
+        if self.shape[dim] < number: raise TypeError(f"Too many elements needed to be sampled from dimension {dim}")
+        if random: import random; samples = random.choice(range(self.shape[dim]), k = number)
+        else: samples = list(range(number))
+        sample_indices[dim] = samples
+        output_tensor = Tensor(self[tuple(sample_indices)])
+        output_tensor.index = samples
+        return output_tensor
 
     @property
     @return_tensor_wrapper

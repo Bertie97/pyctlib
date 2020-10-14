@@ -11,7 +11,3 @@ try: from matplotlib import pyplot as plt
 except ImportError:
     raise ImportError("'pyctlib.watch.debugger' cannot be used without dependency 'matplotlib'. ")
 
-def main():
-    pass
-
-if __name__ == "__main__": main()
