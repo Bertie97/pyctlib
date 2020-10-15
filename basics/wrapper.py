@@ -33,7 +33,7 @@ class return_type_wrapper:
 def decorator(*wrapper_func, use_raw = True):
     if len(wrapper_func) > 2: raise TypeError("Too many arguments for @decorator")
     elif len(wrapper_func) == 1: wrapper_func = wrapper_func[0]
-    else: return lambda x: decorator(x, use_raw = use_raw)
+    else: return decorator(lambda x: decorator(x, use_raw = use_raw), use_raw = use_raw)
     if not isinstance(wrapper_func, type(decorator)): raise TypeError("@decorator wrapping a non-wrapper")
     def wrapper(*args, **kwargs):
         if not kwargs and len(args) == 1:
