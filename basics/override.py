@@ -70,7 +70,7 @@ def overload(func):
     return func
 
 @decorator(use_raw = False)
-def override(*arg):
+def override(*arg) -> None:
     """
     Usage 1:
 
