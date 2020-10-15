@@ -11,7 +11,7 @@ __all__ = """
 """.split()
 
 from functools import wraps
-from pyctlib.basics.functools import get_environ_vars()
+from pyctlib.basics.functools import get_environ_vars
 
 def raw_function(func):
     if "__func__" in dir(func):
