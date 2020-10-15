@@ -58,10 +58,10 @@ def _collect_declarations(func, collection, place_first=False):
             else: collection.append(toadd)
     return try_func
 
-@decorator
+@decorator(use_raw = False)
 def overload(func):
     local_vars = get_environ_vars()
-    fname = func.__name__.split('[')[0]
+    fname = raw_function(func).__name__.split('[')[0]
     key = f"__overload_{fname}__"
     overrider = f"__override_{fname}__"
     if key in local_vars:
