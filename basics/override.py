@@ -63,11 +63,17 @@ def overload(func):
     local_vars = get_environ_vars()
     fname = func.__name__.split('[')[0]
     key = f"__overload_{fname}__"
-    local_vars.update({key: local_vars.get(key, 0) + 1})
-    new_name = f"__{fname}_{local_vars[key]}"
-    local_vars[new_name] = _wrap_params(func)
-    func.__name__ = '['.join([new_name] + func.__name__.split('[')[1:])
-    return func
+    overrider = f"__override_{fname}__"
+    if key in local_vars:
+        local_vars.update({key: local_vars[key] + 1})
+        new_name = f"__{fname}_overload_{local_vars[key]}"
+        local_vars[new_name] = local_vars[overrider](func)
+    else:
+        local_vars.update({key: 0})
+        local_vars[overrider] = override(func)
+    exec(f"def {fname}(*args, **kwargs): return {overrider}(*args, **kwargs)", local_vars)
+    # func.__name__ = '['.join([new_name] + func.__name__.split('[')[1:])
+    return local_vars[fname]
 
 @decorator(use_raw = False)
 def override(*arg):
@@ -75,7 +81,6 @@ def override(*arg):
     Usage 1:
 
     """
-    return arg[0]
 
     if len(arg) == 1: arg = arg[0]
     if not iterable(arg):
@@ -89,7 +94,8 @@ def override(*arg):
                     f = raw_function(args[0])
                     if not kwargs and len(args) == 1 and Func(f):
                         fname = f.__name__.split('[')[0]
-                        if fname == "_" or func.__name__ in fname:
+                        funcname = func.__name__.split('[')[0]
+                        if fname == "_" or funcname in fname:
                             self.func_list.append(_wrap_params(f)); return
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
@@ -111,12 +117,12 @@ def override(*arg):
                     else: return ret
                 except TypeHintError: pass
                 for name, value in func.__globals__.items():
-                    name = name.strip('_')
+                    name = name.replace('override', '').strip('_')
                     if callable(value) and (name.startswith(func.__name__) or
                                             name.endswith(func.__name__)) and name != func.__name__:
                         try: return _collect_declarations(value, dec_list)(*args, **kwargs)
                         except TypeHintError: continue
-                func_name = self.default.__name__.split('[')[0]
+                func_name = self.default.__name__.split('[')[0].replace("_overload", '')
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
                     func=func_name, 
@@ -138,7 +144,7 @@ def override(*arg):
                     if not callable(function): function = eval(function)
                     try: return _collect_declarations(function, dec_list)(*args, **kwargs)
                     except TypeHintError: continue
-                func_name = self.default.__name__.split('[')[0]
+                func_name = func.__name__.split('[')[0]
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
                     func=func_name, 
