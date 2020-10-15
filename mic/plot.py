@@ -16,11 +16,18 @@ from matplotlib.pyplot import *
 from pyctlib import *
 from pyctlib import torchplus as tp
 
-# def imshow(data):
-#     "Show transverse medical image with the right hand side of the subject shown on the left and anterior shown at the bottom. "
-#     data = tp.Tensor(data)
-#     if data.batch_dimension: data = data.sample(data.batch_dimension, shape
-#     if data.dim() > 2: data = data
-#     return plt.imshow(.squeeze().numpy(), cmap=plt.cm.gray)
+def imshow(data, **kwargs):
+    "Show transverse medical image with the right hand side of the subject shown on the left and anterior shown at the bottom. "
+    if 'cmap' not in kwargs: kwargs['cmap'] = plt.cm.gray
+    data = tp.Tensor(data).squeeze()
+    if data.dim() > 2 and data.batch_dimension: data = data.sample(number=1, random=False)
+    if data.dim() > 2: raise TypeError("'plot.imshow' takes 2D-data as input, please reduce the dimension manually or specify a batch dimension to reduce. ")
+    if data.dim() <= 1: data = data.unsqueeze(0)
+    if data.dim() == 0: raise TypeError("Please don't use 'plot.imshow' to demonstrate a scalar. ")
+    return plt.imshow(data.numpy(), **kwargs)
 
-# def 
+def sliceshow(data, dim=-1, **kwargs):
+    sample_indices = [slice(None)] * data.dim()
+    sample_indices[dim] = data.shape[dim] // 2
+    return imshow(data[sample_indices], **kwargs)
+

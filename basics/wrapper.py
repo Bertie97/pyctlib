@@ -10,7 +10,6 @@ __all__ = """
     decorator
 """.split()
 
-import sys
 from functools import wraps
 
 def raw_function(func):

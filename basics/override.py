@@ -6,6 +6,7 @@
 ##############################
 __all__ = """
     override
+    overload
     params
 
     iterable
@@ -37,6 +38,7 @@ from functools import wraps
 from pyctlib.basics.wrapper import *
 from pyctlib.basics.typehint import *
 from pyctlib.basics.typehint import TypeHintError
+from pyctlib.basics.functools import get_environ_vars
 
 def _wrap_params(f):
     if '__wrapped__' in dir(f) and '[params]' in f.__name__: return f
@@ -49,12 +51,23 @@ def _collect_declarations(func, collection, place_first=False):
         toadd = ''
         for l in lines:
             if not l.strip(): continue
-            if l.startswith(try_func.__name__.split('[')[0]): toadd = l
+            if l.startswith(try_func.__name__.split('[')[0]) or l[0] == '(': toadd = l
             else: break
         if toadd:
             if place_first: collection.insert(0, toadd)
             else: collection.append(toadd)
     return try_func
+
+@decorator
+def overload(func):
+    local_vars = get_environ_vars()
+    fname = func.__name__.split('[')[0]
+    key = f"__overload_{fname}__"
+    local_vars.update({key: local_vars.get(key, 0) + 1})
+    new_name = f"__{fname}_{local_vars[key]}"
+    local_vars[new_name] = _wrap_params(func)
+    func.__name__ = '['.join([new_name] + func.__name__.split('[')[1:])
+    return func
 
 @decorator(use_raw = False)
 def override(*arg):
@@ -71,11 +84,12 @@ def override(*arg):
             def __init__(self, f): self.default = f; self.func_list = []
 
             def __call__(self, *args, **kwargs):
-                f = raw_function(args[0])
-                if not kwargs and len(args) == 1 and Func(f):
-                    fname = f.__name__.split('[')[0]
-                    if fname == "_" or func.__name__ in fname:
-                        self.func_list.append(_wrap_params(f)); return
+                if len(args) > 0:
+                    f = raw_function(args[0])
+                    if not kwargs and len(args) == 1 and Func(f):
+                        fname = f.__name__.split('[')[0]
+                        if fname == "_" or func.__name__ in fname:
+                            self.func_list.append(_wrap_params(f)); return
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
                 for f in self.func_list:
@@ -96,6 +110,7 @@ def override(*arg):
                     else: return ret
                 except TypeHintError: pass
                 for name, value in func.__globals__.items():
+                    name = name.strip('_')
                     if callable(value) and (name.startswith(func.__name__) or
                                             name.endswith(func.__name__)) and name != func.__name__:
                         try: return _collect_declarations(value, dec_list)(*args, **kwargs)

@@ -37,6 +37,7 @@ __all__ = """
 
 import re, sys
 from pyctlib.basics.wrapper import *
+from pyctlib.basics.functools import get_environ_vars
 
 class TypeHintError(Exception): pass
 
@@ -92,9 +93,7 @@ def isatype(x):
 
 def isoftype(x, xtype):
     if isinstance(xtype, str):
-        frame = sys._getframe()
-        while "pyctlib" in str(frame.f_code): frame = frame.f_back
-        local_vars = frame.f_locals
+        local_vars = get_environ_vars()
         local_vars.update(locals())
         locals().update(local_vars)
         try: xtype = eval(xtype)
