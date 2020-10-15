@@ -11,6 +11,7 @@ __all__ = """
 """.split()
 
 from functools import wraps
+from pyctlib.basics.functools import get_environ_vars()
 
 def raw_function(func):
     if "__func__" in dir(func):
@@ -43,6 +44,9 @@ def decorator(*wrapper_func, use_raw = True):
                 wrapped_func = wraps(raw_func)(wrapper_func(raw_func if use_raw else func))
                 wrapped_func.__name__ = func_name
                 wrapped_func.__doc__ = raw_func.__doc__
-                return wrapped_func
+                environ_vars = get_environ_vars()
+                environ_vars[raw_func.__name__] = wrapped_func
+                exec(f"def {raw_func.__name__}(): ...")
+                return eval(f"{raw_func.__name__}")
         return decorator(wrapper_func(*args, **kwargs))
     return wraps(wrapper_func)(wrapper)
