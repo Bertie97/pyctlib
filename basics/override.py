@@ -69,8 +69,10 @@ def overload(func):
     func.__name__ = '['.join([new_name] + func.__name__.split('[')[1:])
     return func
 
+def _sample_func(): ...
+
 @decorator(use_raw = False)
-def override(*arg) -> None:
+def override(*arg) -> type(_sample_func):
     """
     Usage 1:
 
