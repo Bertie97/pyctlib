@@ -44,12 +44,6 @@ def decorator(*wrapper_func, use_raw = True):
                 wrapped_func = wraps(raw_func)(wrapper_func(raw_func if use_raw else func))
                 wrapped_func.__name__ = func_name
                 wrapped_func.__doc__ = raw_func.__doc__
-                environ_vars = get_environ_vars()
-                environ_vars[raw_func.__name__] = wrapped_func
-                exec(f"def {raw_func.__name__}(): ...")
-                return eval(f"{raw_func.__name__}")
+                return wrapped_func
         return decorator(wrapper_func(*args, **kwargs))
-    environ_vars = get_environ_vars()
-    environ_vars[wrapper_func.__name__] = wraps(wrapper_func)(wrapper)
-    exec(f"def {wrapper_func.__name__}(): ...")
-    return eval(f"{wrapper_func.__name__}")
+    return wraps(wrapper_func)(wrapper)

@@ -75,6 +75,7 @@ def override(*arg):
     Usage 1:
 
     """
+    return arg[0]
 
     if len(arg) == 1: arg = arg[0]
     if not iterable(arg):
