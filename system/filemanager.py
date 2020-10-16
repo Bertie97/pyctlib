@@ -12,8 +12,12 @@ __all__ = """
 import os, re, struct
 from pyctlib.basics.touch import touch
 from pyctlib.basics.basictype import vector, generator_wrapper
-from pyctlib.basics.override import override
+from pyctlib.basics.override import override, overload
 from typing import TextIO
+
+"""
+from pyctlib.system.filemanager import *
+"""
 
 def totuple(num):
     if isinstance(num, str): return (num,)
@@ -303,7 +307,8 @@ class file(path):
     def pack_tag(tag, tag_type="B"):
         return struct.pack(tag_type, tag)
 
-    @override
+    # @override
+    @overload
     @staticmethod
     def _to_byte(data):
         try:
@@ -324,17 +329,19 @@ class file(path):
             module_state_content, module_state_content_len = file._to_byte(data.state_dict())
             return file.torch_Module + module_state_content, module_state_content_len + 1
 
-    @_to_byte
+    # @_to_byte
+    @overload
     @staticmethod
-    def _(data: int):
+    def _to_byte(data: int):
         result = b""
         result += file.Integer
         result += file.pack(data)
         return result, 9
 
-    @_to_byte
+    # @_to_byte
+    @overload
     @staticmethod
-    def _(data: str):
+    def _to_byte(data: str):
         length = len(data)
         start_off = 0
         total_length = 2
@@ -350,44 +357,44 @@ class file(path):
         result += file.pack_tag(0)
         return result, total_length
 
-    @_to_byte
+    @overload
     @staticmethod
-    def _(data: float):
+    def _to_byte(data: float):
         result = b""
         result += file.Float
         result += file.pack(data)
         return result, 9
 
-    @_to_byte
+    @overload
     @staticmethod
-    def _(data: vector):
+    def _to_byte(data: vector):
         return file._to_byte_iterable(data, file.Vector)
 
-    @_to_byte
+    @overload
     @staticmethod
-    def _(data: list):
+    def _to_byte(data: list):
         return file._to_byte_iterable(data, file.List)
 
-    @_to_byte
+    @overload
     @staticmethod
-    def _(data: tuple):
+    def _to_byte(data: tuple):
         return file._to_byte_iterable(data, file.Tuple)
 
-    @_to_byte
+    @overload
     @staticmethod
-    def _(data: set):
+    def _to_byte(data: set):
         return file._to_byte_iterable(data, file.Set)
 
-    @_to_byte
+    @overload
     @staticmethod
-    def _(data: dict):
+    def _to_byte(data: dict):
         items = vector(data.items())
         content = file.Dict + file._to_byte(items.map(lambda x: x[0]))[0] + file._to_byte(items.map(lambda x: x[1]))[0]
         return content, len(content)
 
-    @_to_byte
+    @overload
     @staticmethod
-    def _(data: 'np.ndarray'):
+    def _to_byte(data: 'np.ndarray'):
         content = data.tobytes()
         shape = data.shape
         dtype = str(data.dtype)
