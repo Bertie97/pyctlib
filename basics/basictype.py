@@ -13,7 +13,7 @@ from typing import Optional, List, Union
 from types import GeneratorType
 from collections import Counter
 from pyctlib.basics.touch import touch
-from pyctlib.basics.override import override
+from pyctlib.basics.override import override, overload, Func
 from pyctlib.basics.wrapper import raw_function
 from functools import wraps
 
@@ -209,17 +209,16 @@ class vector(list):
             return len(self)
         return super().count(args[0])
 
-    def index(self, element):
-        try:
-            if callable(element):
-                for index in range(len(self)):
-                    if element(self[index]):
-                        return index
-                return -1
-            i = super().index(element)
-            return i
-        except Exception as e:
-            return -1
+    @overload
+    def index(self, element: int):
+        return super().index(element)
+
+    @overload
+    def index(self, func: Func):
+        for index in range(len(self)):
+            if func(self[index]):
+                return index
+        return -1
 
     def all(self, func=lambda x: x):
         for t in self:
