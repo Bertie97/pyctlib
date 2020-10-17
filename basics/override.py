@@ -8,37 +8,20 @@ __all__ = """
     override
     overload
     params
-
-    iterable
-    isarray
-    isdtype
-    isatype
-    isoftype
-
-    Type
-    Bool
-    Int
-    Float
-    Str
-    Set
-    List
-    Tuple
-    Dict
-    Callable
-    Function
-    Method
-    Lambda
-    Func
-    Real real
-    Iterable
-    Null null
 """.split()
 
 from functools import wraps
-from pyctlib.basics.wrapper import *
+from pyctlib.basics.basicwrapper import *
 from pyctlib.basics.typehint import *
+from pyctlib.basics.typehint import __all__ as typehint_all
 from pyctlib.basics.typehint import TypeHintError
 from pyctlib.basics.functools import get_environ_vars
+
+__all__ += typehint_all
+
+_debug = False
+
+def set_debug_mode(m: bool): global _debug; _debug = m
 
 def _wrap_params(f):
     if '__wrapped__' in dir(f) and '[params]' in f.__name__: return f
@@ -46,12 +29,12 @@ def _wrap_params(f):
 
 def _collect_declarations(func, collection, place_first=False):
     try_func = _wrap_params(func)
-    if try_func.__doc__:
-        lines = try_func.__doc__.split('\n')
+    if func.__doc__:
+        lines = func.__doc__.split('\n')
         toadd = ''
         for l in lines:
             if not l.strip(): continue
-            if l.startswith(try_func.__name__.split('[')[0]) or l[0] == '(': toadd = l
+            if l.startswith(func.__name__.split('[')[0]) or l[0] == '(': toadd = l
             else: break
         if toadd:
             if place_first: collection.insert(0, toadd)
@@ -61,7 +44,7 @@ def _collect_declarations(func, collection, place_first=False):
 @decorator(use_raw = False)
 def overload(func):
     local_vars = get_environ_vars()
-    fname = raw_function(func).__name__.split('[')[0]
+    fname = raw_function(func).__name__.split('[')[0].rstrip('__0__')
     key = f"__overload_{fname}__"
     overrider = f"__override_{fname}__"
     if key in local_vars:
@@ -87,7 +70,10 @@ def override(*arg):
         func = raw_function(arg)
         if not callable(func): raise SyntaxError("Wrong usage of @override. ")
         class override_wrapper:
-            def __init__(self, f): self.default = f; self.func_list = []
+            def __init__(self, f):
+                self.func_list = [_wrap_params(f)]
+                if f.__name__.endswith('__0__'): self.default = 0
+                else: self.default = None
 
             def __call__(self, *args, **kwargs):
                 if len(args) > 0:
@@ -96,32 +82,42 @@ def override(*arg):
                         fname = f.__name__.split('[')[0]
                         funcname = func.__name__.split('[')[0]
                         if fname == "_" or funcname in fname:
+                            if fname.endswith('__0__'): self.default = len(self.func_list)
                             self.func_list.append(_wrap_params(f)); return
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
-                for f in self.func_list:
+                for i, f in list(enumerate(self.func_list)) + ([(-1, self.func_list[self.default])] if self.default else []):
+                    if i == self.default: continue
                     try: return _collect_declarations(f, dec_list)(*args, **kwargs)
-                    except TypeHintError: continue
-                try:
-                    ret = _collect_declarations(self.default, dec_list, place_first=True)(*args, *kwargs)
-                    if len(self.func_list) == 0 and (
-                        Func(ret) and ret.__name__.endswith('[params]') or 
-                        iterable(ret) and all([Func(x) and x.__name__.endswith('[params]') for x in ret])
-                    ):
-                        dec_list.clear()
-                        if callable(ret): ret = (ret,)
-                        if iterable(ret):
-                            for f in ret:
-                                try: return _collect_declarations(f, dec_list)(*args, **kwargs)
-                                except TypeHintError: continue
-                    else: return ret
-                except TypeHintError: pass
+                    except TypeHintError as e:
+                        if _debug: print(str(e))
+                        continue
+                if len(self.func_list) == 0:
+                    try:
+                        ret = _collect_declarations(self.func_list[0], dec_list, place_first=True)(*args, *kwargs)
+                        if (
+                            Func(ret) and ret.__name__.endswith('[params]') or 
+                            iterable(ret) and all([Func(x) and x.__name__.endswith('[params]') for x in ret])
+                        ):
+                            dec_list.clear()
+                            if callable(ret): ret = (ret,)
+                            if iterable(ret):
+                                for f in ret:
+                                    try: return _collect_declarations(f, dec_list)(*args, **kwargs)
+                                    except TypeHintError as e:
+                                        if _debug: print(str(e))
+                                        continue
+                        else: return ret
+                    except TypeHintError as e:
+                        if _debug: print(str(e))
                 for name, value in func.__globals__.items():
                     name = name.replace('override', '').strip('_')
                     if callable(value) and (name.startswith(func.__name__) or
                                             name.endswith(func.__name__)) and name != func.__name__:
                         try: return _collect_declarations(value, dec_list)(*args, **kwargs)
-                        except TypeHintError: continue
+                        except TypeHintError as e:
+                            if _debug: print(str(e))
+                            continue
                 func_name = self.default.__name__.split('[')[0].replace("_overload", '')
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
@@ -132,7 +128,7 @@ def override(*arg):
 
         owrapper = override_wrapper(func)
         @wraps(func)
-        def final_wrapper(*x): return owrapper(*x)
+        def final_wrapper(*args, **kwargs): return owrapper(*args, **kwargs)
         return final_wrapper
     else:
         functionlist = arg
@@ -143,13 +139,15 @@ def override(*arg):
                 for function in functionlist:
                     if not callable(function): function = eval(function)
                     try: return _collect_declarations(function, dec_list)(*args, **kwargs)
-                    except TypeHintError: continue
+                    except TypeHintError as e:
+                        if _debug: print(str(e))
+                        continue
                 func_name = func.__name__.split('[')[0]
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
                     func=func_name, 
                     args=', '.join([repr(x) for x in args] + 
-                        ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])
+                        ['='.join((str(x[0]), repr(x[1]))) for x in kwargs.items()])
                 ) + "All available usages are:\n{}".format('\n'.join(dec_list)))
             return wrapper
         return wrap

@@ -6,3 +6,4 @@
 ##############################
 
 from pyctlib.torchplus.tensor import *
+from pyctlib.torchplus.tensorfunc import *

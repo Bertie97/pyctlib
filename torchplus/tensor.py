@@ -8,6 +8,7 @@
 __all__ = """
     Device
     Tensor
+    Size
 """.split()
 
 try:
@@ -16,12 +17,14 @@ try:
 except ImportError:
     raise ImportError("'pyctlib.torchplus' cannot be used without dependency 'torch' and 'numpy'.")
 import torch.nn as nn
+import builtins
 from pyctlib.basics.basictype import vector, raw_function
 from pyctlib.basics.wrapper import return_type_wrapper
-from pyctlib.basics.override import override, params, iterable
+from pyctlib.basics.override import *
 from pyctlib.basics.touch import touch
 from functools import wraps
-from typing import Union, Tuple
+from typing import Union
+from types import GeneratorType
 """
 from pyctlib.torchplus import Tensor
 import pyctlib.torchplus as torchplus
@@ -38,7 +41,7 @@ def return_tensor_wrapper(*args_out):
             if isinstance(result, Tensor):
                 pass
             elif isinstance(result, torch.Tensor):
-                result = Tensor(result, auto_device=auto_device)
+                result = Tensor(result, auto_device=auto_device, batch_dimension=args[0].batch_dimension if isinstance(args[0], Tensor) else None)
             elif isinstance(result, tuple):
                 result = tuple(Tensor(x) if isinstance(x, Tensor) else x for x in result)
             return result
@@ -82,6 +85,8 @@ def totensor(x) -> 'Tensor':
         return x
     elif isinstance(x, np.ndarray):
         return torch.tensor(x)
+    elif isinstance(x, GeneratorType):
+        return torch.tensor(list(x))
     else:
         return torch.tensor(x)
 
@@ -98,6 +103,114 @@ class GradWrapper:
     def __str__(self): return "<{} object at {}>".format(self.__class__.__name__, '%x'%id(self.gf))
     __repr__ = __str__
     def __call__(self, *args, **kwargs): return self.gf(*args, **kwargs)
+
+class Size(tuple):
+
+    NegSizeError = TypeError("Size cannot have negative values except -1 indicating arbitrary number. ")
+    NotSameLenError = TypeError("Only sizes of the same length can be calculated. ")
+
+    @overload
+    def __new__(cls, *args: IntScalar, batch_dimension: [null, Int]=None, **kwargs):
+        self = super().__new__(cls, args, **kwargs)
+        self.batch_dimension = batch_dimension
+        return self
+
+    @overload
+    def __new__(cls, args: Iterable[IntScalar], batch_dimension: [null, Int]=None, **kwargs):
+        self = super().__new__(cls, args, **kwargs)
+        self.batch_dimension = batch_dimension
+        return self
+
+    @overload
+    def __new__(cls, args: GeneratorType, batch_dimension: [null, Int]=None, **kwargs):
+        self = super().__new__(cls, args, **kwargs)
+        self.batch_dimension = batch_dimension
+        return self
+
+    @overload
+    def __new__(cls, args: Iterable[IntScalar, List<<IntScalar>>[1]]):
+        if len([x for x in args if isinstance(x, list)]): raise TypeError("Only one batch dimension is allowed.")
+        new_args = tuple(x[0] if isinstance(x, list) and len(x) == 1 else x for x in args)
+        self = super().__new__(cls, args)
+        self.batch_dimension = [isinstance(x, list) for x in args].index(True)
+        return self
+
+    @overload
+    def __add__(self, value: IntScalar):
+        if - value >= builtins.min([x for x in self if x >= 0]): raise Size.NegSizeError
+        return Size(-1 if x == -1 else x + value for x in self)
+    @overload
+    def __add__(self, other: [Tuple[IntScalar], 'Size']): return Size(tuple(self) + tuple(other))
+    @overload
+    def __radd__(self, value: IntScalar): return self + value
+    @overload
+    def __radd__(self, other: [Tuple[IntScalar], 'Size']): return Size(tuple(other) + tuple(self))
+    __iadd__ = __add__
+    
+    @params
+    def __sub__(self, value: IntScalar): return self + (-value)
+    @params
+    def __rsub__(self, value: IntScalar):
+        if value <= max([x for x in self if x >= 0]): raise Size.NegSizeError
+        return Size(-1 if x == -1 else value - x for x in self)
+    __isub__ = __sub__
+
+    @overload
+    def __lshift__(self, value: IntScalar): return self + value
+    @overload
+    def __lshift__(self, other: [Tuple[IntScalar], 'Size']):
+        if len(self) != len(other): raise Size.NotSameLenError
+        res = Size(-1 if builtins.min(x, y) == -1 else x + y for x, y in zip(self, other))
+        if any([x <= 0 for (x, u, v) in zip(res, self, other) if u >= 0 and v >= 0]): raise Size.NegSizeError
+        return res
+    __ilshift__ = __rlshift__ = __lshift__
+
+    @overload
+    def __rshift__(self, value: IntScalar): return self - value
+    @overload
+    def __rshift__(self, other: [Tuple[IntScalar], 'Size']): return self << tuple(-x for x in other)
+    @overload
+    def __rrshift__(self, value: IntScalar): return value - self
+    @overload
+    def __rrshift__(self, other: [Tuple[IntScalar], 'Size']): return Size(other) - self
+    __irshift__ = __rshift__
+
+    @overload
+    def __mul__(self, value: Scalar):
+        if value <= 0: raise Size.NegSizeError
+        return Size(-1 if x == -1 else builtins.int(value * x) for x in self)
+    @overload
+    def __mul__(self, other: [Tuple[Scalar], 'Size']):
+        if builtins.min([x for x in other if x != -1]) <= 0: raise Size.NegSizeError
+        if len(self) != len(other): raise Size.NotSameLenError
+        return Size(-1 if builtins.min(x, y) == -1 else builtins.int(x * y) for x, y in zip(self, other))
+    __imul__ = __rmul__ = __mul__
+
+    @overload
+    def __floordiv__(self, value: Scalar):
+        if value <= 0: raise Size.NegSizeError
+        return Size(-1 if x == -1 else buildins.int(x / value) for x in self)
+    @overload
+    def __floordiv__(self, other: [Tuple[Scalar], 'Size']):
+        if builtins.min([x for x in other if x != -1]) <= 0: raise Size.NegSizeError
+        if len(self) != len(other): raise Size.NotSameLenError
+        return Size(-1 if builtins.min(x, y) == -1 else buildins.int(x / y) for x, y in zip(self, other))
+    @overload
+    def __rfloordiv__(self, value: Scalar):
+        if value < 0: raise Size.NegSizeError
+        return Size(-1 if x == -1 else builtins.int(value / x) for x in self)
+    @overload
+    def __rfloordiv__(self, other: [Tuple[Scalar], 'Size']): return Size(other) // self
+    __ifloordiv__ = __floordiv__
+
+    def __getitem__(self, k): res = super().__getitem__(k); return Size(res) if isinstance(res, tuple) else res
+
+    def __str__(self):
+        if not self.batch_dimension: rep = tuple(self)
+        else: rep = tuple(self[:self.batch_dimension]) + ([self[self.batch_dimension]],) + tuple(self[self.batch_dimension + 1:])
+        if len(rep) == 1: rep = str(rep).replace(',', '')
+        return f"torchplus.Size{rep}"
+    __repr__ = __str__
 
 class Tensor(torch.Tensor):
 
@@ -156,9 +269,9 @@ class Tensor(torch.Tensor):
         torch.set_default_tensor_type(default_tensor_type)
         if requires_grad == True:
             self.requires_grad_()
-        self._batch_dimension = batch_dimension
+        self.batch_dimension = batch_dimension
 
-        # Wrong Inplement: looks find but can not backpropograte
+        # Wrong Inplement: looks fine but can not backpropograte
         # self = torch.Tensor.__new__(cls, device=data.device)
         # self.data = data.data
         # self.__grad_fn = data.grad_fn
@@ -166,12 +279,22 @@ class Tensor(torch.Tensor):
 
         return self
 
-    def __init__(self, data, auto_device=True, requires_grad=None):
-        pass
+    def __init__(self, *args, **kwargs): ...
 
     @property
     def batch_dimension(self):
         return self._batch_dimension
+
+    @batch_dimension.setter
+    def batch_dimension(self, value):
+        self._batch_dimension = None
+        if value:
+            if value < self.dim(): self._batch_dimension = value
+            else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.dim()}")
+    
+    def batch_dimension_(self, value):
+        self.batch_dimension = value
+        return self
 
     @property
     def batch_size(self):
@@ -8378,7 +8501,7 @@ template = "@return_tensor_wrapper\ndef {key}(*args): return torch.{key}(*args)"
 for key in dir(torch):
     if key.startswith("_"):
         continue
-    if key not in ['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor"]:
+    if key not in ['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor"] + __all__:
         exec(template.format(key = key))
         __all__.append(key)
 

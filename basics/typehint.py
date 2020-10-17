@@ -33,10 +33,15 @@ __all__ = """
     Real real
     Iterable
     Null null
+    Array
+    Scalar
+    IntScalar
+    FloatScalar
 """.split()
 
 import re, sys
-from pyctlib.basics.wrapper import *
+from copy import deepcopy
+from pyctlib.basics.basicwrapper import *
 from pyctlib.basics.functools import get_environ_vars
 
 class TypeHintError(Exception): pass
@@ -70,10 +75,8 @@ def iterable(x):
     return False
 
 def isarray(x):
-    if isatype(x) or not iterable(x): return False
-    if isoftype(x, [list, dict, tuple, set, str]): return False
-    if 'shape' in x.__dict__: return True
-    raise TypeError("Currently unrecognized array type, please contact the developers.")
+    if not isatype(x) and 'shape' in dir(x): return True
+    return False
 
 def isdtype(x):
     return 'dtype' in repr(type(x)).lower()
@@ -278,14 +281,17 @@ class Type(type):
 
     __repr__ = __str__
 
-    def __len__(self):
-        if len(self.shape) == 0: return "N"
+    @property
+    def len(self):
+        if len(self.shape) == 0: return -1
         prod = 1; unsure = False
         for s in self.shape:
             if s in (None, -1): unsure = True; continue
             prod *= s
-        if unsure: return str(prod) + " x N"
+        if unsure: return -prod
         else: return prod
+
+    def __len__(self): return abs(self.len)
 
     def __iter__(self):
         if len(self.shape) == 0: raise TypeHintError(self.__str__() + " is not iterable. ")
@@ -356,9 +362,7 @@ null = type(None)
 Null = T(null)
 real = [int, float]
 
-def extendable(t): return type(t) == Type and t.extendable
-
-class ArrayType:
+class ArrayType(Type):
     @property
     def Numpy(self):
         try:
@@ -384,7 +388,30 @@ class ArrayType:
             return Type(tf.Tensor)
         except ImportError: pass
 
-A = ArrayType()
+    @property
+    def TensorPlus(self):
+        try:
+            import pyctlib.torchplus as tp
+            return Type(tp.Tensor)
+        except ImportError: pass
+
+    def __call__(self, x): return isarray(x)
+
+Array = ArrayType(name="Array")
+
+class ScalarType(Type):
+    def __call__(self, x):
+        if isarray(x):
+            if not (len(x.shape) == 0 or all([i==1 for i in x.shape])): return False
+            res = False
+            for t in self.types:
+                res = res or _rawname(t) in str(x.dtype)
+            return res
+        else: return super().__call__(x)
+
+Scalar = ScalarType(Float, Int, name="Scalar")
+IntScalar = ScalarType(Int, name="IntScalar")
+FloatScalar = ScalarType(Float, name="FloatScalar")
 
 def getArgs(func, *args, **kwargs):
     getTypes = False
@@ -402,8 +429,7 @@ def getArgs(func, *args, **kwargs):
     for var, idefault in zip(normalargs, range(*rg)):
         if len(inputargs) > 0:
             if var in kwargs:
-                raise TypeHintError(func.__name__ + "() got multiple values for \
-argument " + repr(var))
+                raise TypeHintError(func.__name__ + "() got multiple values for argument " + repr(var))
             allargs[var] = inputargs.pop(0); continue
         if var in kwargs:
             if getTypes: allargs[var] = type(kwargs.pop(var))
@@ -448,48 +474,48 @@ def params(*types, **kwtypes):
         org_dec = getDeclaration(func)
         if isclassmethod(func): alltypes = (None,) + types
         else: alltypes = types
-        if israw:
-            annotations = func.__annotations__
-            annotations = {k: v.strip('\'"') if isinstance(v, str) else v for k, v in annotations.items()}
+        if israw: annotations = {k: v.strip('\'"') if isinstance(v, str) else v for k, v in func.__annotations__.items()}
         else: annotations = getArgs(func, *alltypes, **kwtypes, __type__=True)
         def wrapper(*args, **kwargs):
+            if israw: _annotations = {k: v.strip('\'"') if isinstance(v, str) else v for k, v in func.__annotations__.items()}
+            else: _annotations = getArgs(func, *alltypes, **kwtypes, __type__=True)
             eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", org_dec))
             ekwargs = ''.join(re.findall(r"[^*]\*{2} *(\w+)\b", org_dec))
-            values = getArgs(func, *args, **kwargs)
+            _values = getArgs(func, *args, **kwargs)
             if ekwargs:
-                assert ekwargs in values
-                if ekwargs in annotations:
-                    if iterable(annotations[ekwargs]):
-                        values.update(values[ekwargs]); values.pop(ekwargs)
-                        if len(annotations[ekwargs]) == 0: annotations.pop(ekwargs)
+                assert ekwargs in _values
+                if ekwargs in _annotations:
+                    if iterable(_annotations[ekwargs]):
+                        _values.update(_values[ekwargs]); _values.pop(ekwargs)
+                        if len(_annotations[ekwargs]) == 0: _annotations.pop(ekwargs)
                         else:
-                            annotations.update(annotations[ekwargs])
-                            annotations.pop(ekwargs)
+                            _annotations.update(_annotations[ekwargs])
+                            _annotations.pop(ekwargs)
                     else:
-                        if not extendable(annotations[ekwargs]):
+                        if not extendable(_annotations[ekwargs]):
                             print("Warning: auto extended non-extendable type. Please check your typehint. ")
-                        annotations[ekwargs] = Type(dict)@{str:annotations[ekwargs]}
+                        _annotations[ekwargs] = Type(dict)@{str:_annotations[ekwargs]}
             if eargs:
-                assert eargs in values
-                if eargs in annotations:
-                    if iterable(annotations[eargs]):
-                        if len(annotations[eargs]) == 0: annotations.pop(eargs)
-                        if len(annotations[eargs]) > 1:
+                assert eargs in _values
+                if eargs in _annotations:
+                    if iterable(_annotations[eargs]):
+                        if len(_annotations[eargs]) == 0: _annotations.pop(eargs)
+                        if len(_annotations[eargs]) > 1:
                             raise TypeHintError(func.__name__ + "() has too many type restraints. ")
-                        if not extendable(annotations[eargs][0]):
+                        if not extendable(_annotations[eargs][0]):
                             print("Warning: auto extended non-extendable type. Please check your typehint. ")
-                        annotations[eargs] = annotations[eargs][0]
-                    annotations[eargs] = Type(list, tuple)@annotations[eargs]
-            for arg in values:
-                if arg in annotations:
-                    if isoftype(values[arg], annotations[arg]): continue
+                        _annotations[eargs] = _annotations[eargs][0]
+                    _annotations[eargs] = Type(list, tuple)@_annotations[eargs]
+            for arg in _values:
+                if arg in _annotations:
+                    if isoftype(_values[arg], _annotations[arg]): continue
                     break
             else:
                 retval = func(*args, **kwargs)
-                if 'return' not in annotations or isoftype(retval, annotations['return']): return retval
+                if 'return' not in _annotations or isoftype(retval, _annotations['return']): return retval
                 raise TypeHintError(func.__name__ + "() returns an invalid value.")
             raise TypeHintError(func.__name__ + "() has argument " + arg + " of wrong type. \
-Expect type {type} but get {value}.".format(type=repr(annotations[arg]), value=repr(values[arg])))
+Expect type {type} but get {value}.".format(type=repr(_annotations[arg]), value=repr(_values[arg])))
         org_dec = getDeclaration(func)
         dec = org_dec
         for arg in annotations:
