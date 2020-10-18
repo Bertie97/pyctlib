@@ -15,7 +15,7 @@ from pyctlib.basics.basicwrapper import *
 from pyctlib.basics.typehint import *
 from pyctlib.basics.typehint import __all__ as typehint_all
 from pyctlib.basics.typehint import TypeHintError
-from pyctlib.basics.functools import get_environ_vars
+from pyctlib.basics.func_tools import get_environ_vars
 
 __all__ += typehint_all
 
@@ -34,17 +34,24 @@ def _collect_declarations(func, collection, place_first=False):
         toadd = ''
         for l in lines:
             if not l.strip(): continue
-            if l.startswith(func.__name__.split('[')[0]) or l[0] == '(': toadd = l
+            if l.startswith(_get_func_name(func)) or l[0] == '(': toadd = l
             else: break
         if toadd:
             if place_first: collection.insert(0, toadd)
             else: collection.append(toadd)
     return try_func
 
+def _get_func_name(f):
+    fname = f.__name__.split('[')[0]
+    if fname.endswith('__0__') or fname.endswith('__default__'):
+        fname = '__'.join(fname.split('__')[:-2])
+        f.__name__ = fname + '['.join(f.__name__.split('[')[1:])
+    return fname
+
 @decorator(use_raw = False)
 def overload(func):
     local_vars = get_environ_vars()
-    fname = raw_function(func).__name__.split('[')[0].rstrip('__0__')
+    fname = _get_func_name(raw_function(func))
     key = f"__overload_{fname}__"
     overrider = f"__override_{fname}__"
     if key in local_vars:
@@ -80,9 +87,9 @@ def override(*arg):
                     f = raw_function(args[0])
                     if not kwargs and len(args) == 1 and Func(f):
                         fname = f.__name__.split('[')[0]
-                        funcname = func.__name__.split('[')[0]
+                        funcname = _get_func_name(func)
                         if fname == "_" or funcname in fname:
-                            if fname.endswith('__0__'): self.default = len(self.func_list)
+                            if fname.endswith('__0__') or fname.endswith("__default__"): self.default = len(self.func_list)
                             self.func_list.append(_wrap_params(f)); return
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
@@ -118,7 +125,7 @@ def override(*arg):
                         except TypeHintError as e:
                             if _debug: print(str(e))
                             continue
-                func_name = self.default.__name__.split('[')[0].replace("_overload", '')
+                func_name = _get_func_name(self.func_list[self.default if self.default else 0]).split("_overload")[0]
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
                     func=func_name, 
@@ -142,7 +149,7 @@ def override(*arg):
                     except TypeHintError as e:
                         if _debug: print(str(e))
                         continue
-                func_name = func.__name__.split('[')[0]
+                func_name = _get_func_name(func.__name__)
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
                     func=func_name, 

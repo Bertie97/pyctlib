@@ -6,17 +6,18 @@
 ##############################
 __all__ = """
     touch
+    get
 """.split()
 
 import sys
 from pyctlib.basics.override import *
 
-@override
+@overload
 def touch(f: Callable):
     try: return f()
     except: return None
 
-@touch
+@overload
 def _(s: str):
     frame = sys._getframe()
     while "pyctlib" in str(frame.f_code): frame = frame.f_back
@@ -25,3 +26,12 @@ def _(s: str):
     locals().update(local_vars)
     try: return eval(s)
     except: return None
+
+@overload
+def get__default__(var, value):
+    if var is None: return value
+    else: return var
+
+@overload
+def get(f: Callable, v):
+    return get(touch(f))
