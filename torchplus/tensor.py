@@ -8501,7 +8501,7 @@ template = "@return_tensor_wrapper\ndef {key}(*args): return torch.{key}(*args)"
 for key in dir(torch):
     if key.startswith("_"):
         continue
-    if key not in ['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor"] + __all__:
+    if key not in ['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor", "nn"] + __all__:
         exec(template.format(key = key))
         __all__.append(key)
 
