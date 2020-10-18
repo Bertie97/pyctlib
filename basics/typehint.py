@@ -42,7 +42,7 @@ __all__ = """
 import re, sys
 from copy import deepcopy
 from pyctlib.basics.basicwrapper import *
-from pyctlib.basics.functools import get_environ_vars
+from pyctlib.basics.func_tools import get_environ_vars
 
 class TypeHintError(Exception): pass
 
@@ -165,7 +165,7 @@ def listargs(*_T):
                     if not isoftype(item, _T):
                         if _T not in (list, tuple, dict, set):
                             raise TypeHintError("Unsupported types of arguments for " +
-                                                _get_func_name(func.__name__) + "(): " + str(item) + '. ')
+                                                _get_func_name(func) + "(): " + str(item) + '. ')
                         break
                 else: args = args[0]
             return func(*pre, *args, **kwargs)
@@ -436,7 +436,7 @@ def getArgs(func, *args, **kwargs):
     for var, idefault in zip(normalargs, range(*rg)):
         if len(inputargs) > 0:
             if var in kwargs:
-                raise TypeHintError(_get_func_name(func.__name__) + "() got multiple values for argument " + repr(var))
+                raise TypeHintError(_get_func_name(func) + "() got multiple values for argument " + repr(var))
             allargs[var] = inputargs.pop(0); continue
         if var in kwargs:
             if getTypes: allargs[var] = type(kwargs.pop(var))
@@ -445,7 +445,7 @@ def getArgs(func, *args, **kwargs):
         if idefault < 0:
             missing.append(var)
             if idefault == lendefault - 1:
-                error = _get_func_name(func.__name__) + "() missing " + str(-idefault)
+                error = _get_func_name(func) + "() missing " + str(-idefault)
                 error += " required positional arguments: "
                 error += ', '.join([repr(v) for v in missing[:-1]])
                 error += ", and " + repr(missing[-1])
@@ -465,9 +465,9 @@ def getArgs(func, *args, **kwargs):
                 # raise TypeHintError(func.__name__ + "() got an undefined parameter " + addkwarg + ". ")
             if getTypes: allargs[addkwarg] = type(func.__kwdefaults__[addkwarg])
             else: allargs[addkwarg] = func.__kwdefaults__[addkwarg]
-    if len(kwargs) > 0: raise TypeHintError(_get_func_name(func.__name__) + "() got an unexpected " + 
+    if len(kwargs) > 0: raise TypeHintError(_get_func_name(func) + "() got an unexpected " + 
         "keyword argument " + repr(list(kwargs.keys())[0]))
-    if len(inputargs) > 0: raise TypeHintError(_get_func_name(func.__name__) +
+    if len(inputargs) > 0: raise TypeHintError(_get_func_name(func) +
         "() takes from {lower} to {upper} positional arguments but {real} were given. "
         .format(lower=-rg[0], upper=rg[1] - rg[0], real=len(inputargs) + rg[1] - rg[0]))
     return allargs
@@ -508,7 +508,7 @@ def params(*types, **kwtypes):
                     if iterable(_annotations[eargs]):
                         if len(_annotations[eargs]) == 0: _annotations.pop(eargs)
                         if len(_annotations[eargs]) > 1:
-                            raise TypeHintError(_get_func_name(func.__name__) + "() has too many type restraints. ")
+                            raise TypeHintError(_get_func_name(func) + "() has too many type restraints. ")
                         if not extendable(_annotations[eargs][0]):
                             print("Warning: auto extended non-extendable type. Please check your typehint. ")
                         _annotations[eargs] = _annotations[eargs][0]
@@ -520,8 +520,8 @@ def params(*types, **kwtypes):
             else:
                 retval = func(*args, **kwargs)
                 if 'return' not in _annotations or isoftype(retval, _annotations['return']): return retval
-                raise TypeHintError(_get_func_name(func.__name__) + "() returns an invalid value.")
-            raise TypeHintError(_get_func_name(func.__name__) + "() has argument " + arg + " of wrong type. \
+                raise TypeHintError(_get_func_name(func) + "() returns an invalid value.")
+            raise TypeHintError(_get_func_name(func) + "() has argument " + arg + " of wrong type. \
 Expect type {type} but get {value}.".format(type=repr(_annotations[arg]), value=repr(_values[arg])))
         org_dec = getDeclaration(func)
         dec = org_dec
