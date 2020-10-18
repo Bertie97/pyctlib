@@ -42,7 +42,7 @@ __all__ = """
 import re, sys
 from copy import deepcopy
 from pyctlib.basics.basicwrapper import *
-from pyctlib.basics.functools import get_environ_vars
+from pyctlib.basics.func_tools import get_environ_vars
 
 class TypeHintError(Exception): pass
 
