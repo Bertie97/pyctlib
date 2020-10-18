@@ -13,7 +13,7 @@ from typing import Optional, List, Union
 from types import GeneratorType
 from collections import Counter
 from pyctlib.basics.touch import touch
-from pyctlib.basics.override import override, overload, Func
+from pyctlib.basics.override import override, overload, Func, Iterable
 from pyctlib.basics.wrapper import raw_function
 from functools import wraps
 
@@ -150,6 +150,19 @@ class vector(list):
     def _(self, index_list: list):
         assert len(self) == len(index_list)
         return vector(zip(self, index_list)).filter(lambda x: x[1]).map(lambda x: x[0])
+
+    @overload
+    def __sub__(self, other: Iterable):
+        try:
+            other = set(other)
+        except:
+            other = list(other)
+        finally:
+            return self.filter(lambda x: x not in other)
+
+    @overload
+    def __sub__(self, other):
+        return self.filter(lambda x: x != other)
 
     def __setitem__(self, i, t):
         if isinstance(i, int):
