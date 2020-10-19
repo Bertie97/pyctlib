@@ -14,7 +14,7 @@ from functools import wraps
 from pyctlib.basics.basicwrapper import *
 from pyctlib.basics.typehint import *
 from pyctlib.basics.typehint import __all__ as typehint_all
-from pyctlib.basics.typehint import TypeHintError
+from pyctlib.basics.typehint import TypeHintError, _getDeclaration
 from pyctlib.basics.func_tools import get_environ_vars
 
 __all__ += typehint_all
@@ -34,6 +34,7 @@ def _wrap_params(f):
     return f, params(run=False)(f)
 
 def _collect_declarations(func, collection, place_first=False):
+    ret = _wrap_params(func)
     f = _get_wrapped(func)
     if f.__doc__:
         lines = f.__doc__.split('\n')
@@ -45,21 +46,22 @@ def _collect_declarations(func, collection, place_first=False):
         if toadd:
             if place_first: collection.insert(0, toadd)
             else: collection.append(toadd)
-    return _wrap_params(func)
+    return ret
 
-def _get_func_name(f):
+def _get_func_name(f, change_name = True):
     fname = f.__name__.split('[')[0]
     if fname.endswith('__0__') or fname.endswith('__default__'):
         fname = '__'.join(fname.split('__')[:-2])
-        f.__name__ = fname + '['.join(f.__name__.split('[')[1:])
+        if change_name: f.__name__ = fname + '['.join(f.__name__.split('[')[1:])
     return fname
 
 @decorator(use_raw = False)
 def overload(func):
     local_vars = get_environ_vars()
-    fname = _get_func_name(raw_function(func))
-    key = f"__overload_{fname}__"
-    overrider = f"__override_{fname}__"
+    fname = raw_function(func).__name__.split('[')[0]
+    rawfname = _get_func_name(raw_function(func), change_name = False)
+    key = f"__overload_{rawfname}__"
+    overrider = f"__override_{rawfname}__"
     if key in local_vars:
         local_vars.update({key: local_vars[key] + 1})
         new_name = f"__{fname}_overload_{local_vars[key]}"
@@ -67,9 +69,9 @@ def overload(func):
     else:
         local_vars.update({key: 0})
         local_vars[overrider] = override(func)
-    exec(f"def {fname}(*args, **kwargs): return {overrider}(*args, **kwargs)", local_vars)
+    exec(f"def {rawfname}(*args, **kwargs): return {overrider}(*args, **kwargs)", local_vars)
     # func.__name__ = '['.join([new_name] + func.__name__.split('[')[1:])
-    return local_vars[fname]
+    return local_vars[rawfname]
 
 @decorator(use_raw = False)
 def override(*arg):
@@ -85,7 +87,8 @@ def override(*arg):
         class override_wrapper:
             def __init__(self, f):
                 self.func_list = [f]
-                if f.__name__.endswith('__0__'): self.default = 0
+                fname = f.__name__.split('[')[0]
+                if fname.endswith('__0__') or fname.endswith("__default__"): self.default = 0
                 else: self.default = None
 
             def __call__(self, *args, **kwargs):
@@ -99,7 +102,7 @@ def override(*arg):
                             self.func_list.append(f); return
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
-                for i, f in list(enumerate(self.func_list)) + ([(-1, self.func_list[self.default])] if self.default else []):
+                for i, f in list(enumerate(self.func_list)) + ([(-1, self.func_list[self.default])] if self.default is not None else []):
                     if i == self.default: continue
                     run_func, test_func = _collect_declarations(f, dec_list, place_first=i==-1)
                     try:

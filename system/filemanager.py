@@ -310,7 +310,7 @@ class file(path):
     # @override
     @overload
     @staticmethod
-    def _to_byte(data):
+    def _to_byte__default__(data):
         try:
             import torch
             import pyctlib.torchplus as torchplus

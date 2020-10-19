@@ -126,14 +126,14 @@ def isclassmethod(x):
         else: return False
     except: return False
 
-class strIO:
+class _strIO:
     def __init__(self): self._str_ = ''
     def write(self, s): self._str_ += s
     def __str__(self): return self._str_
     def split(self, c=None): return self._str_.split(c)
 
-def getDeclaration(func):
-    ss = strIO()
+def _getDeclaration(func):
+    ss = _strIO()
     oldout = sys.stdout
     sys.stdout = ss
     help(func)
@@ -428,7 +428,7 @@ def getArgs(func, *args, **kwargs):
     inputargs = list(args)
     normalargs = func.__code__.co_varnames[:func.__code__.co_argcount]
     extargs = func.__code__.co_varnames[func.__code__.co_argcount:]
-    dec = getDeclaration(func)
+    dec = _getDeclaration(func)
     eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", dec))
     ekwargs = ''.join(re.findall(r"[^*]\*{2} *(\w+)\b", dec))
     lendefault = 0 if not func.__defaults__ else len(func.__defaults__)
@@ -473,7 +473,7 @@ def params(*types, run=True, **kwtypes):
             callable(types[0]) and not isatype(types[0])
     @decorator
     def wrap(func):
-        org_dec = getDeclaration(func)
+        org_dec = _getDeclaration(func)
         if isclassmethod(func): alltypes = (None,) + types
         else: alltypes = types
         if israw or (len(kwtypes) == 0 and len(types) == 0):
@@ -524,7 +524,7 @@ def params(*types, run=True, **kwtypes):
                 else: return None
             raise TypeHintError(_get_func_name(func) + "() has argument " + arg + " of wrong type. \
 Expect type {type} but get {value}.".format(type=repr(_annotations[arg]), value=repr(_values[arg])))
-        org_dec = getDeclaration(func)
+        org_dec = _getDeclaration(func)
         dec = org_dec
         for arg in annotations:
             if arg == 'return':
