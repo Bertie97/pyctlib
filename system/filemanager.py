@@ -394,7 +394,7 @@ class file(path):
 
     @overload
     @staticmethod
-    def _to_byte(data: 'np.ndarray'):
+    def _to_byte(data: 'numpyp.ndarray'):
         content = data.tobytes()
         shape = data.shape
         dtype = str(data.dtype)
