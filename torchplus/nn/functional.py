@@ -8,7 +8,7 @@ import inspect
 
 F_key = vector(dir(F)).filter(lambda x: not x.startswith("_")).filter(lambda x: not inspect.isclass(eval("F.{}".format(x)))).filter(lambda x: x[0].islower())
 
-template = "@return_tensor_wrapper\ndef {key}(*args): return F.{key}(*args)"
+template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return F.{key}(*args, **kwargs)"
 
 # F_key.apply(lambda x: exec(template.format(key=x)))
 

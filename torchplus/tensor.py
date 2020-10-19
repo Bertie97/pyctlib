@@ -8538,7 +8538,7 @@ class Tensor(torch.Tensor):
     def grad_fn(self):
         return self.__grad_fn
 
-template = "@return_tensor_wrapper\ndef {key}(*args): return torch.{key}(*args)"
+template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return torch.{key}(*args, **kwargs)"
 for key in dir(torch):
     if key.startswith("_"):
         continue
