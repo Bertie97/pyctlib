@@ -9,7 +9,7 @@ __all__ = """
 """.split()
 
 from pyctlib import *
-from pyctlib.torchplus.tensor import Tensor, ones
+from pyctlib.torchplus.tensor import Tensor, ones, return_tensor_wrapper
 from pyctlib.basics.wrapper import restore_type_wrapper
 
 @overload
@@ -52,3 +52,11 @@ def crop_as(x: Array, y: [tuple, Array], fill: Scalar=0) -> Array:
     center = tuple(m/2 for m in x.shape)
     return crop_as(x, y, center, fill)
 
+@return_tensor_wrapper
+def linear(input, weight, bias):
+    result = input @ weight.T
+    if bias is not None:
+        if bias.dim() == 2:
+            return result + bias
+        return result + bias.unsqueeze(0)
+    return result
