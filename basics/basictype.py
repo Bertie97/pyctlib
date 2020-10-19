@@ -63,6 +63,10 @@ class vector(list):
             if touch(lambda: func(a)) is None:
                 raise RuntimeError("Exception raised in map function at location {} for element {}".format(index, a))
 
+    def apply(self, func) -> None:
+        for x in self:
+            func(x)
+
     def check_type(self, instance):
         return all(self.map(lambda x: isinstance(x, instance)))
 
