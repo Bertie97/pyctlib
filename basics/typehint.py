@@ -422,7 +422,7 @@ FloatScalar = ScalarType(Float, name="FloatScalar")
 
 def getArgs(func, *args, **kwargs):
     getTypes = False
-    allargs = {}; missing = []
+    allargs = {}
     if "__type__" in kwargs: getTypes = kwargs.pop('__type__')
     if "__return__" in kwargs: allargs['return'] = kwargs.pop('__return__')
     inputargs = list(args)
@@ -443,13 +443,8 @@ def getArgs(func, *args, **kwargs):
             else: allargs[var] = kwargs.pop(var)
             continue
         if idefault < 0:
-            missing.append(var)
-            if idefault == lendefault - 1:
-                error = _get_func_name(func) + "() missing " + str(-idefault)
-                error += " required positional arguments: "
-                error += ', '.join([repr(v) for v in missing[:-1]])
-                error += ", and " + repr(missing[-1])
-                raise TypeHintError(error)
+            error = _get_func_name(func) + "() missing required positional argument: " + repr(var)
+            raise TypeHintError(error)
         if not func.__defaults__ or not 0 <= idefault < len(func.__defaults__): continue
         if getTypes: allargs[var] = type(func.__defaults__[idefault])
         else: allargs[var] = func.__defaults__[idefault]
@@ -473,7 +468,7 @@ def getArgs(func, *args, **kwargs):
     return allargs
 
 @decorator
-def params(*types, **kwtypes):
+def params(*types, run=True, **kwtypes):
     israw = len(kwtypes) == 0 and len(types) == 1 and \
             callable(types[0]) and not isatype(types[0])
     @decorator
@@ -481,10 +476,12 @@ def params(*types, **kwtypes):
         org_dec = getDeclaration(func)
         if isclassmethod(func): alltypes = (None,) + types
         else: alltypes = types
-        if israw: annotations = {k: v.strip('\'"') if isinstance(v, str) else v for k, v in func.__annotations__.items()}
+        if israw or (len(kwtypes) == 0 and len(types) == 0):
+            annotations = {k: v.strip('\'"') if isinstance(v, str) else v for k, v in func.__annotations__.items()}
         else: annotations = getArgs(func, *alltypes, **kwtypes, __type__=True)
         def wrapper(*args, **kwargs):
-            if israw: _annotations = {k: v.strip('\'"') if isinstance(v, str) else v for k, v in func.__annotations__.items()}
+            if israw or (len(kwtypes) == 0 and len(types) == 0):
+                _annotations = {k: v.strip('\'"') if isinstance(v, str) else v for k, v in func.__annotations__.items()}
             else: _annotations = getArgs(func, *alltypes, **kwtypes, __type__=True)
             eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", org_dec))
             ekwargs = ''.join(re.findall(r"[^*]\*{2} *(\w+)\b", org_dec))
@@ -507,20 +504,24 @@ def params(*types, **kwtypes):
                 if eargs in _annotations:
                     if iterable(_annotations[eargs]):
                         if len(_annotations[eargs]) == 0: _annotations.pop(eargs)
-                        if len(_annotations[eargs]) > 1:
+                        elif len(_annotations[eargs]) > 1:
                             raise TypeHintError(_get_func_name(func) + "() has too many type restraints. ")
-                        if not extendable(_annotations[eargs][0]):
-                            print("Warning: auto extended non-extendable type. Please check your typehint. ")
-                        _annotations[eargs] = _annotations[eargs][0]
-                    _annotations[eargs] = Type(list, tuple)@_annotations[eargs]
+                        else:
+                            if not extendable(_annotations[eargs][0]):
+                                print("Warning: auto extended non-extendable type. Please check your typehint. ")
+                            _annotations[eargs] = _annotations[eargs][0]
+                    if eargs in _annotations:
+                        _annotations[eargs] = Type(list, tuple)@_annotations[eargs]
             for arg in _values:
                 if arg in _annotations:
                     if isoftype(_values[arg], _annotations[arg]): continue
                     break
             else:
-                retval = func(*args, **kwargs)
-                if 'return' not in _annotations or isoftype(retval, _annotations['return']): return retval
-                raise TypeHintError(_get_func_name(func) + "() returns an invalid value.")
+                if run:
+                    retval = func(*args, **kwargs)
+                    if 'return' not in _annotations or isoftype(retval, _annotations['return']): return retval
+                    raise TypeHintError(_get_func_name(func) + "() returns an invalid value.")
+                else: return None
             raise TypeHintError(_get_func_name(func) + "() has argument " + arg + " of wrong type. \
 Expect type {type} but get {value}.".format(type=repr(_annotations[arg]), value=repr(_values[arg])))
         org_dec = getDeclaration(func)

@@ -11,7 +11,6 @@ __all__ = """
 from pyctlib.basics.override import *
 from pyctlib.basics.basicwrapper import *
 
-@decorator
 def _restore_type_wrapper(func: Callable, special_attr: List[str]):
     def wrapper(*args, **kwargs):
         ret = func(*args, **kwargs)
@@ -25,6 +24,7 @@ def _restore_type_wrapper(func: Callable, special_attr: List[str]):
         elif "torch.Tensor" in str(totype):
             import torch
             constructor = lambda x: x if isinstance(x, torch.Tensor) else torch.tensor(x)
+        if not isinstance(ret, tuple): ret = (ret,)
         output = tuple()
         for r in ret:
             try: new_r = constructor(r)
@@ -32,6 +32,7 @@ def _restore_type_wrapper(func: Callable, special_attr: List[str]):
             for a in special_attr:
                 if a in dir(r): exec(f"new_r.{a} = r.{a}")
             output += (new_r,)
+        if len(output) == 1: output = output[0]
         return output
     return wrapper
 

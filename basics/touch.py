@@ -18,7 +18,7 @@ def touch(f: Callable):
     except: return None
 
 @overload
-def _(s: str):
+def touch(s: str):
     frame = sys._getframe()
     while "pyctlib" in str(frame.f_code): frame = frame.f_back
     local_vars = frame.f_locals
@@ -34,4 +34,4 @@ def get__default__(var, value):
 
 @overload
 def get(f: Callable, v):
-    return get(touch(f))
+    return get(touch(f), v)
