@@ -25,6 +25,7 @@ from pyctlib.basics.touch import touch
 from functools import wraps
 from typing import Union
 from types import GeneratorType
+import inspect
 """
 from pyctlib.torchplus import Tensor
 import pyctlib.torchplus as torchplus
@@ -8541,10 +8542,14 @@ template = "@return_tensor_wrapper\ndef {key}(*args): return torch.{key}(*args)"
 for key in dir(torch):
     if key.startswith("_"):
         continue
+    if inspect.isclass(eval("torch.{}".format(key))):
+        continue
     if key not in ['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor", "nn"] + __all__:
         exec(template.format(key = key))
         __all__.append(key)
 
+no_grad = torch.no_grad
+__all__.append("no_grad")
 
     # @property
     # def dtype(self):
