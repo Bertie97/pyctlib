@@ -31,6 +31,7 @@ class Linear(Module):
         #     fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
         #     bound = 1 / math.sqrt(fan_in)
         #     init.uniform_(self.bias, -bound, bound)
+        # TODO: different initialization method based on different activation function
 
     def forward(self, input: Tensor) -> Tensor:
         if self.activation is None:
