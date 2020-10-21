@@ -273,43 +273,17 @@ class Tensor(torch.Tensor):
             self.requires_grad_()
         return self
 
+    @overload
+    def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dimension=None):
 
-    def __new__(cls, data, auto_device=True, requires_grad=None, batch_dimension=None):
+    @overload
+    def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None):
+
+
+
+    def __new__(cls, *args, auto_device=True, requires_grad=None, batch_dimension=None):
+
         self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
-        # if isinstance(data, Tensor):
-        #     if auto_device:
-        #         data._to(Device)
-        #     if requires_grad is not None:
-        #         data.requires_grad = requires_grad
-        #     return data
-        # data = totensor(data)
-        # if auto_device:
-        #     if isinstance(data, Tensor):
-        #         data = data._to(Device)
-        #     elif isinstance(data, torch.Tensor):
-        #         data = data.to(Device)
-        # default_tensor_type = Tensor.get_default_tensor_type()
-        # torch.set_default_tensor_type(torch.cuda.FloatTensor if data.is_cuda else torch.FloatTensor)
-        # if data.dim() == 0:
-        #     old_grad_fn = data.grad_fn
-        #     data = torch.unsqueeze(data, 0)
-        #     dim_zero = True
-        # else:
-        #     dim_zero = False
-        # if data.is_leaf:
-        #     self = torch.Tensor.__new__(cls, tofloat(data.detach()))
-        #     self.requires_grad = data.requires_grad
-        # else:
-        #     self = torch.Tensor.__new__(cls, tofloat(data))
-        # self.data = self.data.type(data.data.type())
-        # self._dim_zero = dim_zero
-        # if dim_zero and data.grad_fn is not None:
-        #     self.__grad_fn = GradWrapper(old_grad_fn.__class__.__name__, data.grad_fn)
-        # else:
-        #     self.__grad_fn = data.grad_fn
-        # torch.set_default_tensor_type(default_tensor_type)
-        # if requires_grad == True:
-        #     self.requires_grad_()
         self.batch_dimension = batch_dimension
 
         # Wrong Inplement: looks fine but can not backpropograte
@@ -8538,7 +8512,7 @@ class Tensor(torch.Tensor):
     def grad_fn(self):
         return self.__grad_fn
 
-template = "@return_tensor_wrapper\ndef {key}(*args): return torch.{key}(*args)"
+template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return torch.{key}(*args, **kwargs)"
 for key in dir(torch):
     if key.startswith("_"):
         continue

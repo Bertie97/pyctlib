@@ -22,6 +22,7 @@ class Linear(Module):
         else:
             self.register_parameter('bias', None)
         self.reset_parameters()
+        self.activation = activation
 
     def reset_parameters(self) -> None:
         # init.kaiming_uniform_(self.weight, a=math.sqrt(5))
@@ -30,11 +31,16 @@ class Linear(Module):
         #     fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
         #     bound = 1 / math.sqrt(fan_in)
         #     init.uniform_(self.bias, -bound, bound)
+        # TODO: different initialization method based on different activation function
 
     def forward(self, input: Tensor) -> Tensor:
-        return F.linear(input, self.weight, self.bias)
+        if self.activation is None:
+            return F.linear(input, self.weight, self.bias)
+        else:
+            return self.activation(F.linear(input, self.weight, self.bias))
 
     def extra_repr(self) -> str:
-        return 'in_features={}, out_features={}, bias={}'.format(
-            self.in_features, self.out_features, self.bias is not None
-        )
+        if self.activation is None:
+            return 'in_features={}, out_features={}, bias={}'.format(self.in_features, self.out_features, self.bias is not None)
+        else:
+            return 'in_features={}, out_features={}, bias={}, activation={}'.format(self.in_features, self.out_features, self.bias is not None, self.activation)
