@@ -273,8 +273,16 @@ class Tensor(torch.Tensor):
             self.requires_grad_()
         return self
 
+    @overload
+    def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dimension=None):
 
-    def __new__(cls, data, auto_device=True, requires_grad=None, batch_dimension=None):
+    @overload
+    def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None):
+
+
+
+    def __new__(cls, *args, auto_device=True, requires_grad=None, batch_dimension=None):
+
         self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
         self.batch_dimension = batch_dimension
 
