@@ -24,6 +24,7 @@ from pyctlib.basics.override import *
 from pyctlib.basics.touch import touch
 from functools import wraps
 from typing import Union
+import typing
 from types import GeneratorType
 import inspect
 """
@@ -273,30 +274,41 @@ class Tensor(torch.Tensor):
             self.requires_grad_()
         return self
 
-    # @overload
-    # def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dimension=None):
-    #     pass
-
-    # @overload
-    # def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None):
-    #     pass
-
-
-
-    def __new__(cls, *args, auto_device=True, requires_grad=None, batch_dimension=None):
-
+    @overload
+    def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None):
+        data = torch.Tensor(*shape)
         self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
         self.batch_dimension = batch_dimension
-
-        # Wrong Inplement: looks fine but can not backpropograte
-        # self = torch.Tensor.__new__(cls, device=data.device)
-        # self.data = data.data
-        # self.__grad_fn = data.grad_fn
-        # self.requires_grad = data.requires_grad
-
         return self
 
-    def __init__(self, *args, **kwargs): ...
+    @overload
+    def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dimension=None):
+        self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
+        self.batch_dimension = batch_dimension
+        return self
+
+    # def __new__(cls, *args, auto_device=True, requires_grad=None, batch_dimension=None):
+
+    #     self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
+    #     self.batch_dimension = batch_dimension
+
+    #     # Wrong Inplement: looks fine but can not backpropograte
+    #     # self = torch.Tensor.__new__(cls, device=data.device)
+    #     # self.data = data.data
+    #     # self.__grad_fn = data.grad_fn
+    #     # self.requires_grad = data.requires_grad
+
+    #     return self
+
+    # @typing.overload
+    @overload
+    def __init__(self, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None): ...
+
+    # @typing.overload
+    @overload
+    def __init__(self, data, *, auto_device=True, requires_grad=None, batch_dimension=None): ...
+
+    # def __init__(self, *args, **kwargs): ...
 
     @property
     def batch_dimension(self):

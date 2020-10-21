@@ -68,11 +68,9 @@ class _ConvNd(Module):
         # reverse order than the dimension.
         self._reversed_padding_repeated_twice = _reverse_repeat_tuple(self.padding, 2)
         if transposed:
-            self.weight = Parameter(Tensor(
-                in_channels, out_channels // groups, *kernel_size))
+            self.weight = Parameter(Tensor(in_channels, out_channels // groups, *kernel_size))
         else:
-            self.weight = Parameter(Tensor(
-                out_channels, in_channels // groups, *kernel_size))
+            self.weight = Parameter(Tensor(out_channels, in_channels // groups, *kernel_size))
         if bias:
             self.bias = Parameter(Tensor(out_channels))
         else:
@@ -550,7 +548,8 @@ class Conv3d(_ConvNd):
 
     def forward(self, input: Tensor) -> Tensor:
         if self.padding_mode != 'zeros':
-            return F.conv3d(F.pad(input, self._reversed_padding_repeated_twice, mode=self.padding_mode), self.weight, self.bias, self.stride, _triple(0), self.dilation, self.groups) return F.conv3d(input, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
+            return F.conv3d(F.pad(input, self._reversed_padding_repeated_twice, mode=self.padding_mode), self.weight, self.bias, self.stride, _triple(0), self.dilation, self.groups)
+        return F.conv3d(input, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
 
 class _ConvTransposeNd(_ConvNd):
