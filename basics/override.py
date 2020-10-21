@@ -57,17 +57,17 @@ def _get_func_name(f, change_name = True):
 
 @decorator(use_raw = False)
 def overload(func):
-    local_vars = get_environ_vars()
+    local_vars = get_environ_vars(func)
     fname = raw_function(func).__name__.split('[')[0]
     rawfname = _get_func_name(raw_function(func), change_name = False)
     key = f"__overload_{rawfname}__"
     overrider = f"__override_{rawfname}__"
     if key in local_vars:
-        local_vars.update({key: local_vars[key] + 1})
+        local_vars[key] = local_vars[key] + 1
         new_name = f"__{fname}_overload_{local_vars[key]}"
         local_vars[new_name] = local_vars[overrider](func)
     else:
-        local_vars.update({key: 0})
+        local_vars[key] = 0
         local_vars[overrider] = override(func)
     exec(f"def {rawfname}(*args, **kwargs): return {overrider}(*args, **kwargs)", local_vars)
     # func.__name__ = '['.join([new_name] + func.__name__.split('[')[1:])
@@ -102,16 +102,6 @@ def override(*arg):
                             self.func_list.append(f); return
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
-                for i, f in list(enumerate(self.func_list)) + ([(-1, self.func_list[self.default])] if self.default is not None else []):
-                    if i == self.default: continue
-                    run_func, test_func = _collect_declarations(f, dec_list, place_first=i==-1)
-                    try:
-                        ret = test_func(*args, **kwargs)
-                        if run_func is not None: ret = run_func(*args, **kwargs)
-                        return ret
-                    except TypeHintError as e:
-                        if _debug: print(str(e))
-                        continue
                 if len(self.func_list) == 1:
                     run_func, test_func = _collect_declarations(self.func_list[0], dec_list)
                     try:
@@ -136,18 +126,30 @@ def override(*arg):
                         else: return ret
                     except TypeHintError as e:
                         if _debug: print(str(e))
-                for name, value in func.__globals__.items():
-                    name = name.replace('override', '').strip('_')
-                    if callable(value) and (name.startswith(func.__name__) or
-                                            name.endswith(func.__name__)) and name != func.__name__:
-                        run_func, test_func = _collect_declarations(value, dec_list)
+                elif len(self.func_list) > 1:
+                    for i, f in list(enumerate(self.func_list)) + ([(-1, self.func_list[self.default])] if self.default is not None else []):
+                        if i == self.default: continue
+                        run_func, test_func = _collect_declarations(f, dec_list, place_first=i==-1)
                         try:
-                            ret = test_func(*args, *kwargs)
+                            ret = test_func(*args, **kwargs)
                             if run_func is not None: ret = run_func(*args, **kwargs)
                             return ret
                         except TypeHintError as e:
                             if _debug: print(str(e))
                             continue
+                else:
+                    for name, value in func.__globals__.items():
+                        name = name.replace('override', '').strip('_')
+                        if callable(value) and (name.startswith(func.__name__ + '_') or
+                                                name.endswith('_' + func.__name__)) and name != func.__name__:
+                            run_func, test_func = _collect_declarations(value, dec_list)
+                            try:
+                                ret = test_func(*args, *kwargs)
+                                if run_func is not None: ret = run_func(*args, **kwargs)
+                                return ret
+                            except TypeHintError as e:
+                                if _debug: print(str(e))
+                                continue
                 func_name = _get_func_name(_get_wrapped(self.func_list[self.default if self.default else 0])).split("_overload")[0]
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(

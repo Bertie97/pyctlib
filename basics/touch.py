@@ -11,6 +11,7 @@ __all__ = """
 
 import sys
 from pyctlib.basics.override import *
+from pyctlib.basics.func_tools import get_environ_vars
 
 @overload
 def touch(f: Callable):
@@ -19,11 +20,9 @@ def touch(f: Callable):
 
 @overload
 def touch(s: str):
-    frame = sys._getframe()
-    while "pyctlib" in str(frame.f_code): frame = frame.f_back
-    local_vars = frame.f_locals
+    local_vars = get_environ_vars(touch)
     local_vars.update(locals())
-    locals().update(local_vars)
+    locals().update(local_vars.simplify())
     try: return eval(s)
     except: return None
 

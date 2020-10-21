@@ -50,12 +50,44 @@ _mid = lambda x: x[1] if len(x) > 1 else x[0]
 _rawname = lambda s: _mid(str(s).split("'")).split('.')[-1]
 
 def inheritable(x):
+    """
+    inheritable(x) -> bool
+
+    Returns whether a class type can be inherited. 
+
+    Args:
+        x (type): the input class name.
+
+    Example::
+
+        >>> inheritable(int)
+        True
+        >>> inheritable(bool)
+        False
+    """
     try:
         class tmp(x): pass
         return True
     except TypeError: return False
 
 def iterable(x):
+    """
+    iterable(x) -> bool
+
+    Returns whether a type or instance can be iterated. 
+
+    Args:
+        x (any): the input variable.
+
+    Example::
+
+        >>> iterable(x for x in range(4))
+        True
+        >>> inheritable({2, 3})
+        True
+        >>> inheritable("12")
+        False
+    """
     # Test types
     try:
         if isinstance(x, Type):
@@ -75,13 +107,71 @@ def iterable(x):
     return False
 
 def isarray(x):
+    """
+    isarray(x) -> bool
+
+    Returns whether an instance is an array. 
+
+    Args:
+        x (any): the input variable.
+
+    Example::
+
+        >>> isarray(np.array([2, 3]))
+        True
+        >>> isarray(torch.tensor([2, 3]))
+        True
+        >>> isarray([1, 2])
+        False
+    """
     if not isatype(x) and 'shape' in dir(x): return True
     return False
 
 def isdtype(x):
+    """
+    isdtype(x) -> bool
+
+    Returns whether an instance is a data type of numpy or pytorch or tensorflow etc. . 
+
+    Args:
+        x (any): the input variable.
+
+    Example::
+
+        >>> isdtype(np.int32)
+        True
+        >>> isdtype(torch.float64)
+        True
+        >>> isdtype(int)
+        False
+    """
     return 'dtype' in repr(type(x)).lower()
 
 def isatype(x):
+    """
+    isatype(x) -> bool
+
+    Returns whether an instance is a type. 
+    
+    Note:
+        Types detected includes all python classes and pyctlib.Type as well as:
+        1. None representing any type
+        2. a list or iterable set of types like [int, float]
+
+    Args:
+        x (any): the input variable.
+
+    Example::
+
+        >>> isatype(np.array)
+        False
+        >>> isatype(np.ndarray)
+        True
+        >>> isatype(None)
+        True
+        >>> isatype([int, np.ndarray])
+        True
+    """
     if x is None: return True
     if isinstance(x, type): return True
     if isinstance(x, Type): return True
@@ -94,13 +184,39 @@ def isatype(x):
         else: return True
     return False
 
-def isoftype(x, xtype):
+def isoftype(x, xtype, environ_func = None):
+    """
+    isoftype(x, xtype) -> bool
+
+    Returns whether an instance 'x' is of type 'xtype'. 
+    
+    Note:
+        'xtype' can be provided in one of the following fashions:
+        1. a pyctlib.Type like Int, Dict[2]@{int: str} or List<<Int>>[]
+        2. a str representing a type, either the full name of the required type or a name that can be computed when 
+        1. None representing any type
+        2. a list or iterable set of types like [int, float]
+
+    Args:
+        x (any): the input variable.
+
+    Example::
+
+        >>> isatype(np.array)
+        False
+        >>> isatype(np.ndarray)
+        True
+        >>> isatype(None)
+        True
+        >>> isatype([int, np.ndarray])
+        True
+    """
     if isinstance(xtype, str):
-        local_vars = get_environ_vars()
+        local_vars = get_environ_vars(isoftype if environ_func is None else environ_func)
         local_vars.update(locals())
-        locals().update(local_vars)
+        locals().update(local_vars.simplify())
         try: xtype = eval(xtype)
-        except: return xtype in str(type(x).__mro__)
+        except: return xtype in [_rawname(t) for t in type(x).__mro__]
     if xtype == type: return isatype(x)
     if xtype is None: return True
     if isinstance(xtype, type):
@@ -514,12 +630,12 @@ def params(*types, run=True, **kwtypes):
                         _annotations[eargs] = Type(list, tuple)@_annotations[eargs]
             for arg in _values:
                 if arg in _annotations:
-                    if isoftype(_values[arg], _annotations[arg]): continue
+                    if isoftype(_values[arg], _annotations[arg], environ_func=func): continue
                     break
             else:
                 if run:
                     retval = func(*args, **kwargs)
-                    if 'return' not in _annotations or isoftype(retval, _annotations['return']): return retval
+                    if 'return' not in _annotations or isoftype(retval, _annotations['return'], environ_func=func): return retval
                     raise TypeHintError(_get_func_name(func) + "() returns an invalid value.")
                 else: return None
             raise TypeHintError(_get_func_name(func) + "() has argument " + arg + " of wrong type. \
