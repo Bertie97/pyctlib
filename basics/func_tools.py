@@ -47,13 +47,16 @@ class get_environ_vars(dict):
         self = super().__new__(cls)
         frame = sys._getframe()
         self.all_vars = []
-        filename = raw_function(_get_wrapped(pivot)).__globals__['__file__']
+        filename = raw_function(_get_wrapped(pivot)).__globals__.get('__file__', '')
         while frame.f_back is not None:
             frame = frame.f_back
-            if 'file "<' in str(frame.f_code): continue
+            if not filename: continue
+            if _rawname(frame).startswith('<') and _rawname(frame).endswith('>'): continue
             if _rawname(frame) != filename: continue
             self.all_vars.extend([frame.f_locals, frame.f_globals])
             break
+        else:
+            self.all_vars.extend([frame.f_locals, frame.f_globals])
         return self
 
     def __init__(self, _): pass
