@@ -275,9 +275,11 @@ class Tensor(torch.Tensor):
 
     @overload
     def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dimension=None):
+        pass
 
     @overload
     def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None):
+        pass
 
 
 
