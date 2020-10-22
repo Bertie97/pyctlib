@@ -277,7 +277,7 @@ class vector(list):
         return self[m_index]
 
 
-    def min(self, key=None, with_index):
+    def min(self, key=None, with_index=False):
         if len(self) == 0:
             return None
         m_index = 0
