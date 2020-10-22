@@ -7,6 +7,7 @@
 ##############################
 __all__ = """
     vector
+    generator_wrapper
     ctgenerator
 """.split()
 
@@ -18,7 +19,11 @@ from functools import wraps
 
 """
 Usage:
+<<<<<<< Updated upstream
     from .vector import *
+=======
+from pyctlib.vector import *
+>>>>>>> Stashed changes
 """
 
 def touch(f: Callable):

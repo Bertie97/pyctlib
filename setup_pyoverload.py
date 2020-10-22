@@ -1,5 +1,5 @@
 '''
-@File       :   setup.py
+@File       :   setup_pyoverload.py
 @Author     :   Yuncheng Zhou & Yiteng Zhang
 @Time       :   2020-10
 @Version    :   1.0
@@ -10,19 +10,19 @@
 from setuptools import setup, find_packages
  
 setup(
-    name = "pyctlib",
-    version = "0.1.0",
+    name = "pyoverload",
+    version = "0.5.2",
     keywords = ("pip", "pyctlib", "overload"),
-    description = "模块描述",
-    long_description = "模块详细描述",
+    description = "'pyoverload' overloads the functions by simply using typehints and adding decorator '@overload'.",
+    long_description = open("./pyoverload/README.md").read(),
     license = "MIT Licence",
  
-    url = "https://github.com/jiangfubang/balabala",       # 项目相关文件地址，一般是github，有没有都行吧
-    author = "Jiang Fubang",
-    author_email = "luckybang@163.com",
+    url = "https://github.com/Bertie97/pyctlib/tree/main/pyoverload",
+    author = "Yuncheng Zhou, Yiteng Zhang",
+    author_email = "2247501256@qq.com",
  
     packages = find_packages(),
     include_package_data = True,
     platforms = "any",
-    install_requires = ["numpy"]        # 该模块需要的第三方库
+    install_requires = []
 )
