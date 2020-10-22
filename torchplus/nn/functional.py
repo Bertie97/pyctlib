@@ -7,7 +7,7 @@
 ##############################
 
 import torch
-import .. as tp
+import torchplus as tp
 from ..tensor import return_tensor_wrapper
 import torch.nn as nn
 import torch.nn.functional as F

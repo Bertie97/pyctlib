@@ -1,3 +1,4 @@
+
 #! python3.8 -u
 #  -*- coding: utf-8 -*-
 
@@ -9,9 +10,9 @@
 import warnings
 from typing import Optional, Tuple
 
-import ... as tp
-import ..functional as F
-from ... import Tensor
+import torchplus as tp
+from .. import functional as F
+from ...tensor import Tensor
 from ..modules import Module
 from ..parameter import Parameter
 

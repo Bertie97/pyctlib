@@ -13,8 +13,8 @@ from typing import List, Optional, Tuple
 import torch.nn.init as init
 import torch.nn.utils as utils
 
-import ... as torchplus
-import ..functional as F
+import torchplus
+from .. import functional as F
 from ... import Tensor
 from .. import Module
 from ..common_types import _size_1_t, _size_2_t, _size_3_t

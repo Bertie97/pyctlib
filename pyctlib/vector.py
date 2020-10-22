@@ -18,7 +18,7 @@ from functools import wraps
 
 """
 Usage:
-from pyctlib.basictype import *
+    from .vector import *
 """
 
 def touch(f: Callable):

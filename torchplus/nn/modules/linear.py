@@ -9,9 +9,8 @@
 from . import Module
 from ..parameter import Parameter
 from ...tensor import Tensor
-# import ... as torchplus
 import torchplus
-import ..functional as F
+from .. import functional as F
 import torch.nn.init as init
 
 class Linear(Module):
