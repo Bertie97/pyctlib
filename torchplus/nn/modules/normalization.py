@@ -1,13 +1,22 @@
-import torch
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn.modules
+##############################
+
 import numbers
-from torch.nn.parameter import Parameter
-from .module import Module
-from ._functions import CrossMapLRN2d as _cross_map_lrn2d
+from typing import List, Union
+
+import torch
+from torch import Size, Tensor
+
 from .. import functional as F
 from .. import init
-
-from torch import Tensor, Size
-from typing import Union, List
+from ..parameter import Parameter
+from ._functions import CrossMapLRN2d as _cross_map_lrn2d
+from .module import Module
 
 
 class LocalResponseNorm(Module):

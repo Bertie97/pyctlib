@@ -2,7 +2,8 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package pyoverload
 ##############################
 __all__ = """
     inheritable
@@ -41,8 +42,7 @@ __all__ = """
 
 import re, sys
 from copy import deepcopy
-from pyctlib.basics.basicwrapper import *
-from pyctlib.basics.func_tools import get_environ_vars
+from .utils import decorator, get_environ_vars
 
 class TypeHintError(Exception): pass
 

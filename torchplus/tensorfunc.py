@@ -2,15 +2,16 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package torchplus
 ##############################
 __all__ = """
     crop_as
 """.split()
 
-from pyctlib import *
-from pyctlib.torchplus.tensor import Tensor, ones, return_tensor_wrapper
-from pyctlib.basics.wrapper import restore_type_wrapper
+from pyoverload import *
+from .tensor import Tensor, ones, return_tensor_wrapper
+from pyctlib import restore_type_wrapper
 
 @overload
 @restore_type_wrapper("roi")

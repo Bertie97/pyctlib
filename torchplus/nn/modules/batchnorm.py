@@ -1,14 +1,23 @@
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn.modules
+##############################
+
 from __future__ import division
+
+from typing import Any, Optional
 
 import torch
 from torch import Tensor
-from ._functions import SyncBatchNorm as sync_batch_norm
-from .module import Module
-from torch.nn.parameter import Parameter
+
 from .. import functional as F
 from .. import init
-
-from typing import Optional, Any
+from ..parameter import Parameter
+from ._functions import SyncBatchNorm as sync_batch_norm
+from .module import Module
 
 
 class _NormBase(Module):

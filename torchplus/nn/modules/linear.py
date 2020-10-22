@@ -1,8 +1,16 @@
-from pyctlib.torchplus.nn.modules import Module
-from pyctlib.torchplus.nn.parameter import Parameter
-from pyctlib.torchplus.tensor import Tensor
-import pyctlib.torchplus as torchplus
-import pyctlib.torchplus.nn.functional as F
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn.modules
+##############################
+
+from . import Module
+from ..parameter import Parameter
+from ...tensor import Tensor
+import ... as torchplus
+import ..functional as F
 import torch.nn.init as init
 
 class Linear(Module):

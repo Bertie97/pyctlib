@@ -2,7 +2,8 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package <main>
 ##############################
 __all__ = """
     vector
@@ -12,15 +13,22 @@ __all__ = """
 from typing import Optional, List, Union
 from types import GeneratorType
 from collections import Counter
-from pyctlib.basics.touch import touch
-from pyctlib.basics.override import override, overload, Func, Iterable
-from pyctlib.basics.wrapper import raw_function
+from pyoverload import *
 from functools import wraps
 
 """
 Usage:
-from pyctlib.basics.basictype import *
+from pyctlib.basictype import *
 """
+
+def touch(f: Callable):
+    try: return f()
+    except: return None
+
+def raw_function(func):
+    if "__func__" in dir(func):
+        return func.__func__
+    return func
 
 class _Vector_Dict(dict):
 

@@ -1,15 +1,26 @@
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn.modules
+##############################
+
 import math
 import warnings
-from pyctlib.torchplus import Tensor
-from pyctlib.torchplus.nn import Module
-import pyctlib.torchplus as torchplus
-import pyctlib.torchplus.nn.functional as F
+from typing import List, Optional, Tuple
+
 import torch.nn.init as init
-from pyctlib.torchplus.nn.common_types import _size_1_t, _size_2_t, _size_3_t
-from typing import Optional, List, Tuple
 import torch.nn.utils as utils
-from pyctlib.torchplus.nn.modules.utils import _single, _pair, _triple, _reverse_repeat_tuple
-from pyctlib.torchplus.nn.parameter import Parameter
+
+import ... as torchplus
+import ..functional as F
+from ... import Tensor
+from .. import Module
+from ..common_types import _size_1_t, _size_2_t, _size_3_t
+from ..parameter import Parameter
+from .utils import _pair, _reverse_repeat_tuple, _single, _triple
+
 
 class _ConvNd(Module):
 

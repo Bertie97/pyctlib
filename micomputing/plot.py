@@ -2,19 +2,23 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package micomputing
 ##############################
+
 __all__ = """
 """.split()
 
-import torch
 import numpy as np
+import torch
+
 try: from matplotlib import pyplot as plt
 except ImportError:
     raise ImportError("'pyctlib.mic.plot' cannot be used without dependency 'matplotlib'. ")
+import torchplus as tp
 from matplotlib.pyplot import *
-from pyctlib import *
-from pyctlib import torchplus as tp
+from pyoverload import *
+
 
 @params
 def imshow(data: Array, **kwargs):

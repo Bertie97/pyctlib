@@ -2,14 +2,15 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package <main>
 ##############################
 __all__ = """
     restore_type_wrapper
 """.split()
 
-from pyctlib.basics.override import *
-from pyctlib.basics.basicwrapper import *
+from pyoverload import *
+from .basicwrapper import *
 
 def _restore_type_wrapper(func: Callable, special_attr: List[str]):
     def wrapper(*args, **kwargs):

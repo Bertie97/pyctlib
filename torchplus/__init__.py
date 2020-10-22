@@ -2,8 +2,9 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package torchplus
 ##############################
 
-from pyctlib.torchplus.tensor import *
-# from pyctlib.torchplus.tensorfunc import *
+from .tensor import *
+from .tensorfunc import *

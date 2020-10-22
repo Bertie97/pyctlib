@@ -1,6 +1,12 @@
-# from torch import Tensor
-from pyctlib.torchplus import Tensor
-# from torch.types import _size
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn
+##############################
+
+from .. import Tensor
 from typing import Any, Optional, Tuple, Dict, List, Callable
 from .common_types import _ratio_any_t
 

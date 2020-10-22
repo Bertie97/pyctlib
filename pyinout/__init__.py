@@ -2,8 +2,9 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package pyinout
 ##############################
 
-from pyctlib.basics import *
-from pyctlib.system import *
+from .terminal import *
+from .filemanager import *

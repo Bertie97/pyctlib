@@ -1,6 +1,14 @@
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn
+##############################
+
 import torch
-import pyctlib.torchplus as tp
-from pyctlib.torchplus.tensor import return_tensor_wrapper
+import .. as tp
+from ..tensor import return_tensor_wrapper
 import torch.nn as nn
 import torch.nn.functional as F
 from pyctlib import vector

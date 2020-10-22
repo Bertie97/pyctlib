@@ -1,5 +1,12 @@
-import pyctlib.torchplus as torchplus
-from pyctlib.torchplus.tensor import Tensor
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn
+##############################
+
+import .. as torchplus
 import torch
 
 class Parameter(torchplus.Tensor):

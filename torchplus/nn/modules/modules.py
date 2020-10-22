@@ -1,9 +1,17 @@
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn.modules
+##############################
+
 import torch
 import torch.nn as nn
-from pyctlib.basics.basictype import *
-from pyctlib.torchplus.tensor import *
-from pyctlib.torchplus.nn.parameter import Parameter
-import pyctlib.torchplus as torchplus
+from pyctlib import vector
+from ...tensor import *
+from ..parameter import Parameter
+import ... as torchplus
 from typing import Union
 
 

@@ -1,10 +1,20 @@
-from pyctlib.torchplus.nn.modules import Module
-from pyctlib.torchplus import Tensor
-import pyctlib.torchplus as tp
-import pyctlib.torchplus.nn.functional as F
-from pyctlib.torchplus.nn.parameter import Parameter
-from typing import Tuple, Optional
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn.modules
+##############################
+
 import warnings
+from typing import Optional, Tuple
+
+import ... as tp
+import ..functional as F
+from ... import Tensor
+from ..modules import Module
+from ..parameter import Parameter
+
 
 class Threshold(Module):
     r"""Thresholds each element of the input Tensor.

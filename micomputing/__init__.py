@@ -2,7 +2,8 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package micomputing
 ##############################
 
 try:

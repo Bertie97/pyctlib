@@ -2,7 +2,8 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package torchplus
 ##############################
 
 __all__ = """
@@ -17,19 +18,17 @@ try:
 except ImportError:
     raise ImportError("'pyctlib.torchplus' cannot be used without dependency 'torch' and 'numpy'.")
 import torch.nn as nn
+import typing
+import inspect
 import builtins
-from pyctlib.basics.basictype import vector, raw_function
-from pyctlib.basics.wrapper import return_type_wrapper
-from pyctlib.basics.override import *
-from pyctlib.basics.touch import touch
+from pyoverload import *
+from pyctlib import raw_function, return_type_wrapper
 from functools import wraps
 from typing import Union
-import typing
 from types import GeneratorType
-import inspect
 """
-from pyctlib.torchplus import Tensor
-import pyctlib.torchplus as torchplus
+from torchplus import Tensor
+import torchplus as tp
 """
 
 Device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -8545,6 +8544,8 @@ __all__.append("no_grad")
 
 # import torch
 # x = torch.Tensor([1, 2, 3])
+
+# from pyctlib import touch, vector
 
 # def getdoc(func):
 #     assert func in x.__dir__()

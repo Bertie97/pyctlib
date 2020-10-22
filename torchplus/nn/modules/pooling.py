@@ -1,3 +1,11 @@
+#! python3.8 -u
+#  -*- coding: utf-8 -*-
+
+##############################
+## Project PyCTLib
+## Package torchplus.nn.modules
+##############################
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

@@ -2,21 +2,22 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package pyinout
 ##############################
+
 __all__ = """
     path
     file
 """.split()
 
 import os, re, struct
-from pyctlib.basics.touch import touch
-from pyctlib.basics.basictype import vector, generator_wrapper
-from pyctlib.basics.override import override, overload
+from pyctlib import touch, vector, generator_wrapper
+from pyoverload import override, overload
 from typing import TextIO
 
 """
-from pyctlib.system.filemanager import *
+from pyinout import *
 """
 
 def totuple(num):

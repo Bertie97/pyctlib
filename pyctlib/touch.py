@@ -2,23 +2,16 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package <main>
 ##############################
+__all__ = """
+    touch
+    get
+""".split()
+
 import sys
-
-__all__ = []
-
-_mid = lambda x: x[1] if len(x) > 1 else x[0]
-_rawname = lambda s: _mid(str(s).split("'"))
-
-def raw_function(func):
-    if "__func__" in dir(func):
-        return func.__func__
-    return func
-
-def _get_wrapped(f):
-    while '__wrapped__' in dir(f): f = f.__wrapped__
-    return f
+from pyoverload import *
 
 class get_environ_vars(dict):
     """
@@ -28,19 +21,24 @@ class get_environ_vars(dict):
         i.e. the variables defined in the most reasonable user environments. 
     
     Note:
-        It search for the all function in the function stack that is not a function in this package or a built in package. 
-        Please do not use it abusively as it is currently provided for private use in package pyctlib only. 
+        It search for the environment where the pivot is defined. 
+        Please do not use it abusively as it is currently provided for private use in project PyCTLib only. 
 
     Example::
-
-        >>> isatype(np.array)
-        False
-        >>> isatype(np.ndarray)
-        True
-        >>> isatype(None)
-        True
-        >>> isatype([int, np.ndarray])
-        True
+        In file `main.py`:
+            from mod import function
+            def pivot(): ...
+            function(pivot)
+        In file `mod.py`:
+            from pyoverload.utils import get_environ_vars
+            def function(f): return get_environ_vars(f)
+        Output:
+            {
+                'function': <function 'function'>,
+                'pivot': <function 'pivot'>,
+                '__name__': "__main__",
+                ...
+            }
     """
 
     def __new__(cls, pivot):
@@ -83,3 +81,25 @@ class get_environ_vars(dict):
         collector = {}
         for varset in self.all_vars[::-1]: collector.update(varset)
         return collector
+
+@overload
+def touch(f: Callable):
+    try: return f()
+    except: return None
+
+@overload
+def touch(s: str):
+    local_vars = get_environ_vars(touch)
+    local_vars.update(locals())
+    locals().update(local_vars.simplify())
+    try: return eval(s)
+    except: return None
+
+@overload
+def get__default__(var, value):
+    if var is None: return value
+    else: return var
+
+@overload
+def get(f: Callable, v):
+    return get(touch(f), v)

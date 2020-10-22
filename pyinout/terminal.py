@@ -2,15 +2,17 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package pyinout
 ##############################
+
 __all__ = """
     executor
     shell
 """.split()
 
 import os, sys
-from pyctlib.basics.override import *
+from pyoverload import *
 
 class executor:
 

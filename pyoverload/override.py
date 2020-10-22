@@ -2,7 +2,8 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package pyoverload
 ##############################
 __all__ = """
     override
@@ -11,21 +12,16 @@ __all__ = """
 """.split()
 
 from functools import wraps
-from pyctlib.basics.basicwrapper import *
-from pyctlib.basics.typehint import *
-from pyctlib.basics.typehint import __all__ as typehint_all
-from pyctlib.basics.typehint import TypeHintError, _getDeclaration
-from pyctlib.basics.func_tools import get_environ_vars
+from .typehint import *
+from .typehint import __all__ as typehint_all
+from .typehint import TypeHintError, _getDeclaration
+from .utils import get_environ_vars, _get_wrapped, raw_function, decorator
 
 __all__ += typehint_all
 
 _debug = False
 
-def set_debug_mode(m: bool): global _debug; _debug = m
-
-def _get_wrapped(f):
-    while '__wrapped__' in dir(f): f = f.__wrapped__
-    return f
+def set_debug_mode(m): global _debug; _debug = m
 
 def _wrap_params(f):
     if '__wrapped__' in dir(f):

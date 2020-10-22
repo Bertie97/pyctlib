@@ -2,8 +2,10 @@
 #  -*- coding: utf-8 -*-
 
 ##############################
-## Package PyCTLib
+## Project PyCTLib
+## Package visual
 ##############################
+
 __all__ = """
     profile
 """.split()
