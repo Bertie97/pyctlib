@@ -18,8 +18,8 @@ setup(
     license = "MIT Licence",
  
     url = "https://github.com/jiangfubang/balabala",       # 项目相关文件地址，一般是github，有没有都行吧
-    author = "Jiang Fubang",
-    author_email = "luckybang@163.com",
+    author = "Zhang Yiteng & Zhou Yuncheng",
+    author_email = "zytfdu@icloud.com",
  
     packages = find_packages(),
     include_package_data = True,
