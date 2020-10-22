@@ -6,15 +6,21 @@
 @Contact    :   2247501256@qq.com
 @Dect       :   None
 '''
- 
+
+import re
 from setuptools import setup, find_packages
+
+def wrap_code_fences(file_str):
+    for code in re.findall(r"```[^(```)]+```", file_str):
+        file_str = file_str.replace(code, '\n'.join(['\t' + l for l in code.split('\n') if '```' not in l]))
+    return file_str
  
 setup(
     name = "pyoverload",
-    version = "0.5.2",
+    version = "0.5.3",
     keywords = ("pip", "pyctlib", "overload"),
     description = "'pyoverload' overloads the functions by simply using typehints and adding decorator '@overload'.",
-    long_description = open("./pyoverload/README.md").read(),
+    long_description = wrap_code_fences(open("./pyoverload/README.md").read()),
     license = "MIT Licence",
  
     url = "https://github.com/Bertie97/pyctlib/tree/main/pyoverload",
