@@ -6,7 +6,7 @@
 ## Package torchplus.nn
 ##############################
 
-import .. as torchplus
+import torchplus
 import torch
 
 class Parameter(torchplus.Tensor):

@@ -9,7 +9,8 @@
 from . import Module
 from ..parameter import Parameter
 from ...tensor import Tensor
-import ... as torchplus
+# import ... as torchplus
+import torchplus
 import ..functional as F
 import torch.nn.init as init
 
