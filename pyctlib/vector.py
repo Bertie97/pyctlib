@@ -262,7 +262,7 @@ class vector(list):
                 return True
         return False
 
-    def max(self, key=None):
+    def max(self, key=None, with_index=False):
         if len(self) == 0:
             return None
         m_index = 0
@@ -272,10 +272,12 @@ class vector(list):
             if i_key > m_key:
                 m_key = i_key
                 m_index = index
-        return self[m_index], m_index
+        if with_index:
+            return self[m_index], m_index
+        return self[m_index]
 
 
-    def min(self, key=None):
+    def min(self, key=None, with_index):
         if len(self) == 0:
             return None
         m_index = 0
@@ -285,7 +287,9 @@ class vector(list):
             if i_key < m_key:
                 m_key = i_key
                 m_index = index
-        return self[m_index], m_index
+        if with_index:
+            return self[m_index], m_index
+        return self[m_index]
 
     def sum(self):
         return self.reduce(lambda x, y: x + y)
