@@ -19,12 +19,12 @@ setup(
     # long_description_content_type="text/markdown",
     license = "MIT Licence",
  
-    url = "https://github.com/Bertie97/pyctlib/tree/main/torchplus",       # 项目相关文件地址，一般是github，有没有都行吧
+    url = "https://github.com/Bertie97/pyctlib/tree/main/torchplus",
     author = "Zhang Yiteng & Zhou Yuncheng",
     author_email = "zytfdu@icloud.com",
  
     packages = find_packages(),
     include_package_data = True,
     platforms = "any",
-    install_requires = ["numpy", "pyctlib", "torch"]        # 该模块需要的第三方库
+    install_requires = ["numpy", "pyctlib", "torch"]
 )
