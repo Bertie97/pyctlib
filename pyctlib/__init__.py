@@ -10,3 +10,5 @@ from .touch import *
 from .vector import *
 from .basicwrapper import *
 from .wrapper import *
+from .filemanager import *
+from .terminal import *
