@@ -1,5 +1,5 @@
 # pyctlib
-A powerful toolkit for python development.
+A package provides easy communication with the inputs and outputs for the operating systems. It provides manipulation of file path, reading & writing of text/binary files and command line tools. A powerful toolkit for python development.
 
 ## BasicType
 
