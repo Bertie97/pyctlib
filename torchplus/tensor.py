@@ -316,7 +316,7 @@ class Tensor(torch.Tensor):
     @batch_dimension.setter
     def batch_dimension(self, value):
         self._batch_dimension = None
-        if value:
+        if value is not None:
             if value < self.dim(): self._batch_dimension = value
             else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.dim()}")
     
