@@ -12,6 +12,7 @@ __all__ = """
 from pyoverload import *
 from .tensor import Tensor, ones, return_tensor_wrapper
 from pyctlib import restore_type_wrapper
+import torch
 
 @overload
 @restore_type_wrapper("roi")
@@ -61,3 +62,13 @@ def linear(input, weight, bias):
             return result + bias
         return result + bias.unsqueeze(0)
     return result
+
+def get_shape(input):
+    if isinstance(input, list):
+        if isinstance(input[0], list) or isinstance(input, torch.Tensor):
+            return "L{}, ".format(len(input)) + get_shape(input[0])
+        else:
+            return "L{}".format(len(input))
+    if isinstance(input, torch.Tensor):
+        return str(input.shape)
+    return "Unknown({})".format(type(input))
