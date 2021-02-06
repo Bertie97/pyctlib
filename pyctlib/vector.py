@@ -45,6 +45,14 @@ class _Vector_Dict(dict):
 
 class vector(list):
 
+    def __init__(self, *args):
+        if len(args) == 0:
+            list.__init__(self)
+        elif len(args) == 1:
+            list.__init__(self, args[0])
+        else:
+            list.__init__(self, args)
+
     def filter(self, func=None):
         if func is None:
             return self
