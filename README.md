@@ -2,6 +2,8 @@
 
 A powerful toolkit collection for python development. `PyCTLib` includes following packages, please click the links to see more information. 
 
+All following packages can be **installed** by command `pip install *`. 
+
 - [`micomputing`](./micomputing/README.md) [@author: Yuncheng Zhou]: A package designed for medical image computing which focus on image registration and interpolation. 
 - [`pyctlib`](./pyctlib/README.md) [@author: All contributors]: A foundamental package containing some basic self-designed functions and types. 
 - [`pyoverload`](./pyoverload/README.md) [@author: Yuncheng Zhou, Yiteng Zhang]: Overload package for python. It is consistant with `Jedi` auto-completion and only a simple `@overload` decorator is needed. 

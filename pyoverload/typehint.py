@@ -193,23 +193,20 @@ def isoftype(x, xtype, environ_func = None):
     Note:
         'xtype' can be provided in one of the following fashions:
         1. a pyctlib.Type like Int, Dict[2]@{int: str} or List<<Int>>[]
-        2. a str representing a type, either the full name of the required type or a name that can be computed when 
-        1. None representing any type
-        2. a list or iterable set of types like [int, float]
+        2. a str representing a type, either the full name of the required 
+            type or a name that can be computed when the package is used.
+        3. None representing any type
+        4. a list or iterable set of types like [int, float]
 
     Args:
         x (any): the input variable.
+        xtype (type): the type to check.
 
     Example::
-
-        >>> isatype(np.array)
+        >>> isoftype(1, None)
+        True
+        >>> isoftype(1., [int, 'np.ndarray'])
         False
-        >>> isatype(np.ndarray)
-        True
-        >>> isatype(None)
-        True
-        >>> isatype([int, np.ndarray])
-        True
     """
     if isinstance(xtype, str):
         local_vars = get_environ_vars(isoftype if environ_func is None else environ_func)
@@ -228,7 +225,9 @@ def isoftype(x, xtype, environ_func = None):
         for xt in xtype:
             if isoftype(x, xt): return True
         return False
-    if callable(xtype) and xtype(x): return True
+    try:
+        if callable(xtype) and xtype(x): return True
+    except: pass
     return False
 
 def isclassmethod(x):
@@ -612,7 +611,7 @@ def params(*types, run=True, **kwtypes):
                             _annotations.update(_annotations[ekwargs])
                             _annotations.pop(ekwargs)
                     else:
-                        if not extendable(_annotations[ekwargs]):
+                        if not _annotations[ekwargs].extendable:
                             print("Warning: auto extended non-extendable type. Please check your typehint. ")
                         _annotations[ekwargs] = Type(dict)@{str:_annotations[ekwargs]}
             if eargs:
@@ -623,7 +622,7 @@ def params(*types, run=True, **kwtypes):
                         elif len(_annotations[eargs]) > 1:
                             raise TypeHintError(_get_func_name(func) + "() has too many type restraints. ")
                         else:
-                            if not extendable(_annotations[eargs][0]):
+                            if not _annotations[eargs][0].extendable:
                                 print("Warning: auto extended non-extendable type. Please check your typehint. ")
                             _annotations[eargs] = _annotations[eargs][0]
                     if eargs in _annotations:

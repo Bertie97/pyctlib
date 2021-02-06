@@ -86,6 +86,7 @@ def override(*arg):
                 fname = f.__name__.split('[')[0]
                 if fname.endswith('__0__') or fname.endswith("__default__"): self.default = 0
                 else: self.default = None
+                self.must_default = False
 
             def __call__(self, *args, **kwargs):
                 if len(args) > 0:
@@ -94,8 +95,11 @@ def override(*arg):
                         fname = f.__name__.split('[')[0]
                         funcname = _get_func_name(func)
                         if fname == "_" or funcname in fname:
-                            if fname.endswith('__0__') or fname.endswith("__default__"): self.default = len(self.func_list)
+                            if fname.endswith('__0__') or fname.endswith("__default__"):
+                                if self.default is not None: raise TypeError("Only one default function is acceptable. ")
+                                self.default = len(self.func_list)
                             self.func_list.append(f); return
+                            self.must_default = True
                 if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
                 if len(self.func_list) == 1:
@@ -123,6 +127,7 @@ def override(*arg):
                     except TypeHintError as e:
                         if _debug: print(str(e))
                 elif len(self.func_list) > 1:
+                    if self.must_default and self.default is None: self.default = 0
                     for i, f in list(enumerate(self.func_list)) + ([(-1, self.func_list[self.default])] if self.default is not None else []):
                         if i == self.default: continue
                         run_func, test_func = _collect_declarations(f, dec_list, place_first=i==-1)
@@ -174,7 +179,7 @@ def override(*arg):
                     except TypeHintError as e:
                         if _debug: print(str(e))
                         continue
-                func_name = _get_func_name(func.__name__)
+                func_name = _get_func_name(func)
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
                     func=func_name, 
