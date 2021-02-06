@@ -12,7 +12,9 @@ __all__ = """
 from pyoverload import *
 from .tensor import Tensor, ones, return_tensor_wrapper
 from pyctlib import restore_type_wrapper
+from pyctlib import vector
 import torch
+import numpy as np
 
 @overload
 @restore_type_wrapper("roi")
@@ -65,10 +67,27 @@ def linear(input, weight, bias):
 
 def get_shape(input):
     if isinstance(input, list):
-        if isinstance(input[0], list) or isinstance(input, torch.Tensor):
-            return "L{}, ".format(len(input)) + get_shape(input[0])
+        input = vector(input)
+        l_shape = input.map(get_shape)
+        if l_shape.all(lambda x: x == l_shape[0]):
+            if l_shape[0]:
+                return "L{}, ".format(len(l_shape)) + l_shape[0]
+            else:
+                return "L{}".format(len(l_shape))
         else:
-            return "L{}".format(len(input))
+            return "L{}[{}]".format(len(l_shape), ", ".join(l_shape))
+    if isinstance(input, tuple):
+        input = vector(input)
+        l_shape = input.map(get_shape)
+        if l_shape.all(lambda x: x == l_shape[0]):
+            if l_shape[0]:
+                return "T{}, ".format(len(l_shape)) + l_shape[0]
+            else:
+                return "T{}".format(len(l_shape))
+        else:
+            return "T{}[{}]".format(len(l_shape), ", ".join(l_shape))
     if isinstance(input, torch.Tensor):
         return str(input.shape)
-    return "Unknown({})".format(type(input))
+    if isinstance(input, np.ndarray):
+        return str(input.shape)
+    return ""
