@@ -70,24 +70,18 @@ def get_shape(input):
         input = vector(input)
         l_shape = input.map(get_shape)
         if l_shape.all(lambda x: x == l_shape[0]):
-            if l_shape[0]:
-                return "L{}, ".format(len(l_shape)) + l_shape[0]
-            else:
-                return "L{}".format(len(l_shape))
+            return "L{}".format(len(l_shape)) + ("[{}]".format(l_shape[0]) if not l_shape[0].startswith("[") else l_shape[0])
         else:
-            return "L{}[{}]".format(len(l_shape), ", ".join(l_shape))
+            return "[{}]".format(", ".join(l_shape))
     if isinstance(input, tuple):
         input = vector(input)
         l_shape = input.map(get_shape)
         if l_shape.all(lambda x: x == l_shape[0]):
-            if l_shape[0]:
-                return "T{}, ".format(len(l_shape)) + l_shape[0]
-            else:
-                return "T{}".format(len(l_shape))
+            return "T{}".format(len(l_shape)) + ("[{}]".format(l_shape[0]) if not l_shape[0].startswith("[") else l_shape[0])
         else:
-            return "T{}[{}]".format(len(l_shape), ", ".join(l_shape))
+            return "[{}]".format(", ".join(l_shape))
     if isinstance(input, torch.Tensor):
         return str(input.shape)
     if isinstance(input, np.ndarray):
         return str(input.shape)
-    return ""
+    return str(type(input))[8:-2]
