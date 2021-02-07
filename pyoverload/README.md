@@ -1,10 +1,8 @@
 # pyoverload
 
-[TOC]
-
 ## Introduction
 
-`pyoverload` is a package affiliated to project [`pyctlib`](https://github.com/Bertie97/pyctlib). It is a powerful overloading tools to provide easy overload for `python v3.6+`. `pyoverload` provide multiple usages. The simplest one, however, can be easily implemented as follows. 
+[`pyoverload`](https://github.com/Bertie97/pyctlib/tree/main/pyoverload) is a package affiliated to project [`pyctlib`](https://github.com/Bertie97/pyctlib). It is a powerful overloading tools to provide easy overload for `python v3.6+`. `pyoverload` provide multiple usages. The simplest one, however, can be easily implemented as follows. 
 
 ```python
 >>> from pyoverload import overload
@@ -48,7 +46,7 @@ One can use `@overload` before the functions with the same function name to buil
 
 The types of the input arguments are specified by the typehints available in `python3.6+`. All known types can be added after the colon. For package classes like `np.ndarray`, please use a string to represent it. For more types, one can use types from package `types` or `pyoverload.typehint`. 
 
-For usage of `pyoverload.typehint`, please refer to [section Typehints](#Typehints) for more information.
+For usage of `pyoverload.typehint`, please refer to section **Typehints** for more information.
 
 All implementations of the overloaded function are referenced in the order of definition, but the implementation ends with `__default__` or `__0__` will be used when no usage is available. Note that there are **four** underlines for this notation, **two** on each side. 
 
@@ -90,7 +88,7 @@ func1 1.0
 
 Note that the auto-completion by `Jedi` can only work for this usage. 
 
-<img src="Jedi.jpg" alt="Jedi" style="zoom:50%;" />
+<img src="https://github.com/Bertie97/pyctlib/raw/main/pyoverload/Jedi.jpg" alt="Jedi" style="zoom:50%;" />
 
 ### Usage 2: Registering Fashion
 
@@ -116,7 +114,7 @@ The following example realized the first three functions in the usage 1 example 
 ... 
 ```
 
-Note that [usage 1](#Usage 1: Decorator Fashion) and [usage 2](#Usage 2: Registering Fashion) can be used together though you may need to specify the default function manually like in usage 1 if needed. The last example is rewroten in a combined style. 
+Note that **usage 1** and **usage 2** can be used together though you may need to specify the default function manually like in usage 1 if needed. The last example is rewrote in a combined style. 
 
 ```python
 >>> from pyoverload import overload
@@ -161,11 +159,11 @@ Note that the last function in the function list is the default function.
 ... 
 ```
 
-Theoretically, decorator `@override` can also be used in usages 1&2, but this is not recommended either. 
+Theoretically, decorator `@override` can also be used in **usages 1&2**, but this is not recommended either. 
 
 ## Usage List
 
-When an overloaded function recieves arguments that are not suitable for all implementations, the error information will tell you which ones are correct. 
+When an overloaded function receives arguments that are not suitable for all implementations, the error information will tell you which ones are correct. 
 
 ```python
 >>> from pyoverload import overload
