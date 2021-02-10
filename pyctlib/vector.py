@@ -19,11 +19,7 @@ from functools import wraps
 
 """
 Usage:
-<<<<<<< Updated upstream
-    from .vector import *
-=======
 from pyctlib.vector import *
->>>>>>> Stashed changes
 """
 
 def touch(f: Callable):
@@ -252,7 +248,7 @@ class vector(list):
         return super().index(element)
 
     @overload
-    def index(self, func: Func):
+    def index(self, func: Functional):
         for index in range(len(self)):
             if func(self[index]):
                 return index

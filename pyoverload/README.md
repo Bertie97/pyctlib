@@ -51,8 +51,7 @@ For usage of `pyoverload.typehint`, please refer to section **Typehints** for mo
 All implementations of the overloaded function are referenced in the order of definition, but the implementation ends with `__default__` or `__0__` will be used when no usage is available. Note that there are **four** underlines for this notation, **two** on each side. 
 
 ```python
->>> from pyoverload import overload
->>> from pyoverload.typehint import *
+>>> from pyoverload import *
 >>> import numpy as np
 >>> @overload
 ... def func__default__(x):
@@ -190,7 +189,7 @@ This function is available for all three usages.
 Decorator `@params` enables functions to reject inputs with wrong types by raising **`TypeHintError`**. One can use it directly to decorate functions with python typehints or one can add some arguments to it. In the following example, we apply the condition that `a` is a function, `b` is an integer, `k` is a series of integers while function `test_func` needs to return an iterable type of real numbers with length `2`. 
 
 ```python
->>> from pyoverload.typehint import *
+>>> from pyoverload import *
 >>> @params(Func, Int, +Int, __return__ = Real[2])
 ... def test_func(a, b=2, *k):
 ...     print(a, b, k)
@@ -201,28 +200,56 @@ Decorator `@params` enables functions to reject inputs with wrong types by raisi
 (4, 5)
 ```
 
-The basic types in `pyoverload.typehint` are `Bool`, `Int`, `Float`, `Str`, `Set`, `List`, `Tuple`, `Dict`, `Callable`, `Function`, `Method`, `Lambda`, `Func`, `Real`, `Iterable`, `Null`, `Array`, `Scalar`, `IntScalar`, `FloatScalar`. Among which, 
+The basic types in `pyoverload.typehint` are `Bool`, `Int`, `Float`, `Str`, `Set`, `List`, `Tuple`, `Dict`, `Callable`, `Function`, `Method`, `Lambda`, `Functional`, `Real`, `Null`, `Sequence`, `Array`, `Iterable`, `Scalar`, `IntScalar`, `FloatScalar`. Among which, 
 
-1. `callable` contains all callable objects including callable classes while `Func` consists all kinds of actual functions. `Function`, however, only refer to explicitly defined functions, and `Method` and `Lambda` refer to the class methods and anonymous functions respectively. These three types are all contained in type `Func`. 
+1. `callable` contains all callable objects including callable classes while `Func` consists all kinds of actual functions. `Function`, however, only refer to explicitly defined functions, and `Method` and `Lambda` refer to the class methods and anonymous functions respectively. These three types are all contained in type `Functional`. 
 2. `Real` is a `pyoverload.typehint.Type` while `real`, a list `[int, float]`, is not.
 3. `null` is the type of element `None` while `Null` is the `pyoverload.typehint.Type` form of it. 
-4. `Array` is the type of package based tensors. Only the tensors of `numpy`, `torch`, `tensorflow` and `torchplus` are currently supported. 
-5. Three types of `Scalar`s support the array variables.
+4. `sequence` is `[tuple, list, set]`, while `Sequence` is the `pyoverload.typehint.Type` form.
+5. `Array` is the type of package based tensors. Only the tensors of `numpy`, `torch`, `tensorflow` and `torchplus` are currently supported. Use `Array.Numpy`, `Array.Torch`, `Array.Tensorflow` and `Array.TorchPlus` to identify specific packages. 
+6. `Iterable` includes `Array`, `Sequence` and `dict`. 
+7. Three types of `Scalar`s support the array variables.
 
 All these types are subclasses of `type` and instances of `pyoverload.typehint.Type` which will be abbreviated as `Type` in the following introduction. 
 
 One can use `Type(int)` to convert a python type like `int` to a `Type` or use `Type(int, float)` to combine multiple existing types. Recurrence is also acceptable, `Type(Type(int, float), Type(str))` is equivalent to `Type(int, float, str)`. It will be better if a keyword `name` is also assigned. 
 
-For a `Type`, `List` for example, we can do the following operations:
+For a `Type`, `List` for example, we can do the following operations. Except the first four, these usages are designed for iterable types only. 
 
 1. `+List`: This indicates that this is an extendable argument, which means it decorates arguments after `*`. Commonly, it is only used for arguments `@params` decorator. 
+
 2. `~List`: This invert the typehint, meaning that all non-list types. 
-3. `List[5]`: For iterable types, this indicates the length or shape of the variable. For other types such as `Int[5]`, this indicates an iterable of length 5 with integer elements. 
-4. `List@[int, str]`: For iterable types only, this indicates that the list has 2 elements, and the first one is an integer while the second is a string. 
-5. `List<<int>>[10]`: For iterable types only, at least one of the two types should be a `Type`. The representation refers to an integer list of length 10. This is equivalent to `List[10]@int`. The length or shape is not specified if a pair of empty blankets is given. 
-6. `List[int]`: `=List@int=List<<int>>[]`. Not recommended usage, but this representation is also valid. 
-7. `len(List[10, 20])`: Function `len` returns the length of the array. `200` should be the result for the given example. 
-8. `Dict@{str: int}`: Operation 4 can be extended to dictionary in this format. 
+
+3. `List|Tuple`: This is equivalent to `Type(List, Tuple)` indicating list or tuples. 
+
+4. `Type(A)&Callable`: The *and* operator. Note that both indicator should be `Type`s. 
+
+   ```python
+   >>> from pyoverload import *
+   >>> class A: pass
+   ...
+   >>> class B(A): pass
+   ...
+   >>> class C(A):
+   ...     def __call__(self): pass
+   ...
+   >>> isoftype(B(), Type(A)&Callable)
+   False
+   >>> isoftype(C(), Type(A)&Callable)
+   True
+   ```
+
+5. `List[5]`: This indicates the length or shape of the variable. For other types such as `Int[5]`, this indicates an iterable of length 5 with integer elements. Note that `Array[3, 4]` represents an array with shape `3 x 4`, but this representation is not available for nested lists. Use `List[List[4]][3]` or `List<<List[4]>>[3]` instead.
+
+6. `List@[int, str]`: This only works for ordered sequence `List` and `Tuple`. It indicates that the list has 2 elements, and the first one is an integer while the second is a string. Note that this is **not** equivalent to `List[int, str]` which represents a list with elements either integer or string.
+
+7. `List@int` or `Dict@{str: int}`: For all Iterables, `A@B` indicates type `A` with all elements of type `B`. `Dict@{str:int}` represents a dictionary with string keys and integer values.  
+
+8. `List[int]`: `=List@int`. A list with integer elements. Note that one can use `List[Int|float]` to directly identify a list of elements that are either `int` or `float`. `List[int, float]` and `Dict[str: int, int:str]` are also valid for multiple element types or key-value pairs. Using list in the blankets will return to the effect of `@` operator: `List[[int, float]]=List@[int, float]`. 
+
+9. `List<<int>>[10]`: `=(List@int)[10]=List[int][10]` The first one of the two types should be a `Type`. The representation refers to an integer list of length 10 which is equivalent to `List[10]@int`. The length or shape is not specified if a pair of empty blankets is given. Use `List<<Type(int, Float)>>[]` to represent multiple candidates and `Dict<<(str,int)>>[]=Dict[str:int]` to represent a dictionary. 
+
+10. `len(List[10, 20])`: Function `len` returns the length of the array. `200` should be the result for the given example. 
 
 ## Acknowledgment
 

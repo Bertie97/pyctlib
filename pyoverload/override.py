@@ -24,14 +24,13 @@ _debug = False
 def set_debug_mode(m): global _debug; _debug = m
 
 def _wrap_params(f):
-    if '__wrapped__' in dir(f):
+    if hasattr(f, '__wrapped__'):
         if '[params]' in f.__name__: return None, f
         else: return f, params(run=False)(_get_wrapped(f))
     return f, params(run=False)(f)
 
-def _collect_declarations(func, collection, place_first=False):
-    ret = _wrap_params(func)
-    f = _get_wrapped(func)
+def _collect_declarations(func, collection, place_first=False, error=''):
+    f = _get_wrapped(raw_function(func))
     if f.__doc__:
         lines = f.__doc__.split('\n')
         toadd = ''
@@ -40,22 +39,23 @@ def _collect_declarations(func, collection, place_first=False):
             if l.startswith(_get_func_name(f)) or l[0] == '(': toadd = l
             else: break
         if toadd:
+            toadd = '\t'.join([toadd, error])
             if place_first: collection.insert(0, toadd)
             else: collection.append(toadd)
-    return ret
 
 def _get_func_name(f, change_name = True):
+    f = raw_function(f)
     fname = f.__name__.split('[')[0]
     if fname.endswith('__0__') or fname.endswith('__default__'):
         fname = '__'.join(fname.split('__')[:-2])
         if change_name: f.__name__ = fname + '['.join(f.__name__.split('[')[1:])
     return fname
 
-@decorator(use_raw = False)
+@decorator
 def overload(func):
-    local_vars = get_environ_vars(func)
+    local_vars = get_environ_vars()
     fname = raw_function(func).__name__.split('[')[0]
-    rawfname = _get_func_name(raw_function(func), change_name = False)
+    rawfname = _get_func_name(func, change_name = False)
     key = f"__overload_{rawfname}__"
     overrider = f"__override_{rawfname}__"
     if key in local_vars:
@@ -69,7 +69,19 @@ def overload(func):
     # func.__name__ = '['.join([new_name] + func.__name__.split('[')[1:])
     return local_vars[rawfname]
 
-@decorator(use_raw = False)
+def _try_imp(f, by, collect, place_first=False):
+    args, kwargs = by
+    run_func, test_func = _wrap_params(f)
+    try:
+        ret = test_func(*args, **kwargs)
+        if run_func is not None: ret = run_func(*args, **kwargs)
+        return ret
+    except TypeHintError as e:
+        _collect_declarations(f, collect, place_first=place_first, error=str(e))
+        if _debug: print(str(e))
+        return "__try_imp_failed__"
+
+@decorator
 def override(*arg):
     """
     Usage 1:
@@ -78,89 +90,71 @@ def override(*arg):
 
     if len(arg) == 1: arg = arg[0]
     if not iterable(arg):
-        func = raw_function(arg)
-        if not callable(func): raise SyntaxError("Wrong usage of @override. ")
+        if not Functional(arg): raise SyntaxError("Wrong usage of @override. ")
         class override_wrapper:
-            def __init__(self, f):
-                self.func_list = [f]
-                fname = f.__name__.split('[')[0]
+            def __init__(self, argf):
+                self.mainfunc = argf
+                self.func_list = [argf]
+                fname = raw_function(argf).__name__.split('[')[0]
                 if fname.endswith('__0__') or fname.endswith("__default__"): self.default = 0
                 else: self.default = None
                 self.must_default = False
 
             def __call__(self, *args, **kwargs):
                 if len(args) > 0:
-                    f = raw_function(args[0])
-                    if not kwargs and len(args) == 1 and Func(f):
-                        fname = f.__name__.split('[')[0]
-                        funcname = _get_func_name(func)
+                    argf = args[0]
+                    if not kwargs and len(args) == 1 and Functional(argf):
+                        fname = raw_function(argf).__name__.split('[')[0]
+                        funcname = _get_func_name(self.mainfunc)
                         if fname == "_" or funcname in fname:
                             if fname.endswith('__0__') or fname.endswith("__default__"):
                                 if self.default is not None: raise TypeError("Only one default function is acceptable. ")
                                 self.default = len(self.func_list)
-                            self.func_list.append(f); return
+                            self.func_list.append(argf); return
                             self.must_default = True
-                if '__func__' in dir(arg) and func.__qualname__.split('.')[0] in str(type(args[0])): args = args[1:]
                 dec_list = []
                 if len(self.func_list) == 1:
-                    run_func, test_func = _collect_declarations(self.func_list[0], dec_list)
+                    run_func, test_func = _wrap_params(self.func_list[0])
                     try:
-                        ret = test_func(*args, *kwargs)
+                        ret = test_func(*args, **kwargs)
                         if run_func is not None: ret = run_func(*args, **kwargs)
                         if (
-                            Func(ret) and ret.__name__.endswith('[params]') or 
-                            iterable(ret) and all([Func(x) and x.__name__.endswith('[params]') for x in ret])
+                            Functional(ret) and raw_function(ret).__name__.endswith('[params]') or 
+                            Sequence(ret) and all([Functional(x) and raw_function(x).__name__.endswith('[params]') for x in ret])
                         ):
                             dec_list.clear()
-                            if callable(ret): ret = (ret,)
-                            if iterable(ret):
-                                for f in ret:
-                                    run_func, test_func = _collect_declarations(f, dec_list)
-                                    try:
-                                        ret = test_func(*args, *kwargs)
-                                        if run_func is not None: ret = run_func(*args, **kwargs)
-                                        return ret
-                                    except TypeHintError as e:
-                                        if _debug: print(str(e))
-                                        continue
+                            if Functional(ret): ret = (ret,)
+                            for f in ret:
+                                ret = _try_imp(f, by=(args, kwargs), collect=dec_list)
+                                if ret != "__try_imp_failed__": return ret
                         else: return ret
                     except TypeHintError as e:
+                        _collect_declarations(self.func_list[0], dec_list, error=str(e))
                         if _debug: print(str(e))
                 elif len(self.func_list) > 1:
                     if self.must_default and self.default is None: self.default = 0
                     for i, f in list(enumerate(self.func_list)) + ([(-1, self.func_list[self.default])] if self.default is not None else []):
                         if i == self.default: continue
-                        run_func, test_func = _collect_declarations(f, dec_list, place_first=i==-1)
-                        try:
-                            ret = test_func(*args, **kwargs)
-                            if run_func is not None: ret = run_func(*args, **kwargs)
-                            return ret
-                        except TypeHintError as e:
-                            if _debug: print(str(e))
-                            continue
+                        ret = _try_imp(f, by=(args, kwargs), collect=dec_list, place_first=i==-1)
+                        if ret != "__try_imp_failed__": return ret
                 else:
-                    for name, value in func.__globals__.items():
+                    for name, value in arg.__globals__.items():
                         name = name.replace('override', '').strip('_')
-                        if callable(value) and (name.startswith(func.__name__ + '_') or
-                                                name.endswith('_' + func.__name__)) and name != func.__name__:
-                            run_func, test_func = _collect_declarations(value, dec_list)
-                            try:
-                                ret = test_func(*args, *kwargs)
-                                if run_func is not None: ret = run_func(*args, **kwargs)
-                                return ret
-                            except TypeHintError as e:
-                                if _debug: print(str(e))
-                                continue
-                func_name = _get_func_name(_get_wrapped(self.func_list[self.default if self.default else 0])).split("_overload")[0]
+                        if Functional(value) and (name.startswith(raw_function(self.mainfunc).__name__ + '_') or
+                                                name.endswith('_' + raw_function(self.mainfunc).__name__)) and \
+                                                name != raw_function(self.mainfunc).__name__:
+                            ret = _try_imp(value, by=(args, kwargs), collect=dec_list)
+                            if ret != "__try_imp_failed__": return ret
+                func_name = _get_func_name(_get_wrapped(raw_function(self.func_list[self.default if self.default else 0]))).split("_overload")[0]
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
                     func=func_name, 
                     args=', '.join([repr(x) for x in args] + 
-                        ['='.join((repr(x[0]), repr(x[1]))) for x in kwargs.items()])
+                        ['='.join((str(x[0]), repr(x[1]))) for x in kwargs.items()])
                 ) + "All available usages are:\n{}".format('\n'.join(dec_list)))
 
-        owrapper = override_wrapper(func)
-        @wraps(func)
+        owrapper = override_wrapper(arg)
+        @wraps(arg)
         def final_wrapper(*args, **kwargs): return owrapper(*args, **kwargs)
         return final_wrapper
     else:
@@ -169,16 +163,10 @@ def override(*arg):
         def wrap(func):
             def wrapper(*args, **kwargs):
                 dec_list = []
-                for function in functionlist:
-                    if not callable(function): function = eval(function)
-                    run_func, test_func = _collect_declarations(function, dec_list)
-                    try:
-                        ret = test_func(*args, *kwargs)
-                        if run_func is not None: ret = run_func(*args, **kwargs)
-                        return ret
-                    except TypeHintError as e:
-                        if _debug: print(str(e))
-                        continue
+                for f in functionlist:
+                    if isinstance(f, str): f = eval(f)
+                    ret = _try_imp(f, by=(args, kwargs), collect=dec_list)
+                    if ret != "__try_imp_failed__": return ret
                 func_name = _get_func_name(func)
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
