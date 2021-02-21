@@ -42,7 +42,7 @@ def return_tensor_wrapper(*args_out):
             if isinstance(result, Tensor):
                 pass
             elif isinstance(result, torch.Tensor):
-                result = Tensor(result, auto_device=auto_device, batch_dimension=args[0].batch_dimension if isinstance(args[0], Tensor) else None)
+                result = Tensor(result, auto_device=auto_device, batch_dimension=touch(args[0].batch_dimension) if isinstance(args[0], Tensor) else None)
             elif isinstance(result, tuple):
                 result = tuple(Tensor(x) if isinstance(x, Tensor) else x for x in result)
             return result
@@ -155,7 +155,7 @@ class Size(tuple):
             if 0 <= value < self.ndim: self._batch_dimension = value
             elif value == self._channel_dimension: raise ValueError(f"batch_dimension can not be the same as channel_dimension: {value}")
             else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.dim()}")
-    
+
     def batch_dimension_(self, value):
         self.batch_dimension = value
         return self
@@ -176,7 +176,7 @@ class Size(tuple):
             if 0 <= value < self.ndim: self._channel_dimension = value
             elif value == self._batch_dimension: raise ValueError(f"channel_dimension can not be the same as batch_dimension: {value}")
             else: raise TypeError(f"channel_dimension should be a dimension index which is smaller than {self.dim()}")
-    
+
     def channel_dimension_(self, value):
         self.channel_dimension = value
         return self
@@ -215,7 +215,7 @@ class Size(tuple):
     @property
     def has_special(self): return self.has_batch or self.has_channel
 
-    def remove_special(self): self.batch_dimension = None; self.channel_dimension = None
+    def remove_special(self): self.batch_dimension = None   self.channel_dimension = None
 
     def copy(self): return Size(self.python_repr)
 
@@ -223,9 +223,9 @@ class Size(tuple):
     def __add__(self, other: Tuple[IntScalar] | 'Size'):
         other = Size(other)
         ibatch = ichannel = None
-        if self.has_batch: ibatch = self.batch_dimension; other.batch_dimension = None
+        if self.has_batch: ibatch = self.batch_dimension other.batch_dimension = None
         else: ibatch = other.batch_dimension
-        if self.has_channel: ichannel = self.channel_dimension; other.channel_dimension = None
+        if self.has_channel: ichannel = self.channel_dimension other.channel_dimension = None
         else: ichannel = other.channel_dimension
         res = Size(tuple(self) + tuple(other))
         res.batch_dimension = ibatch
@@ -268,7 +268,7 @@ class Size(tuple):
         elif a.nspace == 0: a, b = b, a
         elif a.nspace % b.nspace == 0: pass
         elif b.nspace % a.nspace == 0: a, b = b, a
-        else: raise TypeError("Size object can not operate with another Size with different dimension, " + 
+        else: raise TypeError("Size object can not operate with another Size with different dimension, " +
             "please consider identify the batch/channel dimension or use + to concatenate. ")
         if b.nspace == 0: k = 1
         else: k = a.nspace // b.nspace
@@ -284,27 +284,27 @@ class Size(tuple):
         elif len(s) == 1: b = b[:s[0]] + (nbatch if a.has_batch else nchannel,) + b[s[0]:]
         else:
             order = s == [a.batch_dimension, a.channel_dimension]
-            b = b[:s[0]] + (nbatch if order else nchannel) + b[s[0]:s[1]-1] + (nchannel if order else nbatch) + b[s[1]-1:]
+            b = b[:s[0]] + (nbatch if order else nchannel) + b[s[0]:s[1] - 1] + (nchannel if order else nbatch) + b[s[1]-1:]
         return op(a, b)
 
     @overload
-    def __lshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return self.__op__(self, Size(other), op = lambda x, y: x + y)
+    def __lshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return self.__op__(self, Size(other), op=lambda x, y: x + y)
     __ilshift__ = __rlshift__ = __lshift__
-    
+
     @overload
-    def __rshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op = lambda x, y: x - y)
+    def __rshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op=lambda x, y: x - y)
     @overload
-    def __rrshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(Size(other), self, op = lambda x, y: x - y)
+    def __rrshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(Size(other), self, op=lambda x, y: x - y)
     __irshift__ = __rshift__
-    
+
     @overload
-    def __pow__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op = lambda x, y: x * y)
+    def __pow__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op=lambda x, y: x * y)
     __ipow__ = __rpow__ = __pow__
 
     @overload
-    def __floordiv__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op = lambda x, y: x // y)
+    def __floordiv__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op=lambda x, y: x // y)
     @overload
-    def __rfloordiv__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(Size(other), self, op = lambda x, y: x // y)
+    def __rfloordiv__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(Size(other), self, op=lambda x, y: x // y)
     __ifloordiv__ = __floordiv__
 
     def __getitem__(self, k): res = super().__getitem__(k); return Size(res) if isinstance(res, tuple) else res
@@ -393,7 +393,7 @@ class Tensor(torch.Tensor):
         batch_dimension = kwargs.get("batch_dimension", None)
         if len(args) == 1:
             data = []
-        elif len(args) == 2 and not isinstance(args[1], int):
+        elif len(args) == 2 and not isinstance(args[1], builtins.int):
             data = args[1]
         else:
             data = torch.Tensor(*args[1:])
@@ -1718,7 +1718,7 @@ class Tensor(torch.Tensor):
         Args:
             input: the first input tensor
             other: the second input tensor
-            out (Tensor, optional): the output tensor.
+            out(Tensor, optional): the output tensor.
 
         Example:
 
