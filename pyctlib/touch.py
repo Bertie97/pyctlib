@@ -83,17 +83,17 @@ class get_environ_vars(dict):
         return collector
 
 @overload
-def touch(f: Callable):
+def touch(f: Callable, default=None):
     try: return f()
-    except: return None
+    except: return default
 
 @overload
-def touch(s: str):
+def touch(s: str, default=None):
     local_vars = get_environ_vars(touch)
     local_vars.update(locals())
     locals().update(local_vars.simplify())
     try: return eval(s)
-    except: return None
+    except: return default
 
 @overload
 def get__default__(var, value):

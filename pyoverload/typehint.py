@@ -6,16 +6,18 @@
 ## Package pyoverload
 ##############################
 __all__ = """
+    isofsubclass
     inheritable
+    isitertype
     iterable
     isarray
     isdtype
     isatype
     isoftype
     isclassmethod
+    typename
 
     Type
-    listargs
     params
 
     Bool
@@ -26,15 +28,18 @@ __all__ = """
     List
     Tuple
     Dict
+    Class
     Callable
     Function
     Method
     Lambda
-    Func
+    Functional
     Real real
-    Iterable
     Null null
+    Sequence
+    sequence
     Array
+    Iterable
     Scalar
     IntScalar
     FloatScalar
@@ -42,7 +47,12 @@ __all__ = """
 
 import re, sys
 from copy import deepcopy
-from .utils import decorator, get_environ_vars
+from pyoverload.utils import decorator, get_environ_vars
+
+try:
+    import inspect
+    have_inspect = True
+except ImportError: have_inspect = False
 
 class TypeHintError(Exception): pass
 
@@ -65,6 +75,7 @@ def inheritable(x):
         >>> inheritable(bool)
         False
     """
+    if isinstance(x, Type) or callable(x): return False
     try:
         class tmp(x): pass
         return True
@@ -74,7 +85,7 @@ def iterable(x):
     """
     iterable(x) -> bool
 
-    Returns whether a type or instance can be iterated. 
+    Returns whether an instance can be iterated. Strings are excluded. 
 
     Args:
         x (any): the input variable.
@@ -83,28 +94,64 @@ def iterable(x):
 
         >>> iterable(x for x in range(4))
         True
-        >>> inheritable({2, 3})
+        >>> iterable({2, 3})
         True
-        >>> inheritable("12")
+        >>> iterable("12")
         False
     """
-    # Test types
-    try:
-        if isinstance(x, Type):
-            x = Type.extractType([x])
-            if all([iterable(i) for i in x]): return True
-            return False
-    except NameError: pass
-    if isinstance(x, type):
-        try: x = x()
-        except Exception: return False
-    # Test instances
     if isinstance(x, str): return False
+    if isinstance(x, type): return False
+    if callable(x): return False
     try:
         iter(x); len(x)
-        return not callable(x)
+        return True
     except Exception: return False
     return False
+
+def isitertype(x):
+    """
+    isitertype(x) -> bool
+
+    Returns whether a type can be iterated. Str type is excluded. 
+
+    Args:
+        x (type): the input variable.
+
+    Example::
+
+        >>> isitertype(list)
+        True
+        >>> isitertype(str)
+        False
+    """
+    if isinstance(x, str):
+        local_vars = get_environ_vars()
+        local_vars.update(locals())
+        locals().update(local_vars.simplify())
+        try: x = eval(x)
+        except: return False
+    if isinstance(x, Type):
+        return all([isitertype(i) for i in x.types])
+    if isinstance(x, type):
+        try: return iterable(x())
+        except Exception: return False
+    if callable(x):
+        try: return x('iterable check') == ''
+        except Exception: return False
+    raise SystemError("Conflict between functions 'isatype' and 'isitertype', please contact the developer for more information. ")
+
+def isofsubclass(x, px):
+    """
+    isofsubclass(x, px) -> bool
+
+    Returns whether a type 'x' is a subclass of type 'px'.
+
+    Args:
+        x (type): the input type.
+        px (type): the parent type to check.
+    """
+    try: return issubclass(x, px)
+    except: return False
 
 def isarray(x):
     """
@@ -124,7 +171,8 @@ def isarray(x):
         >>> isarray([1, 2])
         False
     """
-    if not isatype(x) and 'shape' in dir(x): return True
+    if isinstance(x, str) and x == 'iterable check': return ''
+    if not isatype(x) and hasattr(x, 'shape'): return True
     return False
 
 def isdtype(x):
@@ -174,17 +222,37 @@ def isatype(x):
     """
     if x is None: return True
     if isinstance(x, type): return True
-    if isinstance(x, Type): return True
+    if isinstance(x, str): return True
+    if callable(x):
+        name = _get_func_name(x)
+        if not name: return False
+        name = name.split('.')[-1]
+        if name.startswith('is') or name.endswith('able'): return True
     if iterable(x):
         if len(x) <= 0: return False
         for xt in x:
-            if isinstance(x, type): continue
-            if isinstance(x, Type): continue
+            if isatype(xt): continue
             break
         else: return True
     return False
 
-def isoftype(x, xtype, environ_func = None):
+def typename(x):
+    """
+    typename(x) -> str
+
+    Returns the name of a type. 
+
+    Args:
+        x (any): the input variable.
+    """
+    name = ''
+    if callable(x): name = _get_func_name(x)
+    if name: return name
+    try: name = _rawname(x).capitalize()
+    except: pass
+    return name
+
+def isoftype(x, xtype):
     """
     isoftype(x, xtype) -> bool
 
@@ -193,47 +261,51 @@ def isoftype(x, xtype, environ_func = None):
     Note:
         'xtype' can be provided in one of the following fashions:
         1. a pyctlib.Type like Int, Dict[2]@{int: str} or List<<Int>>[]
-        2. a str representing a type, either the full name of the required type or a name that can be computed when 
-        1. None representing any type
-        2. a list or iterable set of types like [int, float]
+        2. a str representing a type, either the full name of the required 
+            type or a name that can be computed when the package is used.
+        3. None representing any type
+        4. a list or iterable set of types like [int, float]
 
     Args:
         x (any): the input variable.
+        xtype (type): the type to check.
 
     Example::
-
-        >>> isatype(np.array)
+        >>> isoftype(1, None)
+        True
+        >>> isoftype(1., [int, 'np.ndarray'])
         False
-        >>> isatype(np.ndarray)
-        True
-        >>> isatype(None)
-        True
-        >>> isatype([int, np.ndarray])
-        True
     """
     if isinstance(xtype, str):
-        local_vars = get_environ_vars(isoftype if environ_func is None else environ_func)
+        local_vars = get_environ_vars()
         local_vars.update(locals())
         locals().update(local_vars.simplify())
         try: xtype = eval(xtype)
         except: return xtype in [_rawname(t) for t in type(x).__mro__]
     if xtype == type: return isatype(x)
     if xtype is None: return True
-    if isinstance(xtype, type):
-        if isinstance(xtype, Type): return xtype(x)
-        if isinstance(x, xtype): return True
-        return False
-    if type(xtype) in (list, tuple, set):
+    if isatype(xtype):
+        if not iterable(xtype):
+            if isinstance(xtype, Type): return xtype(x) not in (None, False)
+            if isinstance(xtype, type): return isinstance(x, xtype)
+            if callable(xtype):
+                name = _get_func_name(xtype)
+                if not name: return False
+                name = name.split('.')[-1]
+                if name.startswith('is') or name.endswith('able'):
+                    try: return xtype(x) not in (None, False)
+                    except: pass
+                return False
+            raise SystemError("Conflict between functions 'isatype' and 'isoftype', please contact the developer for more information. ")
         if type(x) in xtype: return True
         for xt in xtype:
             if isoftype(x, xt): return True
         return False
-    if callable(xtype) and xtype(x): return True
     return False
 
 def isclassmethod(x):
     if not callable(x): return False
-    if '__qualname__' not in dir(x): return False
+    if hasattr(x, '__qualname__'): return False
     p = x.__qualname__.split('.')
     if len(p) <= 1: return False
     try:
@@ -249,44 +321,49 @@ class _strIO:
     def split(self, c=None): return self._str_.split(c)
 
 def _getDeclaration(func):
-    ss = _strIO()
-    oldout = sys.stdout
-    sys.stdout = ss
-    help(func)
-    sys.stdout = oldout
-    dec = [l for l in ss.split('\n') if len(l) > 0 and 'Help' not in l][0].replace("def ", '').strip().strip(':')
+    if have_inspect and '__file__' in func.__globals__:
+        dec = [l for l in inspect.getsource(func).split('\n') if l.strip() and not l.strip().startswith('@')][0].strip().strip(':')
+    else:
+        ss = _strIO()
+        oldout = sys.stdout
+        sys.stdout = ss
+        help(func)
+        sys.stdout = oldout
+        dec = [l for l in ss.split('\n') if len(l) > 0 and 'Help' not in l][0].replace("def ", '').strip().strip(':')
     return dec[dec.index('('):]
 
 def _get_func_name(f):
-    fname = f.__name__.split('[')[0]
+    try: rawname = f.__name__
+    except: rawname = ''
+    if not rawname:
+        try: rawname = f.__class__.__name__
+        except: rawname = ''
+    if not rawname: return None
+    fname = rawname.split('[')[0]
     if fname.endswith('__0__') or fname.endswith('__default__'):
         fname = '__'.join(fname.split('__')[:-2])
-        f.__name__ = fname + '['.join(f.__name__.split('[')[1:])
+        rawname = fname + '['.join(rawname.split('[')[1:])
     return fname
 
-def listargs(*_T):
+@decorator
+def list_type_args(func):
     '''
     Expand the args to arguments if they are in a list.
     '''
-    if len(_T) == 1 and iterable(_T[0]): _T = _T[0]
-    @decorator
-    def wrap(func):
-        def wrapper(*args, **kwargs):
-            if isclassmethod(func):
-                pre = args[:1]
-                args = args[1:]
-            else: pre = tuple()
-            if len(args) == 1 and type(args[0]) in (list, tuple, set):
-                for item in args[0]:
-                    if not isoftype(item, _T):
-                        if _T not in (list, tuple, dict, set):
-                            raise TypeHintError("Unsupported types of arguments for " +
-                                                _get_func_name(func) + "(): " + str(item) + '. ')
-                        break
-                else: args = args[0]
-            return func(*pre, *args, **kwargs)
-        return wrapper
-    return wrap
+    def wrapper(*args, **kwargs):
+        if isclassmethod(func):
+            pre = args[:1]
+            args = args[1:]
+        else: pre = tuple()
+        if len(args) == 1 and type(args[0]) in (list, tuple):
+            for item in args[0]:
+                if not isatype(item):
+                    raise TypeHintError("Unsupported types of arguments for " +
+                                        _get_func_name(func) + "(): " + str(item) + '. ')
+                    break
+            else: args = args[0]
+        return func(*pre, *args, **kwargs)
+    return wrapper
 
 class Type(type):
 
@@ -294,74 +371,60 @@ class Type(type):
     def extractType(array):
         output = []
         for x in array:
-            if isinstance(x, Type):
+            if iterable(x): output.extend(Type.extractType(list(x)))
+            elif isinstance(x, Type) and x.isunion:
                 output.extend(Type.extractType(x.types))
             else: output.append(x)
         return output
 
-    @listargs(type)
+    @list_type_args
     def __new__(cls, *_T, name=None, shape=tuple(), inv=False, ext=False, itypes=None):
-        if len([0 for t in _T if not isatype(t)]) > 0:
-            raise SyntaxError("Wrong parameter type. ")
-        if len(_T) == 1 and type(_T[0]) == Type:
-            self = super().__new__(cls, _T[0].__name__, _T[0].__bases__, {})
-            self.copyfrom(_T[0])
-        else:
-            _T = Type.extractType(_T)
-            tmpT = []
-            have_basic = False
-            for t in _T:
+        if len(_T) > 0 and not isatype(_T): raise SyntaxError("Wrong parameter type. ")
+        _T = Type.extractType(_T)
+        baseT = []
+        have_basic = False
+        for t in _T:
+            if isinstance(t, type):
                 while True:
                     if inheritable(t):
                         if t.__bases__ and t.__bases__[0] == object:
                             if have_basic: break
                             else: have_basic = True
-                        if t in tmpT: break
-                        tmpT.append(t); break
+                        if t in baseT: break
+                        baseT.append(t); break
+                    if not t.__bases__: break
                     t = t.__bases__[0]
-            self = super().__new__(cls, cls.__name__ + '.' + Type.strT(*_T), tuple(tmpT), {})
-            self.inv = inv
-            self.name = name
-            self.types = _T
-            self.shape = shape
-            self.extendable = ext
-            self.itemtypes = itypes
+
+        self = super().__new__(cls, cls.__name__ + '.' + '/'.join(map(typename, _T)), tuple(baseT), {})
+        self.inv = inv
+        self.types = _T
+        self.name = name
+        self.shape = shape
+        self.extendable = ext
+        self.itemtypes = itypes
         return self
 
     def __init__(*args, **kwargs): pass
 
-    @listargs(type)
-    @staticmethod
-    def strT(*_T):
-        if isoftype(_T, (list, tuple, set)) and len(_T) > 1:
-            return '(' + ', '.join([Type.strT(t) for t in _T]) + ')'
-        if iterable(_T) and len(_T) == 1 and isoftype(_T[0], dict): _T = _T[0]
-        if isoftype(_T, dict):
-            return '{' + ', '.join([':'.join((Type.strT(k), Type.strT(v))) for k, v in _T.items()]) + '}'
-        if len(_T) > 0: return _rawname(_T[0])
-        return ''
-
-    def copyfrom(self, other):
-        self.types = other.types
-        if len(other.shape) > 0: self = self[other.shape]
-        if other.extendable: self = +self
-        if other.inv: self = ~self
-        self @= other.itemtypes
-        self.name = other.name
-
     def __getitem__(self, i=None):
         if i == 0 or i is None: i = tuple()
-        if isatype(i): return self@i
-        if isoftype(i, int): i = (i,)
-        elif isoftype(i, [list, tuple]): pass
+        if isoftype(i, sequence): pass
+        elif isatype(i): return self@i
+        elif isinstance(i, slice): return self@{i.start:i.stop}
+        elif isoftype(i, int): i = (i,)
         else: raise TypeHintError("Wrong size specifier. ")
-        if all([x is None or iterable(x) for x in self.types]):
+        if all([x is None or isitertype(x) for x in self.types]):
+            if not all([isoftype(x, int) for x in i]):
+                if isinstance(i, list): return self@i
+                if all([isinstance(x, slice) for x in i]): return self@{x.start:x.stop for x in i}
+                if all([isinstance(x, str) or isatype(x) for x in i]): return self@Type(*i)
+                raise TypeHintError("Wrong size specifier. ")
             return Type(self.types, name=self.name, shape=i, inv=self.inv, ext=self.extendable, itypes=self.itemtypes)
-        else: return Type([list, tuple, set], name=f"List", shape=i, inv=self.inv, ext=self.extendable, itypes=self)
+        else: return Type(sequence, name=f"Iterable", shape=i, inv=self.inv, ext=self.extendable, itypes=self)
 
     def __lshift__(self, i):
-        if all([issubclass(x, dict) for x in self.types]) and len(i) == 2: return self@{i[0]: i[1]}
-        elif all([iterable(x) for x in self.types]) or all([isarray(x) for x in self.types]): return self@i
+        if all([isofsubclass(x, dict) for x in self.types]) and len(i) == 2: return self@{i[0]: i[1]}
+        elif all([isitertype(x) for x in self.types]): return self@i
         raise TypeHintError("Only tensors, iterable or dict types can use <> representations.")
 
     def __rshift__(self, l):
@@ -370,9 +433,14 @@ class Type(type):
         if len(l) == 1: return self[l[0]]
         return self[tuple(l)]
 
+    def __or__(self, other): return Type(self, other, name=f"{self.rawname}|{other.rawname if isinstance(other, Type) else _rawname(other)}")
+    def __ror__(self, other): return Type(other, self, name=f"{other.rawname if isinstance(other, Type) else _rawname(other)}|{self.rawname}")
+    def __and__(self, other): return Type(~Type(~self, ~other), name=f"{self.rawname}&{other.rawname}")
+    def __rand__(self, other): return Type(~Type(~other, ~self), name=f"{other.rawname}&{self.rawname}")
+
     def __matmul__(self, other):
         if other is None: return
-        if not iterable(self): raise TypeError("Only iterable Type can use @ to specify the items. ")
+        if not isitertype(self): raise TypeError("Only iterable Type can use @ to specify the items. ")
         if isinstance(other, Type):
             return Type(self.types, name=self.name, shape=self.shape, inv=self.inv, ext=self.extendable, itypes=other.itemtypes if iterable(other) else other)
         if all([isarray(x) for x in self.types]) and isdtype(other):
@@ -381,7 +449,7 @@ class Type(type):
         if len(shape) == 0 and isoftype(other, (list, tuple)) and len(other) > 0: shape = [len(other)]
         if not iterable(other): other = (other,)
         if len(shape) == 1 and len(other) not in (1, shape[0]): raise TypeHintError("Wrong number of item types for @. ")
-        if isinstance(other, dict) and not all([issubclass(x, dict) for x in self.types]): raise TypeHintError("Please do use {a:b} typehint for dicts.")
+        if isinstance(other, dict) and not all([isofsubclass(x, dict) for x in self.types]): raise TypeHintError("Please do use {a:b} typehint for dicts.")
         return Type(self.types, name=self.name, shape=shape, inv=self.inv, ext=self.extendable, itypes=other)
 
     def __pos__(self):
@@ -391,18 +459,30 @@ class Type(type):
         return Type(self.types, name=self.name, shape=self.shape, inv=not self.inv, ext=self.extendable, itypes=self.itemtypes)
 
     def __str__(self):
-        string = f"<Type '{'*' * self.extendable}{'non-' * self.inv}{self.name if self.name else _rawname(self.types[0]).capitalize()}"
+        string = f"<Type '{'*' * self.extendable}{'non-' * self.inv}{self.rawname}"
         if self.itemtypes != None:
             if isinstance(self.itemtypes, Type):
-                string += f"<<{self.itemtypes.name}>>"
+                string += f"<{self.itemtypes.rawname}>"
             elif isinstance(self.itemtypes, type):
-                string += f"<<{_rawname(self.itemtypes)}>>"
-            else: string += str(self.itemtypes)
+                string += f"<{_rawname(self.itemtypes)}>"
+            elif iterable(self.itemtypes):
+                string += f"<{'/'.join([_rawname(t).capitalize() for t in self.itemtypes])}>"
+            else: string += f"<{self.itemtypes}>"
         if self.shape: string += str(list(self.shape))
         string += "'>"
         return string
 
     __repr__ = __str__
+
+    @property
+    def isunion(self):
+        return self.name is None and len(self.shape) == 0 and not self.inv \
+            and not self.extendable and self.itemtypes is None
+
+    @property
+    def rawname(self):
+        if self.name: return self.name
+        return '/'.join([typename(t) for t in self.types])
 
     @property
     def len(self):
@@ -417,25 +497,26 @@ class Type(type):
     def __len__(self): return abs(self.len)
 
     def __iter__(self):
-        if len(self.shape) == 0: raise TypeHintError(self.__str__() + " is not iterable. ")
+        if len(self.shape) == 0: raise TypeHintError(str(self) + " is not iterable. ")
 
     def __call__(self, arg):
         true = not self.inv
         false = self.inv
+
         if isoftype(arg, self.types):
             if len(self.shape) == 0: pass
             elif len(self.shape) == 1 and (len(arg) == self.shape[0] or self.shape[0] in (None, -1)): pass
-            elif len(self.shape) > 1 and shape in arg.__dict__ and \
+            elif len(self.shape) > 1 and hasattr(arg, 'shape') and \
                 all([a==b or b in (None, -1) for a, b in zip(arg.shape, self.shape)]): pass
             else: return false
             if self.itemtypes != None:
                 if isinstance(self.itemtypes, dict):
-                    if len(self.itemtypes) > 1 or len(self.itemtypes) <= 0:
-                        raise TypeHintError("Wrong item types after @, only one set of dict annotation is allowed. ")
-                    keytype = list(self.itemtypes.keys())[0]
-                    valtype = list(self.itemtypes.values())[0]
+                    if len(self.itemtypes) <= 0:
+                        raise TypeHintError("Wrong item types after @, {} is not allowed. ")
                     for k, v in arg.items():
-                        if not isoftype(k, keytype) or not isoftype(v, valtype): return false
+                        for ktype, vtype in self.itemtypes.items():
+                            if isoftype(k, ktype) and isoftype(v, vtype): break
+                        else: return false
                 elif iterable(self.itemtypes):
                     if len(self.itemtypes) == 1: self.itemtypes *= len(arg)
                     for x, xt in zip(arg, self.itemtypes):
@@ -445,6 +526,14 @@ class Type(type):
                     if not iterable(self.itemtypes): itypes = [self.itemtypes]
                     else: itypes = self.itemtypes
                     for dt in Type.extractType(itypes):
+                        if isinstance(dt, Type):
+                            x = arg
+                            while True:
+                                x = x[0]
+                                try:
+                                    if len(x) == 1: break
+                                except TypeError: break
+                            return isoftype(x, dt)
                         if isdtype(dt): dt = dname(dt)
                         if isatype(dt): dt = _rawname(dt)
                         if dname(arg.dtype) == dt: return true
@@ -455,6 +544,9 @@ class Type(type):
                 else: raise TypeHintError("Invalid item types after @, please use iterable or types.")
             return true
         return false
+    
+    def checktype(self, *args):
+        raise NotImplementedError("Please implement the check function 'checktype' first.")
 
 def T(main_type, *args, name=None):
     class Default_Type(Type):
@@ -472,20 +564,25 @@ List = T(list)
 Dict = T(dict)
 Tuple = T(tuple)
 
-class CallableType(Type):
-    def __call__(self, x): return callable(x)
-Callable = CallableType(name="Callable")
+Class = T(type, name="Class")
+Callable = T(callable)
 Function = T(type(iterable))
-Method = T(type(Bool.copyfrom), type("".split), type(Int.__str__), name="Method")
+Method = T(type(_strIO().split), type("".split), type(Int.__str__), type(staticmethod(lambda:None)), type(classmethod(lambda:None)), name="Method")
 Lambda = T(type(lambda: None), name="Lambda")
-Func = T(type(iterable), Method, Lambda, name="FunctionType")
+Functional = T(Function, Method, Lambda, name="FunctionType")
 Real = T(float, int, name="Real")
-Iterable = T(tuple, list, dict, set, name="Iterable")
+sequence = [tuple, list]
+Sequence = T(tuple, list, name="Sequence")
 null = type(None)
 Null = T(null)
 real = [int, float]
 
 class ArrayType(Type):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.types = [isarray]
+
     @property
     def Numpy(self):
         try:
@@ -518,9 +615,8 @@ class ArrayType(Type):
             return Type(tp.Tensor)
         except ImportError: pass
 
-    def __call__(self, x): return isarray(x)
-
 Array = ArrayType(name="Array")
+Iterable = T(Array, Sequence, set, dict, name="Iterable")
 
 class ScalarType(Type):
     def __call__(self, x):
@@ -565,7 +661,7 @@ def getArgs(func, *args, **kwargs):
         if getTypes: allargs[var] = type(func.__defaults__[idefault])
         else: allargs[var] = func.__defaults__[idefault]
     if eargs: allargs[eargs] = tuple(inputargs); inputargs = []
-    if ekwargs: allargs[ekwargs] = inputargs.pop(0) if len(inputargs) == 1 else kwargs; kwargs = {}
+    if ekwargs: allargs[ekwargs] = inputargs[0] if len(inputargs) == 1 and isinstance(inputargs[0], dict) else kwargs; kwargs = {}
     for addkwarg in extargs:
         if addkwarg in (eargs, ekwargs): continue
         if addkwarg in kwargs:
@@ -612,7 +708,7 @@ def params(*types, run=True, **kwtypes):
                             _annotations.update(_annotations[ekwargs])
                             _annotations.pop(ekwargs)
                     else:
-                        if not extendable(_annotations[ekwargs]):
+                        if not _annotations[ekwargs].extendable:
                             print("Warning: auto extended non-extendable type. Please check your typehint. ")
                         _annotations[ekwargs] = Type(dict)@{str:_annotations[ekwargs]}
             if eargs:
@@ -623,19 +719,19 @@ def params(*types, run=True, **kwtypes):
                         elif len(_annotations[eargs]) > 1:
                             raise TypeHintError(_get_func_name(func) + "() has too many type restraints. ")
                         else:
-                            if not extendable(_annotations[eargs][0]):
+                            if not _annotations[eargs][0].extendable:
                                 print("Warning: auto extended non-extendable type. Please check your typehint. ")
                             _annotations[eargs] = _annotations[eargs][0]
                     if eargs in _annotations:
                         _annotations[eargs] = Type(list, tuple)@_annotations[eargs]
             for arg in _values:
                 if arg in _annotations:
-                    if isoftype(_values[arg], _annotations[arg], environ_func=func): continue
+                    if isoftype(_values[arg], _annotations[arg]): continue
                     break
             else:
                 if run:
                     retval = func(*args, **kwargs)
-                    if 'return' not in _annotations or isoftype(retval, _annotations['return'], environ_func=func): return retval
+                    if 'return' not in _annotations or isoftype(retval, _annotations['return']): return retval
                     raise TypeHintError(_get_func_name(func) + "() returns an invalid value.")
                 else: return None
             raise TypeHintError(_get_func_name(func) + "() has argument " + arg + " of wrong type. \

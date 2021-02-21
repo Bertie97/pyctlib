@@ -11,7 +11,10 @@ from pyctlib import path, vector
 
 assert len(sys.argv) > 1
 package_name = sys.argv[1]
+if len(sys.argv) > 2: version = sys.argv[2]
+else: version = None
 
+version_match = None
 with open(f"setup_{package_name}.py") as fp:
     file_str = fp.read()
     lines = []
@@ -19,9 +22,18 @@ with open(f"setup_{package_name}.py") as fp:
         if line.strip().startswith('#'): continue
         for match in re.findall(r'open\(.+\).read\(\)', line):
             line = line.replace(match, '"""' + eval(match) + '"""')
+        for match in re.findall(r'version *= *"[\d.]+"', line):
+            v = match.split('"')[1]
+            if version is None: version = '.'.join(v.split('.')[:-1] + [str(eval(v.split('.')[-1]) + 1)])
+            version = f'version = "{version}"'
+            line = line.replace(match, version)
+            version_match = match
         lines.append(line)
     with open("setup.py", 'w') as outfp:
         outfp.write('\n'.join(lines))
+
+with open(f"setup_{package_name}.py", 'w') as fp:
+    if version_match is not None: fp.write(file_str.replace(version_match, version))
 
 ppath = path('.')/"packing_package"
 if ppath.exists(): os.system(f"rm -r {ppath}")
