@@ -386,18 +386,33 @@ class Tensor(torch.Tensor):
             self.requires_grad_()
         return self
 
-    @overload
-    def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None):
-        data = torch.Tensor(*shape)
+    def __new__(*args, **kwargs):
+        cls = args[0]
+        auto_device = kwargs.get("auto_device", True)
+        requires_grad = kwargs.get("requires_grad", None)
+        batch_dimension = kwargs.get("batch_dimension", None)
+        if len(args) == 1:
+            data = []
+        elif len(args) == 2 and not isinstance(args[1], int):
+            data = args[1]
+        else:
+            data = torch.Tensor(*args[1:])
         self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
         self.batch_dimension = batch_dimension
         return self
 
-    @overload
-    def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dimension=None):
-        self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
-        self.batch_dimension = batch_dimension
-        return self
+    # @overload
+    # def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None):
+    #     data = torch.Tensor(*shape)
+    #     self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
+    #     self.batch_dimension = batch_dimension
+    #     return self
+
+    # @overload
+    # def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dimension=None):
+    #     self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
+    #     self.batch_dimension = batch_dimension
+    #     return self
 
     # def __new__(cls, *args, auto_device=True, requires_grad=None, batch_dimension=None):
 
@@ -412,15 +427,15 @@ class Tensor(torch.Tensor):
 
     #     return self
 
-    # @typing.overload
-    @overload
-    def __init__(self, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None): ...
+    # # @typing.overload
+    # @overload
+    # def __init__(self, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None): ...
 
-    # @typing.overload
-    @overload
-    def __init__(self, data, *, auto_device=True, requires_grad=None, batch_dimension=None): ...
+    # # @typing.overload
+    # @overload
+    # def __init__(self, data, *, auto_device=True, requires_grad=None, batch_dimension=None): ...
 
-    # def __init__(self, *args, **kwargs): ...
+    # # def __init__(self, *args, **kwargs): ...
 
     @property
     def batch_dimension(self):
@@ -432,7 +447,7 @@ class Tensor(torch.Tensor):
         if value is not None:
             if value < self.dim(): self._batch_dimension = value
             else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.dim()}")
-    
+
     def batch_dimension_(self, value):
         self.batch_dimension = value
         return self
@@ -456,9 +471,9 @@ class Tensor(torch.Tensor):
     def sample(self, dim: int = None, number: int = 1, random: bool = True) -> 'Tensor':
         """
         sample(self, dim: int = self.batch_dimension, numbder: int = 1, random: bool = True) -> Tensor
-        
-        Sample a few subspaces from a given dimension. 
-        data.sample(2, 1, random = False) is equivalant to data[:, :, 0, ...].
+
+        Sample a few subspaces from a given dimension.
+        data.sample(2, 1, random=False) is equivalant to data[:, :, 0, ...].
         """
         if dim is None: dim = self.batch_dimension
         if dim is None: raise TypeError("Argument 'dim' needed for Tensors with no batch dimension. ")
