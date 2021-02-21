@@ -8531,8 +8531,11 @@ for key in dir(torch):
         continue
     if inspect.isclass(eval("torch.{}".format(key))):
         continue
+    if isinstance(eval("torch.{}".format(key)), torch.dtype):
+        exec("{} = torch.{}".format(key, key))
+        __all__.append(key)
     if key not in ['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor", "nn"] + __all__:
-        exec(template.format(key = key))
+        exec(template.format(key=key))
         __all__.append(key)
 
 no_grad = torch.no_grad
