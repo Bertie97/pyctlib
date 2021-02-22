@@ -156,14 +156,9 @@ class Size(tuple):
             if 0 <= value < self.ndim: self._batch_dimension = value
             elif value == self._channel_dimension: raise ValueError(f"batch_dimension can not be the same as channel_dimension: {value}")
             else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.dim()}")
-<<<<<<< HEAD
     
     @overload
     def batch_dimension_(self, value: IntScalar|Null):
-=======
-
-    def batch_dimension_(self, value):
->>>>>>> 4f9e5f5bebc33ebab17674bf17ce0f97e862dfe6
         self.batch_dimension = value
         return self
 
@@ -184,14 +179,9 @@ class Size(tuple):
             if 0 <= value < self.ndim: self._channel_dimension = value
             elif value == self._batch_dimension: raise ValueError(f"channel_dimension can not be the same as batch_dimension: {value}")
             else: raise TypeError(f"channel_dimension should be a dimension index which is smaller than {self.dim()}")
-<<<<<<< HEAD
     
     @overload
     def channel_dimension_(self, value: IntScalar|Null):
-=======
-
-    def channel_dimension_(self, value):
->>>>>>> 4f9e5f5bebc33ebab17674bf17ce0f97e862dfe6
         self.channel_dimension = value
         return self
 
@@ -252,17 +242,10 @@ class Size(tuple):
         if self.has_batch and other.has_batch: raise TypeError("Batch dimension conflict in addition. ")
         if self.has_channel and other.has_channel: raise TypeError("Channel dimension conflict in addition. ")
         ibatch = ichannel = None
-<<<<<<< HEAD
         if self.has_batch: ibatch = self.batch_dimension; other.batch_dimension = None
         elif other.has_batch: ibatch = other.batch_dimension + self.ndim
         if self.has_channel: ichannel = self.channel_dimension; other.channel_dimension = None
         elif other.has_channel: ichannel = other.channel_dimension + self.ndim
-=======
-        if self.has_batch: ibatch = self.batch_dimension other.batch_dimension = None
-        else: ibatch = other.batch_dimension
-        if self.has_channel: ichannel = self.channel_dimension other.channel_dimension = None
-        else: ichannel = other.channel_dimension
->>>>>>> 4f9e5f5bebc33ebab17674bf17ce0f97e862dfe6
         res = Size(tuple(self) + tuple(other))
         res.batch_dimension = ibatch
         res.channel_dimension = ichannel
@@ -476,7 +459,6 @@ class Tensor(torch.Tensor):
             self.requires_grad_()
         return self
 
-<<<<<<< HEAD
     @overload
     def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None):
         return Tensor(Size(shape), auto_device=auto_device, requires_grad=requires_grad, batch_dim=batch_dim, channel_dim=channel_dim)
@@ -487,45 +469,17 @@ class Tensor(torch.Tensor):
         if channel_dim is not None: shape.channel_dimension = channel_dim
         if shape.ndim == 0: data = torch.tensor(0)
         else: data = torch.Tensor(*shape)
-=======
-    def __new__(*args, **kwargs):
-        cls = args[0]
-        auto_device = kwargs.get("auto_device", True)
-        requires_grad = kwargs.get("requires_grad", None)
-        batch_dimension = kwargs.get("batch_dimension", None)
-        if len(args) == 1:
-            data = []
-        elif len(args) == 2 and not isinstance(args[1], builtins.int):
-            data = args[1]
-        else:
-            data = torch.Tensor(*args[1:])
->>>>>>> 4f9e5f5bebc33ebab17674bf17ce0f97e862dfe6
         self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
         self._batch_dimension = shape.batch_dimension
         self._channel_dimension = shape.channel_dimension
         return self
 
-<<<<<<< HEAD
     @overload
     def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None):
         self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
         self._batch_dimension = batch_dim
         self._channel_dimension = channel_dim
         return self
-=======
-    # @overload
-    # def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None):
-    #     data = torch.Tensor(*shape)
-    #     self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
-    #     self.batch_dimension = batch_dimension
-    #     return self
-
-    # @overload
-    # def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dimension=None):
-    #     self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
-    #     self.batch_dimension = batch_dimension
-    #     return self
->>>>>>> 4f9e5f5bebc33ebab17674bf17ce0f97e862dfe6
 
     # Wrong Inplement: looks fine but can not backpropograte
     # self = torch.Tensor.__new__(cls, device=data.device)
@@ -533,7 +487,6 @@ class Tensor(torch.Tensor):
     # self.__grad_fn = data.grad_fn
     # self.requires_grad = data.requires_grad
 
-<<<<<<< HEAD
     @overload
     def __init__(self, *shape: int, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None): ...
 
@@ -542,17 +495,6 @@ class Tensor(torch.Tensor):
 
     @overload
     def __init__(self, data, *, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None): ...
-=======
-    # # @typing.overload
-    # @overload
-    # def __init__(self, *shape: int, auto_device=True, requires_grad=None, batch_dimension=None): ...
-
-    # # @typing.overload
-    # @overload
-    # def __init__(self, data, *, auto_device=True, requires_grad=None, batch_dimension=None): ...
-
-    # # def __init__(self, *args, **kwargs): ...
->>>>>>> 4f9e5f5bebc33ebab17674bf17ce0f97e862dfe6
 
     @property
     def shape(self): 
@@ -576,24 +518,12 @@ class Tensor(torch.Tensor):
     @property
     def batch_dimension(self): return self.shape.batch_dimension
     @batch_dimension.setter
-<<<<<<< HEAD
     @overload
     def batch_dimension(self, value: IntScalar|Null): s = self.shape; s.batch_dimension = value; self.batch_dimension = s.batch_dimension
     @overload
     def batch_dimension_(self, value: IntScalar|Null): self.batch_dimension = value; return self
     @property
     def batch_size(self): return self.shape.batch_size
-=======
-    def batch_dimension(self, value):
-        self._batch_dimension = None
-        if value is not None:
-            if value < self.dim(): self._batch_dimension = value
-            else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.dim()}")
-
-    def batch_dimension_(self, value):
-        self.batch_dimension = value
-        return self
->>>>>>> 4f9e5f5bebc33ebab17674bf17ce0f97e862dfe6
 
     @property
     def channel_dimension(self): return self._shape.channel_dimension
