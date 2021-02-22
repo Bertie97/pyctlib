@@ -606,6 +606,9 @@ class Tensor(torch.Tensor):
 
     def numpy(self): return self.cpu().detach().numpy()
 
+    def tensor(self):
+        return super().clone()
+
     def dim(self): return self.ndim
     def size(self, *k: [int, str]):
         i = [(self.names.index(x) if x in self.names else None) if isoftype(x, str) else x for x in k]
@@ -8710,7 +8713,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __repr__(self, *args, **kwargs):
-        return self.data.__repr__(*args, **kwargs).replace("tensor", "Tensor")
+        return self.tensor().__repr__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __reversed__(self, *args, **kwargs):
@@ -8758,7 +8761,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __str__(self, *args, **kwargs):
-        return self.data.__str__(*args, **kwargs).replace("tensor", "Tensor")
+        return self.tensor().__str__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __sub__(self, *args, **kwargs):
