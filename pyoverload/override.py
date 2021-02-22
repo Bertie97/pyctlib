@@ -120,7 +120,7 @@ def override(*arg):
                         if run_func is not None: ret = run_func(*args, **kwargs)
                         if (
                             Functional(ret) and raw_function(ret).__name__.endswith('[params]') or 
-                            Sequence(ret) and all([Functional(x) and raw_function(x).__name__.endswith('[params]') for x in ret])
+                            Sequence(ret) and len(ret) > 0 and all([Functional(x) and raw_function(x).__name__.endswith('[params]') for x in ret])
                         ):
                             dec_list.clear()
                             if Functional(ret): ret = (ret,)
