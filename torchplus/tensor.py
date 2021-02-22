@@ -42,7 +42,7 @@ def return_tensor_wrapper(*args_out):
             if isinstance(result, Tensor):
                 pass
             elif isinstance(result, torch.Tensor):
-                result = Tensor(result, auto_device=auto_device, batch_dimension=touch(args[0].batch_dimension) if isinstance(args[0], Tensor) else None)
+                result = Tensor(result, auto_device=auto_device, batch_dim=touch(lambda: args[0].batch_dimension) if isinstance(args[0], Tensor) else None)
             elif isinstance(result, tuple):
                 result = tuple(Tensor(x) if isinstance(x, Tensor) else x for x in result)
             return result
@@ -98,7 +98,9 @@ def tofloat(x):
         return x.float()
 
 class GradWrapper:
-    def __init__(self, name, gf): self.gf = gf; self.__class__.__name__ = name
+    def __init__(self, name, gf):
+        self.gf = gf
+        self.__class__.__name__ = name
     def __str__(self): return "<{} object at {}>".format(self.__class__.__name__, '%x'%id(self.gf))
     __repr__ = __str__
     def __call__(self, *args, **kwargs): return self.gf(*args, **kwargs)
@@ -244,9 +246,13 @@ class Size(tuple):
         if self.has_batch and other.has_batch: raise TypeError("Batch dimension conflict in addition. ")
         if self.has_channel and other.has_channel: raise TypeError("Channel dimension conflict in addition. ")
         ibatch = ichannel = None
-        if self.has_batch: ibatch = self.batch_dimension; other.batch_dimension = None
+        if self.has_batch:
+            ibatch = self.batch_dimension
+            other.batch_dimension = None
         elif other.has_batch: ibatch = other.batch_dimension + self.ndim
-        if self.has_channel: ichannel = self.channel_dimension; other.channel_dimension = None
+        if self.has_channel:
+            ichannel = self.channel_dimension
+            other.channel_dimension = None
         elif other.has_channel: ichannel = other.channel_dimension + self.ndim
         res = Size(tuple(self) + tuple(other))
         res.batch_dimension = ibatch
@@ -352,20 +358,41 @@ class Size(tuple):
         else: shorter, longer = other, self
         res = []
         for offset in builtins.range(longer.ndim - shorter.ndim + 1):
-            i = 0; j = offset; res = list(longer[:offset].python_repr)
+            i = 0
+            j = offset
+            res = list(longer[:offset].python_repr)
             while i < len(shorter) and j < len(longer):
                 if i in shorter.special and j in longer.special:
-                    if shorter.has_batch: res.extend([[shorter[i]], {longer[j]}]); i += 1; j += 1
-                    else: res.extend([[longer[j]], {shorter[i]}]); i += 1; j += 1
+                    if shorter.has_batch:
+                        res.extend([[shorter[i]], {longer[j]}])
+                        i += 1
+                        j += 1
+                    else:
+                        res.extend([[longer[j]], {shorter[i]}])
+                        i += 1
+                        j += 1
                     continue
                 if i == shorter.batch_dimension or j == longer.batch_dimension: nest = lambda x: [x]
                 elif i == shorter.channel_dimension or j == longer.channel_dimension: nest = lambda x: {x}
                 else: nest = lambda x: x
-                if shorter[i] in (1, -1): res.append(nest(longer[j])); i += 1; j += 1
-                elif longer[j] in (1, -1): res.append(nest(shorter[i])); i += 1; j += 1
-                elif shorter[i] == longer[j]: res.append(nest(shorter[i])); i += 1; j += 1
-                elif i in shorter.special: res.append(shorter.python_repr[i]); i += 1
-                elif j in longer.special: res.append(longer.python_repr[j]); j += 1
+                if shorter[i] in (1, -1):
+                    res.append(nest(longer[j]))
+                    i += 1
+                    j += 1
+                elif longer[j] in (1, -1):
+                    res.append(nest(shorter[i]))
+                    i += 1
+                    j += 1
+                elif shorter[i] == longer[j]:
+                    res.append(nest(shorter[i]))
+                    i += 1
+                    j += 1
+                elif i in shorter.special:
+                    res.append(shorter.python_repr[i])
+                    i += 1
+                elif j in longer.special:
+                    res.append(longer.python_repr[j])
+                    j += 1
                 else: break
             else:
                 if i < len(shorter): res.extend(shorter.python_repr[i:])
@@ -446,10 +473,12 @@ class Tensor(torch.Tensor):
         else:
             dim_zero = False
         if data.is_leaf:
-            self = torch.Tensor.__new__(cls, tofloat(data.detach())).refine_names(data.names)
+            self = torch.Tensor.__new__(cls, tofloat(data.detach()))
+            if touch(lambda: data.names) and builtins.any([n is not None for n in data.names]): self.refine_names(*data.names)
             self.requires_grad = data.requires_grad
         else:
-            self = torch.Tensor.__new__(cls, tofloat(data)).refine_names(data.names)
+            self = torch.Tensor.__new__(cls, tofloat(data))
+            if touch(lambda: data.names) and builtins.any([n is not None for n in data.names]): self.refine_names(*data.names)
         self.data = self.data.type(data.data.type())
         self._dim_zero = dim_zero
         if dim_zero and data.grad_fn is not None:
@@ -499,41 +528,54 @@ class Tensor(torch.Tensor):
     def __init__(self, data, *, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None): ...
 
     @property
-    def shape(self): 
+    def _shape(self):
         shape = Size(super().shape)
-        if batch_dim is not None: shape.batch_dimension = self._batch_dimension
-        if channel_dim is not None: shape.channel_dimension = self._channel_dimension
-        if not shape.has_batch:
-            isbatch = ['batch' in x for x in self.names]
-            if any(isbatch):
-                ibatch = isbatch.index(True)
-                self._batch_dimension = ibatch
-                shape.batch_dimension = ibatch
-        if not shape.has_channel:
-            ischannel = ['channel' in x for x in self.names]
-            if any(ischannel):
-                ichannel = ischannel.index(True)
-                self._channel_dimension = ichannel
-                shape.channel_dimension = ichannel
+        if self._batch_dimension is not None: shape.batch_dimension = self._batch_dimension
+        if self._channel_dimension is not None: shape.channel_dimension = self._channel_dimension
+        if touch(lambda: self.names):
+            if not shape.has_batch:
+                isbatch = ['batch' in x for x in self.names if x]
+                if builtins.any(isbatch):
+                    ibatch = isbatch.index(True)
+                    self._batch_dimension = ibatch
+                    shape.batch_dimension = ibatch
+            if not shape.has_channel:
+                ischannel = ['channel' in x for x in self.names if x]
+                if builtins.any(ischannel):
+                    ichannel = ischannel.index(True)
+                    self._channel_dimension = ichannel
+                    shape.channel_dimension = ichannel
         return shape
 
     @property
-    def batch_dimension(self): return self.shape.batch_dimension
+    def batch_dimension(self):
+        return self.shape.batch_dimension
     @batch_dimension.setter
     @overload
-    def batch_dimension(self, value: IntScalar|Null): s = self.shape; s.batch_dimension = value; self.batch_dimension = s.batch_dimension
+    def batch_dimension(self, value: IntScalar|Null):
+        s = self.shape
+        s.batch_dimension = value
+        self.batch_dimension = s.batch_dimension
     @overload
-    def batch_dimension_(self, value: IntScalar|Null): self.batch_dimension = value; return self
+    def batch_dimension_(self, value: IntScalar|Null):
+        self.batch_dimension = value
+        return self
     @property
     def batch_size(self): return self.shape.batch_size
 
     @property
-    def channel_dimension(self): return self._shape.channel_dimension
+    def channel_dimension(self):
+        return self._shape.channel_dimension
     @channel_dimension.setter
     @overload
-    def channel_dimension(self, value: IntScalar|Null): s = self.shape; s.channel_dimension = value; self.channel_dimension = s.channel_dimension
+    def channel_dimension(self, value: IntScalar|Null):
+        s = self.shape
+        s.channel_dimension = value
+        self.channel_dimension = s.channel_dimension
     @overload
-    def channel_dimension_(self, value: IntScalar|Null): self.channel_dimension = value; return self
+    def channel_dimension_(self, value: IntScalar|Null):
+        self.channel_dimension = value
+        return self
     @property
     def channel_size(self): return self.shape.channel_size
 
@@ -558,7 +600,9 @@ class Tensor(torch.Tensor):
     @property
     def has_special(self): return self.has_batch or self.has_channel
 
-    def remove_special(self): self.batch_dimension = None; self.channel_dimension = None
+    def remove_special(self):
+        self.batch_dimension = None
+        self.channel_dimension = None
 
     def numpy(self): return self.cpu().detach().numpy()
 
@@ -614,7 +658,9 @@ class Tensor(torch.Tensor):
         if dim is None: raise TypeError("Argument 'dim' needed for sampling Tensors with no batch dimension. ")
         sample_indices = [slice(None)] * self.dim()
         if self.shape[dim] < number: raise TypeError(f"Too many elements needed to be sampled from dimension {dim}")
-        if random: import random; samples = random.choice(range(self.shape[dim]), k = number)
+        if random:
+            import random
+            samples = random.choice(range(self.shape[dim]), k = number)
         else: samples = list(range(number))
         sample_indices[dim] = samples
         output_tensor = Tensor(self[tuple(sample_indices)])
@@ -8494,17 +8540,17 @@ class Tensor(torch.Tensor):
     def __floordiv__(self, *args, **kwargs):
         return super().__floordiv__(*args, **kwargs)
 
-    @return_tensor_wrapper
+    # @return_tensor_wrapper
     def __format__(self, *args, **kwargs):
-        return super().__format__(*args, **kwargs)
+        return self.data.__format__(*args, **kwargs)
 
     @return_tensor_wrapper
     def __ge__(self, *args, **kwargs):
         return super().__ge__(*args, **kwargs)
 
-    # @return_tensor_wrapper
-    # def __getattribute__(self, *args, **kwargs):
-    #     return super().__getattribute__(*args, **kwargs)
+    def __getattribute__(self, *args, **kwargs):
+        if args == ('shape',): return self._shape
+        return super().__getattribute__(*args, **kwargs)
 
     @return_tensor_wrapper
     def __getitem__(self, *args, **kwargs):
@@ -8664,7 +8710,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __repr__(self, *args, **kwargs):
-        return super().__repr__(*args, **kwargs).replace("tensor", "Tensor")
+        return self.data.__repr__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __reversed__(self, *args, **kwargs):
@@ -8712,7 +8758,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __str__(self, *args, **kwargs):
-        return super().__str__(*args, **kwargs).replace("tensor", "Tensor")
+        return self.data.__str__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __sub__(self, *args, **kwargs):
