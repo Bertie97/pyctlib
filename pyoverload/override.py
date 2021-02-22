@@ -146,7 +146,7 @@ def override(*arg):
                                                 name.endswith('_' + raw_function(self.mainfunc).__name__)) and \
                                                 name != raw_function(self.mainfunc).__name__:
                             ret = _try_imp(value, by=(args, kwargs), collect=dec_list)
-                            if ret != "__try_imp_failed__": return ret
+                            if isinstance(ret, str) and ret != "__try_imp_failed__": return ret
                 func_name = _get_func_name(_get_wrapped(raw_function(self.func_list[self.default if self.default else 0]))).split("_overload")[0]
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
@@ -168,7 +168,7 @@ def override(*arg):
                 for f in functionlist:
                     if isinstance(f, str): f = eval(f)
                     ret = _try_imp(f, by=(args, kwargs), collect=dec_list)
-                    if ret != "__try_imp_failed__": return ret
+                    if isinstance(ret, str) and ret != "__try_imp_failed__": return ret
                 func_name = _get_func_name(func)
                 dec_list = [func_name + x[x.index('('):] for x in dec_list]
                 raise NameError("No {func}() matches arguments {args}. ".format(
