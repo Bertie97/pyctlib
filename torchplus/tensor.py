@@ -157,7 +157,7 @@ class Size(tuple):
         if value is not None:
             if 0 <= value < self.ndim: self._batch_dimension = value
             elif value == self._channel_dimension: raise ValueError(f"batch_dimension can not be the same as channel_dimension: {value}")
-            else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.dim()}")
+            else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.ndim}")
     
     @overload
     def batch_dimension_(self, value: IntScalar|Null):
@@ -528,22 +528,25 @@ class Tensor(torch.Tensor):
     def __init__(self, data, *, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None): ...
 
     @property
-    def _shape(self):
-        shape = Size(super().shape)
-        if self._batch_dimension is not None: shape.batch_dimension = self._batch_dimension
-        if self._channel_dimension is not None: shape.channel_dimension = self._channel_dimension
+    def shape(self):
+        if touch(lambda: self._dim_zero, False): shape = Size()
+        else: shape = Size(super().shape)
+        batch_dim = touch(lambda: self._batch_dimension, None)
+        channel_dim = touch(lambda: self._channel_dimension, None)
+        if batch_dim is not None: shape.batch_dimension = batch_dim
+        if channel_dim is not None: shape.channel_dimension = channel_dim
         if touch(lambda: self.names):
             if not shape.has_batch:
                 isbatch = ['batch' in x for x in self.names if x]
                 if builtins.any(isbatch):
                     ibatch = isbatch.index(True)
-                    self._batch_dimension = ibatch
+                    self.batch_dim = ibatch
                     shape.batch_dimension = ibatch
             if not shape.has_channel:
                 ischannel = ['channel' in x for x in self.names if x]
                 if builtins.any(ischannel):
                     ichannel = ischannel.index(True)
-                    self._channel_dimension = ichannel
+                    self.channel_dim = ichannel
                     shape.channel_dimension = ichannel
         return shape
 
@@ -605,9 +608,6 @@ class Tensor(torch.Tensor):
         self.channel_dimension = None
 
     def numpy(self): return self.cpu().detach().numpy()
-
-    def tensor(self):
-        return super().clone()
 
     def dim(self): return self.ndim
     def size(self, *k: [int, str]):
@@ -8545,14 +8545,13 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __format__(self, *args, **kwargs):
-        return self.data.__format__(*args, **kwargs)
+        return super().__format__(*args, **kwargs)
 
     @return_tensor_wrapper
     def __ge__(self, *args, **kwargs):
         return super().__ge__(*args, **kwargs)
 
     def __getattribute__(self, *args, **kwargs):
-        if args == ('shape',): return self._shape
         return super().__getattribute__(*args, **kwargs)
 
     @return_tensor_wrapper
@@ -8713,7 +8712,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __repr__(self, *args, **kwargs):
-        return self.tensor().__repr__(*args, **kwargs).replace("tensor", "Tensor")
+        return super().__repr__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __reversed__(self, *args, **kwargs):
@@ -8761,7 +8760,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __str__(self, *args, **kwargs):
-        return self.tensor().__str__(*args, **kwargs).replace("tensor", "Tensor")
+        return super().__str__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __sub__(self, *args, **kwargs):
@@ -8826,12 +8825,6 @@ class Tensor(torch.Tensor):
     @return_tensor_wrapper
     def norm(self, *args, **kwargs):
         return super().norm(*args, **kwargs)
-
-    @property
-    def shape(self):
-        if self._dim_zero:
-            return torch.Size([])
-        return super().shape
 
     @property
     def grad_fn(self):
