@@ -148,7 +148,7 @@ class Size(tuple):
         return cls.__new__(cls, args, batch_dim=batch_dim, channel_dim=channel_dim, **kwargs)
 
     @property
-    def batch_dimension(self): return self._batch_dimension
+    def batch_dimension(self): return touch(lambda: self._batch_dimension)
 
     @batch_dimension.setter
     @overload
@@ -171,7 +171,7 @@ class Size(tuple):
         return self[self.batch_dimension]
 
     @property
-    def channel_dimension(self): return self._channel_dimension
+    def channel_dimension(self): return touch(lambda: self._channel_dimension)
 
     @channel_dimension.setter
     @overload
@@ -531,8 +531,8 @@ class Tensor(torch.Tensor):
     def shape(self):
         if touch(lambda: self._dim_zero, False): shape = Size()
         else: shape = Size(super().shape)
-        batch_dim = touch(lambda: self._batch_dimension, None)
-        channel_dim = touch(lambda: self._channel_dimension, None)
+        batch_dim = touch(lambda: self._batch_dimension)
+        channel_dim = touch(lambda: self._channel_dimension)
         if batch_dim is not None: shape.batch_dimension = batch_dim
         if channel_dim is not None: shape.channel_dimension = channel_dim
         if touch(lambda: self.names):
@@ -568,7 +568,7 @@ class Tensor(torch.Tensor):
 
     @property
     def channel_dimension(self):
-        return self._shape.channel_dimension
+        return self.shape.channel_dimension
     @channel_dimension.setter
     @overload
     def channel_dimension(self, value: IntScalar|Null):
