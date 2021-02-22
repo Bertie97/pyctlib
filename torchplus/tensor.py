@@ -232,7 +232,9 @@ class Size(tuple):
     @property
     def has_special(self): return self.has_batch or self.has_channel
 
-    def remove_special(self): self.batch_dimension = None   self.channel_dimension = None
+    def remove_special(self):
+        self.batch_dimension = None
+        self.channel_dimension = None
 
     def copy(self): return Size(self.python_repr)
 
