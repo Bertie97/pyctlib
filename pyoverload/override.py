@@ -126,7 +126,8 @@ def override(*arg):
                             if Functional(ret): ret = (ret,)
                             for f in ret:
                                 ret = _try_imp(f, by=(args, kwargs), collect=dec_list)
-                                if ret != "__try_imp_failed__": return ret
+                                if isinstance(ret, str) and ret == "__try_imp_failed__": pass
+                                else: return ret
                         else: return ret
                     except TypeHintError as e:
                         _collect_declarations(self.func_list[0], dec_list, error=str(e))
@@ -136,7 +137,8 @@ def override(*arg):
                     for i, f in list(enumerate(self.func_list)) + ([(-1, self.func_list[self.default])] if self.default is not None else []):
                         if i == self.default: continue
                         ret = _try_imp(f, by=(args, kwargs), collect=dec_list, place_first=i==-1)
-                        if ret != "__try_imp_failed__": return ret
+                        if isinstance(ret, str) and ret == "__try_imp_failed__": pass
+                        else: return ret
                 else:
                     for name, value in arg.__globals__.items():
                         name = name.replace('override', '').strip('_')
