@@ -8828,7 +8828,7 @@ class Tensor(torch.Tensor):
 
     @property
     def grad_fn(self):
-        return self.__grad_fn
+        return touch(lambda: self.__grad_fn)
 
 template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return torch.{key}(*args, **kwargs)"
 for key in dir(torch):
