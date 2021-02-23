@@ -441,14 +441,14 @@ class Tensor(torch.Tensor):
             if default_dtype == torch.float64:
                 return torch.cuda.DoubleTensor
             if default_dtype == torch.float16:
-                return torch.cuda.ShortTensor
+                return torch.cuda.HalfTensor
         else:
             if default_dtype == torch.float32:
                 return torch.FloatTensor
             if default_dtype == torch.float64:
                 return torch.DoubleTensor
             if default_dtype == torch.float16:
-                return torch.ShortTensor
+                return torch.HalfTensor
 
     @staticmethod
     def _make_subclass(cls, data, auto_device=True, requires_grad=None):
@@ -607,11 +607,34 @@ class Tensor(torch.Tensor):
         self.batch_dimension = None
         self.channel_dimension = None
 
+    @staticmethod
+    def tensor_type(dtype):
+        if dtype == tensor.float32:
+            return torch.Tensor
+        elif dtype == tensor.float64:
+            return torch.DoubleTensor
+        elif dtype == tensor.float16:
+            return torch.HalfTensor
+        elif dtype == tensor.bfloat16:
+            return torch.BFloat16Tensor
+        elif dtype == torch.int64:
+            return torch.LongTensor
+        elif dtype == torch.int16:
+            return torch.ShortTensor
+        elif dtype == torch.int8:
+            return torch.ByteTensor
+        elif dtype == torch.int32:
+            return torch.IntTensor
+        elif dtype == torch.bool:
+            return torch.BoolTensor
+        else:
+            return torch.Tensor
+
     def tensor(self):
         if self.dim() > 0:
-            return torch.Tensor(self.data)
+            return Tensor.tensor_type(self.dtype)(self.data)
         else:
-            return torch.Tensor([self.item()]).sum()
+            return Tensor.tensor_type(self.dtype)([self.item()]).sum()
 
     def numpy(self): return self.cpu().tensor().detach().numpy()
 
