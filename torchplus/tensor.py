@@ -607,7 +607,13 @@ class Tensor(torch.Tensor):
         self.batch_dimension = None
         self.channel_dimension = None
 
-    def numpy(self): return self.cpu().detach().numpy()
+    def tensor(self):
+        if self.dim() > 0:
+            return torch.Tensor(self.data)
+        else:
+            return torch.Tensor([self.item()]).sum()
+
+    def numpy(self): return self.cpu().tensor().detach().numpy()
 
     def dim(self): return self.ndim
     def size(self, *k: [int, str]):
