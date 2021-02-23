@@ -640,12 +640,9 @@ class Tensor(torch.Tensor):
 
     def dim(self): return self.ndim
         
-    @overload
-    def size(self):
-        return self.shape
-        
-    @overload
-    def size(self, *k: [int, str]):
+    @params
+    def size(self, *k: +(Int|Str)):
+        if len(k) == 0: return self.shape
         i = [(self.names.index(x) if x in self.names else None) if isoftype(x, str) else x for x in k]
         if None in i: return super().size(k[i.index(None)])
         if len(i) == 1: return self.shape[i[0]]
