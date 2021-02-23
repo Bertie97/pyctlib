@@ -105,14 +105,12 @@ class GradWrapper:
     __repr__ = __str__
     def __call__(self, *args, **kwargs): return self.gf(*args, **kwargs)
 
-SizeRep = Tuple[IntScalar, List[0], (List|'set')<<IntScalar>>[1]]
-
 class Size(tuple):
 
     NegSizeError = TypeError("Size cannot have negative values except -1 indicating arbitrary number. ")
 
     @overload
-    def __new__(cls, args: SizeRep | 'Size', **kwargs):
+    def __new__(cls, args: Tuple[IntScalar, List[0], (List|'set')<<IntScalar>>[1]] | 'Size', **kwargs):
         if isoftype(args, Size): args = args.python_repr
         if len([x for x in args if isoftype(x, List)]) > 1: raise TypeError("Only one batch dimension is allowed.")
         if len([x for x in args if isoftype(x, 'set')]) > 1: raise TypeError("Only one channel dimension is allowed.")
@@ -123,7 +121,7 @@ class Size(tuple):
         return self
 
     @overload
-    def __new__(cls, args: Array<<IntScalar>>[] | SizeRep, batch_dim: Null|Int=None, channel_dim: Null|Int=None, **kwargs):
+    def __new__(cls, args: (Array|Tuple)[IntScalar, List[0], (List|'set')<<IntScalar>>[1]], batch_dim: Null|Int=None, channel_dim: Null|Int=None, **kwargs):
         args = list(args)
         if batch_dim is not None:
             if isoftype(args[batch_dim], IntScalar): args[batch_dim] = [args[batch_dim]]
@@ -146,7 +144,7 @@ class Size(tuple):
         return self
 
     @overload
-    def __new__(cls, *args: SizeRep.itemtypes, batch_dim: Null|Int=None, channel_dim: Null|Int=None, **kwargs):
+    def __new__(cls, *args: IntScalar|List[0]|(List|'set')<<IntScalar>>[1], batch_dim: Null|Int=None, channel_dim: Null|Int=None, **kwargs):
         return cls.__new__(cls, args, batch_dim=batch_dim, channel_dim=channel_dim, **kwargs)
 
     @property
@@ -199,7 +197,7 @@ class Size(tuple):
     def special(self): return sorted([x for x in [self.batch_dimension, self.channel_dimension] if x is not None])
 
     @property
-    def bc(self): return [x for x in [self.batch_dimension, self.channel_dimension] if x is not None]
+    def bc(self): return [self.batch_dimension, self.channel_dimension]
 
     @property
     def space(self):
@@ -239,7 +237,6 @@ class Size(tuple):
     def remove_special(self):
         self.batch_dimension = None
         self.channel_dimension = None
-        return self
 
     def copy(self): return Size(self.python_repr)
 
@@ -343,7 +340,6 @@ class Size(tuple):
         if other.special == other.bc and self.special != self.bc or other.special != other.bc and self.special == self.bc:
             if self.nspace == 0 and self.ndim == 2: self = self[::-1]
             elif other.nspace == 0 and other.ndim == 2: other = other[::-1]
-            else: raise TypeError(f"Batch and channel order not matched for {self} and {other}")
         if self.has_batch and other.has_batch:
             if self.batch_size in (1, -1): nbatch = other.batch_size
             elif other.batch_size in (1, -1): nbatch = self.batch_size
@@ -445,14 +441,14 @@ class Tensor(torch.Tensor):
             if default_dtype == torch.float64:
                 return torch.cuda.DoubleTensor
             if default_dtype == torch.float16:
-                return torch.cuda.ShortTensor
+                return torch.cuda.HalfTensor
         else:
             if default_dtype == torch.float32:
                 return torch.FloatTensor
             if default_dtype == torch.float64:
                 return torch.DoubleTensor
             if default_dtype == torch.float16:
-                return torch.ShortTensor
+                return torch.HalfTensor
 
     @staticmethod
     def _make_subclass(cls, data, auto_device=True, requires_grad=None):
@@ -560,7 +556,9 @@ class Tensor(torch.Tensor):
     @batch_dimension.setter
     @overload
     def batch_dimension(self, value: IntScalar|Null):
-        self._batch_dimension = value
+        s = self.shape
+        s.batch_dimension = value
+        self.batch_dimension = s.batch_dimension
     @overload
     def batch_dimension_(self, value: IntScalar|Null):
         self.batch_dimension = value
@@ -574,7 +572,9 @@ class Tensor(torch.Tensor):
     @channel_dimension.setter
     @overload
     def channel_dimension(self, value: IntScalar|Null):
-        self._channel_dimension = value
+        s = self.shape
+        s.channel_dimension = value
+        self.channel_dimension = s.channel_dimension
     @overload
     def channel_dimension_(self, value: IntScalar|Null):
         self.channel_dimension = value
@@ -607,7 +607,36 @@ class Tensor(torch.Tensor):
         self.batch_dimension = None
         self.channel_dimension = None
 
-    def numpy(self): return super(torch.Tensor, self.cpu().detach()).numpy()
+    @staticmethod
+    def tensor_type(dtype):
+        if dtype == torch.float32:
+            return torch.Tensor
+        elif dtype == torch.float64:
+            return torch.DoubleTensor
+        elif dtype == torch.float16:
+            return torch.HalfTensor
+        elif dtype == torch.bfloat16:
+            return torch.BFloat16Tensor
+        elif dtype == torch.int64:
+            return torch.LongTensor
+        elif dtype == torch.int16:
+            return torch.ShortTensor
+        elif dtype == torch.int8:
+            return torch.ByteTensor
+        elif dtype == torch.int32:
+            return torch.IntTensor
+        elif dtype == torch.bool:
+            return torch.BoolTensor
+        else:
+            return torch.Tensor
+
+    def tensor(self):
+        if self.dim() > 0:
+            return Tensor.tensor_type(self.dtype)(self.data)
+        else:
+            return Tensor.tensor_type(self.dtype)([self.item()]).sum()
+
+    def numpy(self): return self.cpu().tensor().detach().numpy()
 
     def dim(self): return self.ndim
     def size(self, *k: [int, str]):
@@ -616,51 +645,37 @@ class Tensor(torch.Tensor):
         if len(i) == 1: return self.shape[i[0]]
         return tuple(self.shape[x] for x in i)
     def numel(self): return self.nele
-        
-    @overload
-    def __matmul__(self, target: Array | 'Tensor'):
-        return self @ target.shape
-    @overload
-    def __matmul__(self, target: Tuple[IntScalar] | 'Size'):
-        target = Size(target)
-        if target.special == target.bc and self.special != self.bc or target.special != target.bc and self.special == self.bc:
-            if self.nspace == 0 and self.ndim == 2: self = self[::-1]
-            else: raise TypeError(f"Batch and channel order not matched for {self.shape} and {target}")
-        axis_map = list(range(self.ndim))
-        p = 0
-        for i, s in enumerate(self.shape):
-            if i == self.batch_dimension:
-                axis_map[i] = target.batch_dimension
-                p = target.batch_dimension + 1
-            elif i == self.channel_dimension:
-                axis_map[i] = target.channel_dimension
-                p = target.channel_dimension + 1
-            elif s in (1, -1):
-                axis_map[i] = p
-                p += 1
-            else:
-                while p < target.ndim and target[p] != s: p += 1
-                axis_map[i] = p
-                p += 1
-            if p >= target.ndim: raise TypeError(f"Unable to expand sizes {self.shape} to {target}. ")
-        return self.unsqueeze_to(target, axis_map)
-    
-    
-    @overload
-    def unsqueeze_to(self, target: Array | 'Tensor', axis_place: List):
-        return self.expand_to(target.shape, axis_place)
-    @overload
-    def unsqueeze_to(self, target: Tuple[IntScalar] | 'Size', axis_place: List):
-        target = Size(target)
-        if target.has_batch and self.has_batch and axis_place[self.batch_dimension] != target.batch_dimension:
-            raise TypeError("Conflict of batch dimension in 'unsqueeze_to'. ")
-        if target.has_channel and self.has_channel and axis_place[self.channel_dimension] != target.channel_dimension:
-            raise TypeError("Conflict of channel dimension in 'unsqueeze_to'. ")
-        new_size = list(target)
-        for i in range(len(new_size)):
-            if i not in axis_place:
-                new_size[i] = 1
-        return self.view(*new_size)
+
+    # @overload
+    # def expand_to(self, target: Tuple[IntScalar] | 'Size'):
+    #     target = Size(target)
+    #     j = 0; to_indices = [None] * self.ndim
+    #     for i, x in enumerate(target):
+    #         dim_squeeze = [0]
+    #         if x == self[j] or x in (1, -1) or self[j] == 1:
+    #             if i == target.batch_dimension or i == target.channel_dimension: dim_squeeze.append(1)
+    #             else: dim_squeeze.prepand(1)
+    #             if x == -1: dim_squeeze.extend(list(range(2, self.ndim - j + 1)))
+                
+
+    #         if j == self.batch_dimension:
+    #             if target.has_batch: to_indices[j] = target.batch_dimension
+    #             else: 
+    #         if j == self.channel_dimension:
+    #         self[j]
+    #     if -1 in target:
+    #         arbaxis = target.index(-1)
+    #         tmp = target[:arbaxis] + Size(self.nele // (target[:arbaxis] + target[arbaxis+1:]).nele) + target[arbaxis+1:]
+    #         if arbaxis == target.batch_dimension: tmp.batch_dimension = arbaxis
+    #         if arbaxis == target.channel_dimension: tmp.channel_dimension = arbaxis
+    #         target = tmp
+    #     if len(aspace) > len(bspace): aspace, bspace = bspace, aspace
+    #     j = 0; matched_axises = []
+    #     for i, x in enumerate(aspace):
+    #         while j < len(bspace) and bspace[j] != x: j += 1
+    #         if j >= len(bspace): raise TypeError("Expanding of sizes do not support auto repeating, " + 
+    #             "please ensure that the corresponding dimensions have the same size. ")
+    #         matched_axises.append(j)
 
     @return_tensor_wrapper
     @overload
@@ -689,8 +704,7 @@ class Tensor(torch.Tensor):
     def T(self: 'Tensor') -> 'Tensor':
         if not self.has_special: return super().T
         s = self.shape.special
-        if len(s) == 1: permute_dim = tuple(range(s[0]))[::-1] + (s[0],) + tuple(range(s[0]+1, self.ndim))[::-1]
-        elif len(s) == 2: permute_dim = tuple(range(s[0]))[::-1] + (s[0],) + tuple(range(s[0]+1, s[1]))[::-1] + (s[1],) + tuple(range(s[1]+1, self.ndim))[::-1]
+        permute_dim = tuple(range(s[0]))[::-1] + (s[0],) + tuple(range(s[0]+1, s[1]))[::-1] + (s[1],) + tuple(range(s[1]+1, self.ndim))[::-1]
         return self.permute(permute_dim)
 
     @return_tensor_wrapper
@@ -7551,7 +7565,7 @@ class Tensor(torch.Tensor):
                     [ 0.9158, -0.6929],
                     [-0.5872,  0.6932]])
         """
-        return self.T
+        return super().t()
 
     @return_tensor_wrapper
     def t_(self) -> 'Tensor':
@@ -7560,21 +7574,7 @@ class Tensor(torch.Tensor):
 
         In-place version of :meth:`~Tensor.t`
         """
-        if not self.has_special: return super().t_()
-        s = self.shape.special
-        if len(s) == 1:
-            for i in range(s[0] // 2):
-                self.transpose_(i, s[0] - i - 1)
-            for i in range((self.ndim - s[0] - 1) // 2):
-                self.transpose_(s[0] + i + 1, self.ndim - i - 1)
-        elif len(s) == 2:
-            for i in range(s[0] // 2):
-                self.transpose_(i, s[0] - i - 1)
-            for i in range((s[1] - s[0] - 1) // 2):
-                self.transpose_(s[0] + i + 1, s[1] - i - 1)
-            for i in range((self.ndim - s[1] - 1) // 2):
-                self.transpose_(s[1] + i + 1, self.ndim - i - 1)
-        return self
+        return super().t_()
 
     @return_tensor_wrapper
     def take(self, indices) -> 'Tensor':
@@ -8741,10 +8741,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __repr__(self, *args, **kwargs):
-        string = super().__repr__(*args, **kwargs)
-        if 'shape=' not in string:
-            string = string.rstrip(')') + f', shape={self.shape.python_repr})'
-        return string.replace("tensor", "Tensor")
+        return super().__repr__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __reversed__(self, *args, **kwargs):
@@ -8792,10 +8789,7 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __str__(self, *args, **kwargs):
-        string = super().__str__(*args, **kwargs)
-        if 'shape=' not in string:
-            string = string.rstrip(')') + f', shape={self.shape.python_repr})'
-        return string.replace("tensor", "Tensor")
+        return super().__str__(*args, **kwargs).replace("tensor", "Tensor")
 
     @return_tensor_wrapper
     def __sub__(self, *args, **kwargs):
@@ -8865,87 +8859,6 @@ class Tensor(torch.Tensor):
     def grad_fn(self):
         return touch(lambda: self.__grad_fn)
 
-__all__.extend(["zeros", "ones", "zeros_like", "ones_like", "tensor", "t", "eye"])
-
-@overload
-def zeros(*size: SizeRep.itemtypes, **kwargs):
-    return zeros(size, **kwargs)
-
-@overload
-def zeros(tensor: Array.Torch | Tensor, **kwargs):
-    out = Tensor(torch.zeros_like(tensor, **kwargs), **kwargs)
-    out.batch_dimension = tensor.batch_dimension
-    out.channel_dimension = tensor.channel_dimension
-    return out
-
-@overload
-def zeros(size: SizeRep | Size, **kwargs):
-    size = Size(size)
-    out = Tensor(torch.zeros(size), **kwargs)
-    out.batch_dimension = size.batch_dimension
-    out.channel_dimension = size.channel_dimension
-    return out
-
-@overload
-def zeros__default__(*args, **kwargs):
-    return Tensor(torch.zeros(*args, **kwargs), **kwargs)
-
-@overload
-def zeros_like(tensor: Array.Torch, **kwargs):
-    return zeros(tensor, **kwargs)
-
-@overload
-def ones(*size: SizeRep.itemtypes, **kwargs):
-    return ones(size, **kwargs)
-
-@overload
-def ones(tensor: Array.Torch | Tensor, **kwargs):
-    out = Tensor(torch.ones_like(tensor, **kwargs), **kwargs)
-    out.batch_dimension = tensor.batch_dimension
-    out.channel_dimension = tensor.channel_dimension
-    return out
-
-@overload
-def ones(size: SizeRep | Size, **kwargs):
-    size = Size(size)
-    out = Tensor(torch.ones(size), **kwargs)
-    out.batch_dimension = size.batch_dimension
-    out.channel_dimension = size.channel_dimension
-    return out
-
-@overload
-def ones__default__(*args, **kwargs):
-    return Tensor(torch.ones(*args, **kwargs), **kwargs)
-
-@overload
-def ones_as(tensor: Array.Torch, **kwargs):
-    return ones(tensor, **kwargs)
-
-@overload
-def eye(*size: SizeRep.itemtypes):
-    return eye(size)
-
-@overload
-def eye(size: SizeRep | Size):
-    size = Size(size)
-    if size.nspace < 1: raise TypeError("Empty size not valid for 'eye'. ")
-    if size.nspace == 1: size = size + (size.space[0],)
-    if size.nspace > 2: raise TypeError("No more than 2-D is allowed for 'eye'. ")
-    n = builtins.min(*size.space)
-    s = [slice(None)] * size.ndim
-    for i in builtins.range(size.ndim):
-        if i not in size.special:
-            s[i] = torch.arange(n)
-    out = zeros(size)
-    out[tuple(s)] = 1
-    return out
-
-@overload
-def t(tensor: Array.Torch):
-    return Tensor(tensor).T
-
-tensor = Tensor
-
 template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return torch.{key}(*args, **kwargs)"
 for key in dir(torch):
     if key.startswith("_"):
@@ -8955,7 +8868,7 @@ for key in dir(torch):
     if isinstance(eval("torch.{}".format(key)), torch.dtype):
         exec("{} = torch.{}".format(key, key))
         __all__.append(key)
-    if key not in globals(): #['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor", "nn"] + __all__:
+    if key not in ['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor", "nn"] + __all__:
         exec(template.format(key=key))
         __all__.append(key)
 

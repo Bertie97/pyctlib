@@ -8,3 +8,4 @@
 
 from .tensor import *
 from .tensorfunc import *
+from .nn import *
