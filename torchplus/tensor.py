@@ -609,13 +609,13 @@ class Tensor(torch.Tensor):
 
     @staticmethod
     def tensor_type(dtype):
-        if dtype == tensor.float32:
+        if dtype == torch.float32:
             return torch.Tensor
-        elif dtype == tensor.float64:
+        elif dtype == torch.float64:
             return torch.DoubleTensor
-        elif dtype == tensor.float16:
+        elif dtype == torch.float16:
             return torch.HalfTensor
-        elif dtype == tensor.bfloat16:
+        elif dtype == torch.bfloat16:
             return torch.BFloat16Tensor
         elif dtype == torch.int64:
             return torch.LongTensor
