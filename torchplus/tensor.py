@@ -8977,7 +8977,9 @@ def eye(size: SizeRep | Size):
 def t(tensor: Array.Torch):
     return Tensor(tensor).T
 
-tensor = Tensor
+@return_type_wrapper
+def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
+    return torch.tensor(data)
 
 template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return torch.{key}(*args, **kwargs)"
 for key in dir(torch):
