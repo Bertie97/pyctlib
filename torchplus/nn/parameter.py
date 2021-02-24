@@ -32,7 +32,7 @@ class Parameter(torchplus.Tensor):
             data = torchplus.Tensor()
         assert isinstance(data, torch.Tensor)
         self = torchplus.Tensor._make_subclass(cls, data.data, auto_device=False, requires_grad=requires_grad)
-        self._batch_dimension = data._batch_dimension
+        # self._batch_dimension = data._batch_dimension
         return self
 
     def __deepcopy__(self, memo):

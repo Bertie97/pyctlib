@@ -11,13 +11,15 @@ import warnings
 import numbers
 from typing import List, Tuple, Optional, overload
 
-import torch
-from torch import Tensor
+import torchplus as torch
+from torchplus import Tensor
 from .module import Module
 from ..parameter import Parameter
 from ..utils.rnn import PackedSequence
 from .. import init
-from ... import _VF
+# from ... import _VF
+from torch import _VF
+import torch as basic_torch
 
 _rnn_impls = {
     'RNN_TANH': _VF.rnn_tanh,
@@ -544,13 +546,13 @@ class LSTM(RNNBase):
         return apply_permutation(hx[0], permutation), apply_permutation(hx[1], permutation)
 
     @overload
-    @torch._jit_internal._overload_method  # noqa: F811
+    @basic_torch._jit_internal._overload_method  # noqa: F811
     def forward(self, input: Tensor, hx: Optional[Tuple[Tensor, Tensor]] = None
                 ) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:  # noqa: F811
         pass
 
     @overload
-    @torch._jit_internal._overload_method  # noqa: F811
+    @basic_torch._jit_internal._overload_method  # noqa: F811
     def forward(self, input: PackedSequence, hx: Optional[Tuple[Tensor, Tensor]] = None
                 ) -> Tuple[PackedSequence, Tuple[Tensor, Tensor]]:  # noqa: F811
         pass
@@ -705,12 +707,12 @@ class GRU(RNNBase):
         super(GRU, self).__init__('GRU', *args, **kwargs)
 
     @overload
-    @torch._jit_internal._overload_method  # noqa: F811
+    @basic_torch._jit_internal._overload_method  # noqa: F811
     def forward(self, input: Tensor, hx: Optional[Tensor] = None) -> Tuple[Tensor, Tensor]:  # noqa: F811
         pass
 
     @overload
-    @torch._jit_internal._overload_method  # noqa: F811
+    @basic_torch._jit_internal._overload_method  # noqa: F811
     def forward(self, input: PackedSequence, hx: Optional[Tensor] = None) -> Tuple[PackedSequence, Tensor]:  # noqa: F811
         pass
 

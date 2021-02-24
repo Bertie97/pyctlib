@@ -7,6 +7,11 @@
 ##############################
 
 from .modules import *
+from . import parameter
 from .parameter import Parameter
+from . import functional
+# from .. import basic_torch
+# from torch.nn import utils
+import torch as basic_torch
 
-from .functional import *
+from . import utils

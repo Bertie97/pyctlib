@@ -22,3 +22,5 @@ template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return F.{key}(*
 
 for key in F_key:
     exec(template.format(key=key))
+
+__all__ = list(F_key)

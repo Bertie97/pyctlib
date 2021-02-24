@@ -7,7 +7,7 @@
 ##############################
 
 import torch
-import torch.nn as nn
+# import torch.nn as nn
 from pyctlib import vector
 from ...tensor import *
 from ..parameter import Parameter
@@ -15,7 +15,7 @@ import torchplus
 from typing import Union
 
 
-class Module(nn.Module):
+class Module(torch.nn.Module):
 
     def __init__(self):
         super(Module, self).__init__()

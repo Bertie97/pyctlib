@@ -10,8 +10,8 @@ from __future__ import division
 
 from typing import Any, Optional
 
-import torch
-from torch import Tensor
+import torchplus as torch
+from torchplus import Tensor
 
 from .. import functional as F
 from .. import init

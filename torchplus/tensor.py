@@ -17,7 +17,7 @@ try:
     import numpy as np
 except ImportError:
     raise ImportError("'pyctlib.torchplus' cannot be used without dependency 'torch' and 'numpy'.")
-import torch.nn as nn
+# import torch.nn as nn
 import typing
 import inspect
 import builtins
@@ -708,11 +708,12 @@ class Tensor(torch.Tensor):
     @property
     @return_tensor_wrapper
     def T(self: 'Tensor') -> 'Tensor':
-        if not self.has_special: return super().T
-        s = self.shape.special
-        if len(s) == 1: permute_dim = tuple(range(s[0]))[::-1] + (s[0],) + tuple(range(s[0]+1, self.ndim))[::-1]
-        elif len(s) == 2: permute_dim = tuple(range(s[0]))[::-1] + (s[0],) + tuple(range(s[0]+1, s[1]))[::-1] + (s[1],) + tuple(range(s[1]+1, self.ndim))[::-1]
-        return self.permute(permute_dim)
+        return super().T
+        # if not self.has_special: return super().T
+        # s = self.shape.special
+        # if len(s) == 1: permute_dim = tuple(range(s[0]))[::-1] + (s[0],) + tuple(range(s[0]+1, self.ndim))[::-1]
+        # elif len(s) == 2: permute_dim = tuple(range(s[0]))[::-1] + (s[0],) + tuple(range(s[0]+1, s[1]))[::-1] + (s[1],) + tuple(range(s[1]+1, self.ndim))[::-1]
+        # return self.permute(permute_dim)
 
     @return_tensor_wrapper
     def abs(self) -> 'Tensor':
@@ -9013,7 +9014,7 @@ for key in dir(torch):
     if isinstance(eval("torch.{}".format(key)), torch.dtype):
         exec("{} = torch.{}".format(key, key))
         __all__.append(key)
-    if key not in globals() and key not in {"optim", "random"}:
+    if key not in globals() and key not in {"optim", "random", "nn"}:
         exec(template.format(key=key))
         __all__.append(key)
 

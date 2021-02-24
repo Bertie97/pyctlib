@@ -16,7 +16,7 @@ import torch.nn.utils as utils
 import torchplus
 from .. import functional as F
 from ... import Tensor
-from .. import Module
+from . import Module
 from ..common_types import _size_1_t, _size_2_t, _size_3_t
 from ..parameter import Parameter
 from .utils import _pair, _reverse_repeat_tuple, _single, _triple
