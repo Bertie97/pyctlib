@@ -59,6 +59,9 @@ class TypeHintError(Exception): pass
 _mid = lambda x: x[1] if len(x) > 1 else x[0]
 _rawname = lambda s: _mid(str(s).split("'")).split('.')[-1]
 
+def equals(x, y):
+    return (isinstance(x, type(y)) or isinstance(y, type(x))) and x == y
+
 def inheritable(x):
     """
     inheritable(x) -> bool
@@ -136,7 +139,7 @@ def isitertype(x):
         try: return iterable(x())
         except Exception: return False
     if callable(x):
-        try: return x('iterable check') == ''
+        try: return equals(x('iterable check'), '')
         except Exception: return False
     raise SystemError("Conflict between functions 'isatype' and 'isitertype', please contact the developer for more information. ")
 
@@ -171,7 +174,7 @@ def isarray(x):
         >>> isarray([1, 2])
         False
     """
-    if isinstance(x, str) and x == 'iterable check': return ''
+    if equals(x, 'iterable check'): return ''
     if not isatype(x) and hasattr(x, 'shape'): return True
     return False
 
@@ -322,7 +325,7 @@ class _strIO:
 
 def _getDeclaration(func):
     if have_inspect and '__file__' in func.__globals__:
-        dec = [l for l in inspect.getsource(func).split('\n') if l.strip() and not l.strip().startswith('@')][0].strip().strip(':')
+        dec = next(l for l in inspect.getsource(func).split('\n') if l.strip() and not l.strip().startswith('@')).strip().rstrip(':')
     else:
         ss = _strIO()
         oldout = sys.stdout
@@ -681,6 +684,61 @@ def getArgs(func, *args, **kwargs):
 
 @decorator
 def params(*types, run=True, **kwtypes):
+    if len(types) == 1 and len(kwtypes) == 0 and Functional(types[0]): return params()(types[0])
+    @decorator
+    def induced_decorator(func):
+        declaration = _getDeclaration(func)
+        eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", declaration))
+        ekwargs = ''.join(re.findall(r"[^*]\*{2} *(\w+)\b", declaration))
+        depth = []
+        d = 0;
+        for c in declaration:
+            if c in '([{': d += 1; depth.append(d)
+            elif c in '}])': depth.append(d); d -= 1
+            else: depth.append(d)
+            if d == 0: break
+        declaration = ''.join(c for x, c in zip(depth, declaration) if x == 1)
+        declaration = declaration.strip('()')
+        declaration = ','.join(p.split(':')[0].split('=')[0].strip() + ("='__default__'" if re.search('[^=]=[^=]', p) else '') for p in declaration.split(','))
+        exec(f"def tmp({declaration}): return locals()")
+        fetch = eval('tmp')
+        if len(types) == len(kwtypes) == 0:
+            annotations = func.__annotations__
+            if 'return' in annotations:
+                rtype = annotations.pop('return')
+            else: rtype = None
+        else:
+            if '__return__' in kwtypes:
+                rtype = kwtypes.pop('__return__')
+            else: rtype = None
+            annotations = fetch(*types, **kwtypes)
+        def wrapper_func(*args, **kwargs):
+            try: values = fetch(*args, **kwargs)
+            except Exception as e: raise TypeHintError(str(e))
+            for arg in values:
+                if equals(values[arg], "__default__") or arg not in annotations: continue
+                if arg == eargs:
+                    if Sequence(annotations[arg]) and len(annotations[arg]) == len(values[arg]):
+                        if not all(isoftype(v, t) for v, t in zip(values[arg], annotations[arg])): break
+                    if any(not isoftype(x, annotations[arg]) for x in values[arg]): break
+                elif arg == ekwargs:
+                    if Dict(annotations[args]):
+                        if not all(isoftype(values[arg][k], annotations[arg][k]) for k in annotations[args]): break
+                    if any(not isoftype(x, annotations[arg]) for x in values[arg].values()): break
+                elif not isoftype(values[arg], annotations[arg]): break
+            else:
+                if run:
+                    r = func(*args, **kwargs)
+                    if isoftype(r, rtype): return r
+                    else: raise TypeHintError(f"{_get_func_name(func)}() has return value of wrong type. Expect type {repr(rtype)} but got {repr(r)}.")
+                else: return None
+            raise TypeHintError(f"{_get_func_name(func)}() has argument {arg} of wrong type. Expect type {repr(annotations[arg])} but got {repr(values[arg])}.")
+        return wrapper_func
+    return induced_decorator
+        
+
+@decorator
+def params_old(*types, run=True, **kwtypes):
     israw = len(kwtypes) == 0 and len(types) == 1 and \
             callable(types[0]) and not isatype(types[0])
     @decorator
@@ -771,11 +829,11 @@ if __name__ == "__main__":
         Dict[2]@{(Int, str):Real}
     ))
 
-    @params(Func, Int, +Int, __return__ = Real[2])
+    @params(Functional, Int, +Int, __return__ = Real[2])
     def test_func(a, b=2, *k):
         return k
 
-    print(isclassmethod(extendable))
+    print(isclassmethod(inheritable))
     print(isclassmethod(Float.__len__))
     print(isclassmethod(Type.__len__))
 
@@ -790,4 +848,4 @@ if __name__ == "__main__":
     print(List[2]@[int, Tuple[3]])
     print((List[2]@[int, Tuple[3]])([1, (2.0, 3, 'a')]))
     print(isoftype(0.1, Int))
-    test_func(lambda x: 1, 3, 4, 5)
+    print(test_func(lambda x: 1, 3, 4, 5))
