@@ -33,18 +33,26 @@ import torchplus as tp
 
 Device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+_auto_device = True
+
+def set_autodevice(flag=True):
+    _auto_device = flag
+
+def unset_autodevice():
+    _auto_device = False
+
 def return_tensor_wrapper(*args_out):
-    def output_wrapper(func, auto_device=True):
+    def output_wrapper(func, auto_device=_auto_device):
         func = raw_function(func)
         @wraps(func)
         def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
-#            if isinstance(result, Tensor):
-#                pass
-#            elif isinstance(result, torch.Tensor):
-#                result = Tensor(result, auto_device=auto_device, batch_dim=touch(lambda: args[0].batch_dimension) if isinstance(args[0], Tensor) else None)
-#            elif isinstance(result, tuple):
-#                result = tuple(Tensor(x) if isinstance(x, Tensor) else x for x in result)
+            if isinstance(result, Tensor):
+               pass
+            elif isinstance(result, torch.Tensor):
+               result = Tensor(result, auto_device=auto_device, batch_dim=touch(lambda: args[0].batch_dimension) if isinstance(args[0], Tensor) else None)
+            elif isinstance(result, tuple):
+               result = tuple(Tensor(x) if isinstance(x, Tensor) else x for x in result)
             return result
         return wrapper
 
@@ -455,7 +463,7 @@ class Tensor(torch.Tensor):
                 return torch.HalfTensor
 
     @staticmethod
-    def _make_subclass(cls, data, auto_device=True, requires_grad=None):
+    def _make_subclass(cls, data, auto_device=_auto_device, requires_grad=None):
         if auto_device:
             data = torch.as_tensor(data, device=Device)
         else:
@@ -466,11 +474,11 @@ class Tensor(torch.Tensor):
         return tensor
 
     @overload
-    def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
+    def __new__(cls, *shape: int, auto_device=_auto_device, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
         return Tensor(Size(shape), auto_device=auto_device, requires_grad=requires_grad, batch_dim=batch_dim, channel_dim=channel_dim)
 
     @overload
-    def __new__(cls, shape: Size, *, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
+    def __new__(cls, shape: Size, *, auto_device=_auto_device, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
         if batch_dim is not None: shape.batch_dimension = batch_dim
         if channel_dim is not None: shape.channel_dimension = channel_dim
         if shape.ndim == 0: data = torch.tensor(0)
@@ -481,7 +489,7 @@ class Tensor(torch.Tensor):
         return self
 
     @overload
-    def __new__(cls, data, *, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
+    def __new__(cls, data, *, auto_device=_auto_device, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
         self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
         self._batch_dimension = batch_dim
         self._channel_dimension = channel_dim
@@ -504,8 +512,7 @@ class Tensor(torch.Tensor):
 
     @property
     def shape(self):
-        if touch(lambda: self._dim_zero, False): shape = Size()
-        else: shape = Size(super().shape)
+        shape = Size(super().shape)
         batch_dim = touch(lambda: self._batch_dimension)
         channel_dim = touch(lambda: self._channel_dimension)
         if batch_dim is not None: shape.batch_dimension = batch_dim
@@ -8558,7 +8565,7 @@ class Tensor(torch.Tensor):
         result = dir(torch.Tensor)
         result.remove("volatile")
         result.remove("__cuda_array_interface__")
-        result = result + ['get_default_tensor_type', 'batch_dimension', '_dim_zero', '__grad_fn', 'batch_size']
+        result = result + ['get_default_tensor_type', 'batch_dimension', '__grad_fn', 'batch_size']
         return result
 
     @return_tensor_wrapper
@@ -8947,7 +8954,10 @@ def eye(size: SizeRep | Size):
 def t(tensor: Array.Torch):
     return Tensor(tensor).T
 
-tensor = Tensor
+# tensor = Tensor
+@return_tensor_wrapper
+def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
+    return torch.tensor(data, dtype=device, device=device, requires_grad=requires_grad, pin_memory=pin_memory)
 
 template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return torch.{key}(*args, **kwargs)"
 for key in dir(torch):
