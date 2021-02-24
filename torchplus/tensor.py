@@ -493,11 +493,20 @@ class Tensor(torch.Tensor):
             if isinstance(args[0], Size):
                 shape = args[0]
                 if shape.ndim == 0:
-                    data = torch.tensor(0)
+                if auto_device is True:
+                    data = torch.Tensor(device=Device)
                 else:
-                    data = torch.Tensor(*shape)
+                    data = torch.Tensor()
+                else:
+                    if auto_device is True:
+                        data = torch.Tensor(*shape, device=Device)
+                    else:
+                        data = torch.Tensor(*shape)
             elif isinstance(args[0], builtins.int):
-                data = torch.Tensor(args[0])
+                if auto_device is True:
+                    data = torch.Tensor(args[0], device=Device)
+                else:
+                    data = torch.Tensor(args[0])
             else:
                 data = args[0]
 
