@@ -28,8 +28,7 @@ from typing import Union
 from types import GeneratorType
 
 import sys
-sys.path.insert(4, "/Users/zhangyiteng/Software/Python_Lib/pyctlib")
-from visual.debugger import profile
+from pyctlib.visual.debugger import profile
 """
 from torchplus import Tensor
 import torchplus as tp
@@ -123,57 +122,31 @@ class Size(tuple):
 
     NegSizeError = TypeError("Size cannot have negative values except -1 indicating arbitrary number. ")
 
-    @overload
-    def __new__(cls, args: SizeRep | 'Size', **kwargs):
-        if isoftype(args, Size): args = args.python_repr
-        if len([x for x in args if isoftype(x, List)]) > 1: raise TypeError("Only one batch dimension is allowed.")
-        if len([x for x in args if isoftype(x, 'set')]) > 1: raise TypeError("Only one channel dimension is allowed.")
-        new_args = tuple((list(x)[0] if len(x) > 0 else -1) if iterable(x) else x for x in args)
-        self = super().__new__(cls, new_args, **kwargs)
-        self._batch_dimension = touch(lambda: [isoftype(x, List) for x in args].index(True), None)
-        self._channel_dimension = touch(lambda: [isoftype(x, 'set') for x in args].index(True), None)
-        return self
-
-    @overload
-    def __new__(cls, args: Array<<IntScalar>>[] | SizeRep, batch_dim: Null|Int=None, channel_dim: Null|Int=None, **kwargs):
-        args = list(args)
-        if batch_dim is not None:
-            if isoftype(args[batch_dim], IntScalar): args[batch_dim] = [args[batch_dim]]
-            if not isoftype(args[batch_dim], List[IntScalar][1]): raise TypeError("Batch dimension conflicts with notations. ")
-        if channel_dim is not None:
-            if isoftype(args[channel_dim], IntScalar): args[channel_dim] = {args[channel_dim]}
-            if not isoftype(args[channel_dim], Type(set)[IntScalar][1]): raise TypeError("Channel dimension conflicts with notations. ")
-        return cls.__new__(cls, args, **kwargs)
-
-    @overload
-    def __new__(cls, args: GeneratorType, batch_dim: Null|Int=None, channel_dim: Null|Int=None, **kwargs):
-        args = list(args)
-        if len(args) > 0: return cls.__new__(cls, args, batch_dim=batch_dim, channel_dim=channel_dim, **kwargs)
-        return cls.__new__(cls, **kwargs)
-
-    @overload
-    def __new__(cls, **kwargs):
-        self = super().__new__(cls, **kwargs)
-        self._batch_dimension = self._channel_dimension = None
-        return self
-
-    @overload
-    def __new__(cls, *args: SizeRep.itemtypes, batch_dim: Null|Int=None, channel_dim: Null|Int=None, **kwargs):
-        return cls.__new__(cls, args, batch_dim=batch_dim, channel_dim=channel_dim, **kwargs)
+    def __new__(cls, *args, batch_dim=None, channel_dim=None):
+        if len(args) == 0:
+            size = super().__new__(cls)
+        elif len(args) == 1:
+            if isinstance(args[0], builtins.int):
+                size = super().__new__(cls, args)
+            else:
+                size = super().__new__(cls, args[0])
+        else:
+            size = super().__new__(cls, args)
+        size._batch_dimension = batch_dim
+        size._channel_dimension = channel_dim
+        return size
 
     @property
     def batch_dimension(self): return touch(lambda: self._batch_dimension)
 
     @batch_dimension.setter
-    @overload
-    def batch_dimension(self, value: IntScalar|Null):
+    def batch_dimension(self, value):
         self._batch_dimension = None
         if value is not None:
             if 0 <= value < self.ndim: self._batch_dimension = value
             elif value == self._channel_dimension: raise ValueError(f"batch_dimension can not be the same as channel_dimension: {value}")
             else: raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.ndim}")
-    
-    @overload
+
     def batch_dimension_(self, value: IntScalar|Null):
         self.batch_dimension = value
         return self
@@ -188,16 +161,14 @@ class Size(tuple):
     def channel_dimension(self): return touch(lambda: self._channel_dimension)
 
     @channel_dimension.setter
-    @overload
-    def channel_dimension(self, value: IntScalar|Null):
+    def channel_dimension(self, value):
         self._channel_dimension = None
         if value is not None:
             if 0 <= value < self.ndim: self._channel_dimension = value
             elif value == self._batch_dimension: raise ValueError(f"channel_dimension can not be the same as batch_dimension: {value}")
             else: raise TypeError(f"channel_dimension should be a dimension index which is smaller than {self.dim()}")
-    
-    @overload
-    def channel_dimension_(self, value: IntScalar|Null):
+
+    def channel_dimension_(self, value):
         self.channel_dimension = value
         return self
 
@@ -255,8 +226,7 @@ class Size(tuple):
 
     def copy(self): return Size(self.python_repr)
 
-    @overload
-    def __add__(self, other: Tuple[IntScalar] | 'Size'):
+    def __add__(self, other):
         other = Size(other)
         if self.has_batch and other.has_batch: raise TypeError("Batch dimension conflict in addition. ")
         if self.has_channel and other.has_channel: raise TypeError("Channel dimension conflict in addition. ")
@@ -273,21 +243,19 @@ class Size(tuple):
         res.batch_dimension = ibatch
         res.channel_dimension = ichannel
         return res
-    @overload
-    def __radd__(self, other: Tuple[IntScalar] | 'Size'): return Size(other) + self
+
+    def __radd__(self, other): return Size(other) + self
     __iadd__ = __add__
 
-    @overload
-    def __mul__(self, value: IntScalar):
+    def __mul__(self, value):
         res = Size(tuple(self) * value)
         res.batch_dimension = self.batch_dimension
         res.channel_dimension = self.channel_dimension
         return res
     __imul__ = __rmul__ = __mul__
 
-    @overload
     @staticmethod
-    def __op__(a: 'Size', b: 'Size', *, op):
+    def __op__(a, b, *, op):
         def getvalue(x, y):
             if x < 0 or y < 0: return -1
             z = op(x, y)
@@ -329,28 +297,23 @@ class Size(tuple):
             b = b[:s[0]] + (nbatch if order else nchannel) + b[s[0]:s[1]-1] + (nchannel if order else nbatch) + b[s[1]-1:]
         return op(a, b)
 
-    @overload
-    def __lshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return self.__op__(self, Size(other), op=lambda x, y: x + y)
+    def __lshift__(self, other): return self.__op__(self, Size(other), op=lambda x, y: x + y)
     __ilshift__ = __rlshift__ = __lshift__
 
-    @overload
-    def __rshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op=lambda x, y: x - y)
-    @overload
-    def __rrshift__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(Size(other), self, op=lambda x, y: x - y)
+    def __rshift__(self, other): return Size.__op__(self, Size(other), op=lambda x, y: x - y)
+
+    def __rrshift__(self, other): return Size.__op__(Size(other), self, op=lambda x, y: x - y)
     __irshift__ = __rshift__
 
-    @overload
-    def __pow__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op=lambda x, y: x * y)
+    def __pow__(self, other): return Size.__op__(self, Size(other), op=lambda x, y: x * y)
     __ipow__ = __rpow__ = __pow__
 
-    @overload
-    def __floordiv__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(self, Size(other), op=lambda x, y: x // y)
-    @overload
-    def __rfloordiv__(self, other: IntScalar | Tuple[IntScalar] | 'Size'): return Size.__op__(Size(other), self, op=lambda x, y: x // y)
+    def __floordiv__(self, other): return Size.__op__(self, Size(other), op=lambda x, y: x // y)
+
+    def __rfloordiv__(self, other): return Size.__op__(Size(other), self, op=lambda x, y: x // y)
     __ifloordiv__ = __floordiv__
 
-    @overload
-    def __matmul__(self, other: Tuple[IntScalar] | 'Size'):
+    def __matmul__(self, other):
         other = Size(other)
         if other.special == other.bc and self.special != self.bc or other.special != other.bc and self.special == self.bc:
             if self.nspace == 0 and self.ndim == 2: self = self[::-1]
@@ -481,163 +444,205 @@ class Tensor(torch.Tensor):
         tensor = torch.Tensor._make_subclass(cls, data, requires_grad)
         return tensor
 
-    def __new__(cls, *args, **kwargs):
-        auto_device = kwargs.get("auto_device", _auto_device)
-        requires_grad = kwargs.get("requires_grad", None)
-        batch_dim = kwargs.get("batch_dim", None)
-        channel_dim = kwargs.get("channel_dim", None)
+    # @profile
+    def __new__(cls, *args, auto_device=_auto_device, requires_grad=None, batch_dim=None, channel_dim=None):
+
+
+        if len(args) == 1 and isinstance(args, Tensor):
+            self = args[0]
+            if requires_grad is not None:
+                self.requires_grad = requires_grad
+            if auto_device is True:
+                self = self.to(Device)
+            return self
+
+        # print("__new__ fucntion called", args)
 
         if len(args) > 1 or len(args) == 0:
             data = torch.Tensor(*args)
         else:
             if isinstance(args[0], Size):
-                shape = args[0]
-                if shape.ndim == 0:
                 if auto_device is True:
                     data = torch.Tensor(device=Device)
                 else:
                     data = torch.Tensor()
-                else:
-                    if auto_device is True:
-                        data = torch.Tensor(*shape, device=Device)
-                    else:
-                        data = torch.Tensor(*shape)
             elif isinstance(args[0], builtins.int):
                 if auto_device is True:
                     data = torch.Tensor(args[0], device=Device)
                 else:
                     data = torch.Tensor(args[0])
             else:
-                data = args[0]
+                if auto_device:
+                    data = torch.as_tensor(args[0], device=Device)
+                else:
+                    data = torch.as_tensor(args[0])
 
-        self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
-        # self._batch_dimension = shape.batch_dimension
-        # self._channel_dimension = shape.channel_dimension
+        if requires_grad is None:
+            requires_grad = data.requires_grad
+
+        self = torch.Tensor._make_subclass(cls, data, requires_grad)
+        # self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
+
+        # _batch_dimension = None
+        # _channel_dimension = None
+        # if isinstance(args[0], Size):
+        #     _batch_dimension = args[0].batch_dimension
+        #     _channel_dimension = args[0].channel_dimension
+        # if batch_dim:
+        #     _batch_dimension = batch_dim
+        # if channel_dim:
+        #     _channel_dimension = channel_dim
+
+        # self._shape = Size(data.shape, batch_dim=_batch_dimension, channel_dim=_channel_dimension)
+
         return self
 
-    @property
-    def shape(self):
-        shape = Size(super().shape)
-        batch_dim = touch(lambda: self._batch_dimension)
-        channel_dim = touch(lambda: self._channel_dimension)
-        if batch_dim is not None: shape.batch_dimension = batch_dim
-        if channel_dim is not None: shape.channel_dimension = channel_dim
-        if touch(lambda: self.names):
-            if not shape.has_batch:
-                isbatch = ['batch' in x for x in self.names if x]
-                if builtins.any(isbatch):
-                    ibatch = isbatch.index(True)
-                    self.batch_dim = ibatch
-                    shape.batch_dimension = ibatch
-            if not shape.has_channel:
-                ischannel = ['channel' in x for x in self.names if x]
-                if builtins.any(ischannel):
-                    ichannel = ischannel.index(True)
-                    self.channel_dim = ichannel
-                    shape.channel_dimension = ichannel
-        return shape
+    # @property
+    # def shape(self):
+    #     return self._shape
+        # return super().shape
+        # shape = Size(*super().shape)
+        # batch_dim = touch(lambda: self._batch_dimension)
+        # channel_dim = touch(lambda: self._channel_dimension)
+        # # if batch_dim is not None: shape.batch_dimension = batch_dim
+        # # if channel_dim is not None: shape.channel_dimension = channel_dim
+        # if touch(lambda: self.names):
+        #     if not shape.has_batch:
+        #         isbatch = ['batch' in x for x in self.names if x]
+        #         if builtins.any(isbatch):
+        #             ibatch = isbatch.index(True)
+        #             self.batch_dim = ibatch
+        #             shape.batch_dimension = ibatch
+        #     if not shape.has_channel:
+        #         ischannel = ['channel' in x for x in self.names if x]
+        #         if builtins.any(ischannel):
+        #             ichannel = ischannel.index(True)
+        #             self.channel_dim = ichannel
+        #             shape.channel_dimension = ichannel
+        # return shape
 
-    @property
-    def batch_dimension(self):
-        return self.shape.batch_dimension
-    @batch_dimension.setter
-    @overload
-    def batch_dimension(self, value: IntScalar|Null):
-        self._batch_dimension = value
-    @overload
-    def batch_dimension_(self, value: IntScalar|Null):
-        self.batch_dimension = value
-        return self
-    @property
-    def batch_size(self): return self.shape.batch_size
+    # @property
+    # def batch_dimension(self):
+    #     return self.shape.batch_dimension
 
-    @property
-    def channel_dimension(self):
-        return self.shape.channel_dimension
-    @channel_dimension.setter
-    @overload
-    def channel_dimension(self, value: IntScalar|Null):
-        self._channel_dimension = value
-    @overload
-    def channel_dimension_(self, value: IntScalar|Null):
-        self.channel_dimension = value
-        return self
-    @property
-    def channel_size(self): return self.shape.channel_size
+    # @batch_dimension.setter
+    # def batch_dimension(self, value):
+    #     self._batch_dimension = value
 
-    @property
-    def space(self): return self.shape.space
-    @property
-    def ndim(self): return self.shape.ndim
-    @property
-    def nele(self): return self.shape.nele
-    @property
-    def numel(self): return self.shape.nele
-    @property
-    def nbatch(self): return self.batch_size
-    @property
-    def nchannel(self): return self.channel_size
-    @property
-    def nspace(self): return self.ndim - self.has_batch - self.has_channel
-    @property
-    def has_batch(self): return self.batch_dimension is not None
-    @property
-    def has_channel(self): return self.channel_dimension is not None
-    @property
-    def has_special(self): return self.has_batch or self.has_channel
+    # def batch_dimension_(self, value):
+    #     self.batch_dimension = value
+    #     return self
 
-    def remove_special(self):
-        self.batch_dimension = None
-        self.channel_dimension = None
+    # @property
+    # def batch_size(self): return self.shape.batch_size
+
+    # @property
+    # def channel_dimension(self):
+    #     return self.shape.channel_dimension
+
+    # @channel_dimension.setter
+    # def channel_dimension(self, value):
+    #     self._channel_dimension = value
+
+    # def channel_dimension_(self, value):
+    #     self.channel_dimension = value
+    #     return self
+
+    # @property
+    # def channel_size(self): return self.shape.channel_size
+
+    # @property
+    # def space(self): return self.shape.space
+    # @property
+    # def ndim(self): return self.shape.ndim
+    # @property
+    # def nele(self): return self.shape.nele
+    # @property
+    # def numel(self): return self.shape.nele
+    # @property
+    # def nbatch(self): return self.batch_size
+    # @property
+    # def nchannel(self): return self.channel_size
+    # @property
+    # def nspace(self): return self.ndim - self.has_batch - self.has_channel
+    # @property
+    # def has_batch(self): return self.batch_dimension is not None
+    # @property
+    # def has_channel(self): return self.channel_dimension is not None
+    # @property
+    # def has_special(self): return self.has_batch or self.has_channel
+
+    # def remove_special(self):
+    #     self.batch_dimension = None
+    #     self.channel_dimension = None
 
     @staticmethod
-    def tensor_type(dtype):
-        if dtype == torch.float32:
-            return torch.Tensor
-        elif dtype == torch.float64:
-            return torch.DoubleTensor
-        elif dtype == torch.float16:
-            return torch.HalfTensor
-        elif dtype == torch.bfloat16:
-            return torch.BFloat16Tensor
-        elif dtype == torch.int64:
-            return torch.LongTensor
-        elif dtype == torch.int16:
-            return torch.ShortTensor
-        elif dtype == torch.int8:
-            return torch.ByteTensor
-        elif dtype == torch.int32:
-            return torch.IntTensor
-        elif dtype == torch.bool:
-            return torch.BoolTensor
+    def tensor_type(dtype, is_cuda=False):
+        if not is_cuda:
+            if dtype == torch.float32:
+                return torch.Tensor
+            elif dtype == torch.float64:
+                return torch.DoubleTensor
+            elif dtype == torch.float16:
+                return torch.HalfTensor
+            elif dtype == torch.bfloat16:
+                return torch.BFloat16Tensor
+            elif dtype == torch.int64:
+                return torch.LongTensor
+            elif dtype == torch.int16:
+                return torch.ShortTensor
+            elif dtype == torch.int8:
+                return torch.ByteTensor
+            elif dtype == torch.int32:
+                return torch.IntTensor
+            elif dtype == torch.bool:
+                return torch.BoolTensor
+            else:
+                return torch.Tensor
         else:
-            return torch.Tensor
+            if dtype == torch.float32:
+                return torch.cuda.Tensor
+            elif dtype == torch.float64:
+                return torch.cuda.DoubleTensor
+            elif dtype == torch.float16:
+                return torch.cuda.HalfTensor
+            elif dtype == torch.bfloat16:
+                return torch.cuda.BFloat16Tensor
+            elif dtype == torch.int64:
+                return torch.cuda.LongTensor
+            elif dtype == torch.int16:
+                return torch.cuda.ShortTensor
+            elif dtype == torch.int8:
+                return torch.cuda.ByteTensor
+            elif dtype == torch.int32:
+                return torch.cuda.IntTensor
+            elif dtype == torch.bool:
+                return torch.cuda.BoolTensor
 
     def tensor(self):
         if self.dim() > 0:
-            return Tensor.tensor_type(self.dtype)(self.data)
+            return Tensor.tensor_type(self.dtype, self.is_cuda)(self.data)
         else:
-            return Tensor.tensor_type(self.dtype)([self.item()]).sum()
+            return Tensor.tensor_type(self.dtype, self.is_cuda)([self.item()]).sum()
 
     def numpy(self): return super(torch.Tensor, self.cpu().detach()).numpy()
 
-    def dim(self): return self.ndim
-        
-    @overload
-    def size(self, *k: +(Int|Str)):
-        if len(k) == 0: return self.shape
-        i = [(self.names.index(x) if x in self.names else None) if isoftype(x, str) else x for x in k]
-        if None in i: return super().size(k[i.index(None)])
-        if len(i) == 1: return self.shape[i[0]]
-        return tuple(self.shape[x] for x in i)
+    def dim(self):
+        return super().dim()
 
-    def numel(self): return self.nele
-        
-    @overload
-    def expand_to(self, target: Array | 'Tensor'):
-        return self.expand_to(target.shape)
-    @overload
-    def expand_to(self, target: Tuple[IntScalar] | 'Size'):
+    # def size(self, *k):
+    #     if len(k) == 0:
+    #         return self.shape
+    #     i = [(self.names.index(x) if x in self.names else None) if isoftype(x, str) else x for x in k]
+    #     if None in i:
+    #         return super().size(k[i.index(None)])
+    #     if len(i) == 1:
+    #         return self.shape[i[0]]
+    #     return tuple(self.shape[x] for x in i)
+
+    # def numel(self): return self.nele
+
+    def expand_to(self, target):
         target = Size(target)
         if target.special == target.bc and self.shape.special != self.shape.bc or target.special != target.bc and self.shape.special == self.shape.bc:
             if self.nspace == 0 and self.ndim == 2: self = self[::-1]
@@ -660,27 +665,27 @@ class Tensor(torch.Tensor):
                 p += 1
             if p >= target.ndim  + 1: raise TypeError(f"Unable to expand sizes {self.shape} to {target}. ")
         return self.unsqueeze_to(target, axis_map)
-    
-    
-    @overload
-    def unsqueeze_to(self, target: Array | 'Tensor', axis_place: List):
-        return self.expand_to(target.shape, axis_place)
-    @overload
-    def unsqueeze_to(self, target: Tuple[IntScalar] | 'Size', axis_place: List):
-        target = Size(target)
-        if target.has_batch and self.has_batch and axis_place[self.batch_dimension] != target.batch_dimension:
-            raise TypeError("Conflict of batch dimension in 'unsqueeze_to'. ")
-        if target.has_channel and self.has_channel and axis_place[self.channel_dimension] != target.channel_dimension:
-            raise TypeError("Conflict of channel dimension in 'unsqueeze_to'. ")
-        new_size = list(target)
-        for i in builtins.range(len(new_size)):
-            if i not in axis_place or self.shape[axis_place.index(i)] in (1, -1):
-                new_size[i] = 1
-        return self.view(*new_size)
+
+
+    # @overload
+    # def unsqueeze_to(self, target: Array | 'Tensor', axis_place: List):
+    #     return self.expand_to(target.shape, axis_place)
+
+    # @overload
+    # def unsqueeze_to(self, target: Tuple[IntScalar] | 'Size', axis_place: List):
+    #     target = Size(target)
+    #     if target.has_batch and self.has_batch and axis_place[self.batch_dimension] != target.batch_dimension:
+    #         raise TypeError("Conflict of batch dimension in 'unsqueeze_to'. ")
+    #     if target.has_channel and self.has_channel and axis_place[self.channel_dimension] != target.channel_dimension:
+    #         raise TypeError("Conflict of channel dimension in 'unsqueeze_to'. ")
+    #     new_size = list(target)
+    #     for i in builtins.range(len(new_size)):
+    #         if i not in axis_place or self.shape[axis_place.index(i)] in (1, -1):
+    #             new_size[i] = 1
+    #     return self.view(*new_size)
 
     @return_tensor_wrapper
-    @overload
-    def sample(self, dim: Null|int = None, number: int = 1, random: bool = True) -> 'Tensor':
+    def sample(self, dim: int = None, number: int = 1, random: bool = True) -> 'Tensor':
         """
         sample(self, dim: int = self.batch_dimension, numbder: int = 1, random: bool = True) -> Tensor
 
@@ -3309,7 +3314,7 @@ class Tensor(torch.Tensor):
         return super().exp_()
 
     @return_tensor_wrapper
-    def expand(self, *sizes, strict: bool=False) -> 'Tensor':
+    def expand(self, *sizes, strict: bool = False) -> 'Tensor':
         """
         expand(*sizes) -> Tensor
 
@@ -8518,21 +8523,22 @@ class Tensor(torch.Tensor):
         return super().__abs__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __add__(self, *args, **kwargs):
-        return self.__op__('__add__', *args, **kwargs)
-#        if isinstance(other, torch.Tensor):
-#            other = Tensor(other)
-#            if self.dim() == other.dim():
-#                return super().__add__(other)
-#            elif self.dim() < other.dim():
-#                return self.expand_as(other).__add__(other)
-#            else:
-#                return super().__add__(other.expand_as(self))
-#        return super().__add__(other)
+    def __add__(self, other):
+        # return self.__op__('__add__', *args, **kwargs)
+       if isinstance(other, torch.Tensor):
+           other = Tensor(other)
+           if self.dim() == other.dim():
+               return super().__add__(other)
+           elif self.dim() < other.dim():
+               return self.expand_as(other).__add__(other)
+           else:
+               return super().__add__(other.expand_as(self))
+       return super().__add__(other)
 
     @return_tensor_wrapper
-    def __and__(self, *args, **kwargs):
-        return self.__op__('__add__', *args, **kwargs)
+    def __and__(self, other):
+        # return self.__op__('__add__', *args, **kwargs)
+        return super().__and__(other)
 
     @return_tensor_wrapper
     def __array__(self, *args, **kwargs):
@@ -8574,28 +8580,32 @@ class Tensor(torch.Tensor):
         return result
 
     @return_tensor_wrapper
-    def __div__(self, *args, **kwargs):
-        return self.__op__('__div__', *args, **kwargs)
+    def __div__(self, other):
+        # return self.__op__('__div__', *args, **kwargs)
+        return super().__div__(other)
 
     @return_tensor_wrapper
-    def __eq__(self, *args, **kwargs):
-        return self.__op__('__eq__', *args, **kwargs)
+    def __eq__(self, other):
+        # return self.__op__('__eq__', *args, **kwargs)
+        return super().__eq__(other)
 
     @return_tensor_wrapper
     def __float__(self, *args, **kwargs):
         return super().__float__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __floordiv__(self, *args, **kwargs):
-        return self.__op__('__floordiv__', *args, **kwargs)
+    def __floordiv__(self, other):
+        # return self.__op__('__floordiv__', *args, **kwargs)
+        return super().__floordiv__(other)
 
     # @return_tensor_wrapper
     def __format__(self, *args, **kwargs):
         return super().__format__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __ge__(self, *args, **kwargs):
-        return self.__op__('__ge__', *args, **kwargs)
+    def __ge__(self, other):
+        # return self.__op__('__ge__', *args, **kwargs)
+        return super().__ge__(other)
 
     def __getattribute__(self, *args, **kwargs):
         return super().__getattribute__(*args, **kwargs)
@@ -8605,36 +8615,42 @@ class Tensor(torch.Tensor):
         return super().__getitem__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __gt__(self, *args, **kwargs):
-        return self.__op__('__gt__', *args, **kwargs)
+    def __gt__(self, other):
+        # return self.__op__('__gt__', *args, **kwargs)
+        return super().__gt__(other)
 
     @return_tensor_wrapper
     def __hash__(self, *args, **kwargs):
         return super().__hash__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __iadd__(self, *args, **kwargs):
-        return self.__op__('__iadd__', *args, **kwargs)
+    def __iadd__(self, other):
+        # return self.__op__('__iadd__', *args, **kwargs)
+        return super().__iadd__(other)
 
     @return_tensor_wrapper
-    def __iand__(self, *args, **kwargs):
-        return self.__op__('__iand__', *args, **kwargs)
+    def __iand__(self, other):
+        # return self.__op__('__iand__', *args, **kwargs)
+        return super().__iand__(other)
 
     @return_tensor_wrapper
-    def __idiv__(self, *args, **kwargs):
-        return self.__op__('__idiv__', *args, **kwargs)
+    def __idiv__(self, other):
+        # return self.__op__('__idiv__', *args, **kwargs)
+        return super().__idiv__(other)
 
     @return_tensor_wrapper
-    def __ifloordiv__(self, *args, **kwargs):
-        return self.__op__('__ifloordiv__', *args, **kwargs)
+    def __ifloordiv__(self, other):
+        # return self.__op__('__ifloordiv__', *args, **kwargs)
+        return super().__ifloordiv__(other)
 
     @return_tensor_wrapper
     def __ilshift__(self, *args, **kwargs):
         return super().__ilshift__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __imul__(self, *args, **kwargs):
-        return self.__op__('__imul__', *args, **kwargs)
+    def __imul__(self, other):
+        # return self.__op__('__imul__', *args, **kwargs)
+        return super().__imul__(other)
 
     @return_tensor_wrapper
     def __index__(self, *args, **kwargs):
@@ -8653,36 +8669,42 @@ class Tensor(torch.Tensor):
         return super().__invert__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __ior__(self, *args, **kwargs):
-        return self.__op__('__ior__', *args, **kwargs)
+    def __ior__(self, other):
+        # return self.__op__('__ior__', *args, **kwargs)
+        return super().__ior__(other)
 
     @return_tensor_wrapper
-    def __ipow__(self, *args, **kwargs):
-        return self.__op__('__ipow__', *args, **kwargs)
+    def __ipow__(self, other):
+        # return self.__op__('__ipow__', *args, **kwargs)
+        return super().__ipow__(other)
 
     @return_tensor_wrapper
     def __irshift__(self, *args, **kwargs):
         return super().__irshift__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __isub__(self, *args, **kwargs):
-        return self.__op__('__isub__', *args, **kwargs)
+    def __isub__(self, other):
+        # return self.__op__('__isub__', *args, **kwargs)
+        return super().__isub__(other)
 
     @return_tensor_wrapper
     def __iter__(self, *args, **kwargs):
         return super().__iter__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __itruediv__(self, *args, **kwargs):
-        return self.__op__('__itruediv__', *args, **kwargs)
+    def __itruediv__(self, other):
+        # return self.__op__('__itruediv__', *args, **kwargs)
+        return super().__itruediv__(other)
 
     @return_tensor_wrapper
-    def __ixor__(self, *args, **kwargs):
-        return self.__op__('__ixor__', *args, **kwargs)
+    def __ixor__(self, other):
+        # return self.__op__('__ixor__', *args, **kwargs)
+        return super().__ixor__(other)
 
     @return_tensor_wrapper
-    def __le__(self, *args, **kwargs):
-        return self.__op__('__ile__', *args, **kwargs)
+    def __le__(self, other):
+        # return self.__op__('__ile__', *args, **kwargs)
+        return super().__le__(other)
 
     @return_tensor_wrapper
     def __len__(self, *args, **kwargs):
@@ -8697,8 +8719,9 @@ class Tensor(torch.Tensor):
         return super().__lshift__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __lt__(self, *args, **kwargs):
-        return self.__op__('__lt__', *args, **kwargs)
+    def __lt__(self, other):
+        # return self.__op__('__lt__', *args, **kwargs)
+        return super().__lt__(other)
 
     @return_tensor_wrapper
     def __matmul__(self, *args, **kwargs):
@@ -8711,16 +8734,19 @@ class Tensor(torch.Tensor):
         return super().__matmul__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __mod__(self, *args, **kwargs):
-        return self.__op__('__mod__', *args, **kwargs)
+    def __mod__(self, other):
+        # return self.__op__('__mod__', *args, **kwargs)
+        return super().__mod__(other)
 
     @return_tensor_wrapper
-    def __mul__(self, *args, **kwargs):
-        return self.__op__('__mul__', *args, **kwargs)
+    def __mul__(self, other):
+        # return self.__op__('__mul__', *args, **kwargs)
+        return super().__mul__(other)
 
     @return_tensor_wrapper
-    def __ne__(self, *args, **kwargs):
-        return self.__op__('__ne__', *args, **kwargs)
+    def __ne__(self, other):
+        # return self.__op__('__ne__', *args, **kwargs)
+        return super().__ne__(other)
 
     @return_tensor_wrapper
     def __neg__(self, *args, **kwargs):
@@ -8729,30 +8755,34 @@ class Tensor(torch.Tensor):
     @return_tensor_wrapper
     def __nonzero__(self, *args, **kwargs):
         return super().__nonzero__(*args, **kwargs)
-    
-    @return_tensor_wrapper
-    def __op__(self, opname, *args, **kwargs):
-        if len(args) == 1 and isinstance(args[0], torch.Tensor):
-            other = Tensor(args[0])
-            new_size = self.shape @ other.shape
-            return getattr(super(Tensor, self.expand_to(new_size)), opname)(other.expand_to(new_size))
-        return getattr(super(), opname)(*args, **kwargs)
+
+    # @return_tensor_wrapper
+    # def __op__(self, opname, *args, **kwargs):
+    #     if len(args) == 1 and isinstance(args[0], torch.Tensor):
+    #         other = Tensor(args[0])
+    #         new_size = self.shape @ other.shape
+    #         return getattr(super(Tensor, self.expand_to(new_size)), opname)(other.expand_to(new_size))
+    #     return getattr(super(), opname)(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __or__(self, *args, **kwargs):
-        return self.__op__('__or__', *args, **kwargs)
+    def __or__(self, other):
+        # return self.__op__('__or__', *args, **kwargs)
+        return super().__or__(other)
 
     @return_tensor_wrapper
-    def __pow__(self, *args, **kwargs):
-        return self.__op__('__pow__', *args, **kwargs)
+    def __pow__(self, other):
+        # return self.__op__('__pow__', *args, **kwargs)
+        return super().__pow__(other)
 
     @return_tensor_wrapper
-    def __radd__(self, *args, **kwargs):
-        return self.__op__('__radd__', *args, **kwargs)
+    def __radd__(self, other):
+        # return self.__op__('__radd__', *args, **kwargs)
+        return super().__radd__(other)
 
     @return_tensor_wrapper
-    def __rdiv__(self, *args, **kwargs):
-        return self.__op__('__rdiv__', *args, **kwargs)
+    def __rdiv__(self, other):
+        # return self.__op__('__rdiv__', *args, **kwargs)
+        return super().__rdiv__(other)
 
     @return_tensor_wrapper
     def __reduce__(self, *args, **kwargs):
@@ -8764,9 +8794,9 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __repr__(self, *args, **kwargs):
-        string = super().__repr__(*args, **kwargs)
+        string = self.tensor().__repr__(*args, **kwargs)
         if 'shape=' not in string:
-            string = string.rstrip(')') + f', shape={self.shape.python_repr})'
+            string = string.rstrip(')') + f', shape={self.shape})'
         return string.replace("tensor", "Tensor")
 
     @return_tensor_wrapper
@@ -8774,28 +8804,33 @@ class Tensor(torch.Tensor):
         return super().__reversed__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __rfloordiv__(self, *args, **kwargs):
-        return self.__op__('__rfloordiv__', *args, **kwargs)
+    def __rfloordiv__(self, other):
+        # return self.__op__('__rfloordiv__', *args, **kwargs)
+        return super().__rfloordiv__(other)
 
     @return_tensor_wrapper
-    def __rmul__(self, *args, **kwargs):
-        return self.__op__('__rmul__', *args, **kwargs)
+    def __rmul__(self, other):
+        # return self.__op__('__rmul__', *args, **kwargs)
+        return super().__rmul__(other)
 
     @return_tensor_wrapper
-    def __rpow__(self, *args, **kwargs):
-        return self.__op__('__rpow__', *args, **kwargs)
+    def __rpow__(self, other):
+        # return self.__op__('__rpow__', *args, **kwargs)
+        return super().__rpow__(other)
 
     @return_tensor_wrapper
     def __rshift__(self, *args, **kwargs):
         return super().__rshift__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __rsub__(self, *args, **kwargs):
-        return self.__op__('__rsub__', *args, **kwargs)
+    def __rsub__(self, other):
+        # return self.__op__('__rsub__', *args, **kwargs)
+        return super().__rsub__(other)
 
     @return_tensor_wrapper
-    def __rtruediv__(self, *args, **kwargs):
-        return self.__op__('__rtruediv__', *args, **kwargs)
+    def __rtruediv__(self, other):
+        # return self.__op__('__rtruediv__', *args, **kwargs)
+        return super().__rtruediv__(other)
 
     # @return_tensor_wrapper
     # def __setattr__(self, *args, **kwargs):
@@ -8815,26 +8850,29 @@ class Tensor(torch.Tensor):
 
     # @return_tensor_wrapper
     def __str__(self, *args, **kwargs):
-        string = super().__str__(*args, **kwargs)
+        string = self.tensor().__str__(*args, **kwargs)
         if 'shape=' not in string:
-            string = string.rstrip(')') + f', shape={self.shape.python_repr})'
+            string = string.rstrip(')') + f', shape={self.shape})'
         return string.replace("tensor", "Tensor")
 
     @return_tensor_wrapper
-    def __sub__(self, *args, **kwargs):
-        return self.__op__('__sub__', *args, **kwargs)
+    def __sub__(self, other):
+        # return self.__op__('__sub__', *args, **kwargs)
+        return super().__sub__(other)
 
     @return_tensor_wrapper
     def __subclasshook__(self, *args, **kwargs):
         return super().__subclasshook__(*args, **kwargs)
 
     @return_tensor_wrapper
-    def __truediv__(self, *args, **kwargs):
-        return self.__op__('__truediv__', *args, **kwargs)
+    def __truediv__(self, other):
+        # return self.__op__('__truediv__', *args, **kwargs)
+        return super().__truediv__(other)
 
     @return_tensor_wrapper
-    def __xor__(self, *args, **kwargs):
-        return self.__op__('__xor__', *args, **kwargs)
+    def __xor__(self, other):
+        # return self.__op__('__xor__', *args, **kwargs)
+        return super().__xor__(other)
 
     @return_tensor_wrapper
     def _coalesced_(self, *args, **kwargs):
@@ -8882,82 +8920,82 @@ class Tensor(torch.Tensor):
 
 __all__.extend(["zeros", "ones", "zeros_like", "ones_like", "tensor", "t", "eye"])
 
-@overload
-def zeros(*size: SizeRep.itemtypes, **kwargs):
-    return zeros(size, **kwargs)
+# @overload
+# def zeros(*size: SizeRep.itemtypes, **kwargs):
+#     return zeros(size, **kwargs)
 
-@overload
-def zeros(tensor: Array.Torch | Tensor, **kwargs):
-    out = Tensor(torch.zeros_like(tensor, **kwargs), **kwargs)
-    out.batch_dimension = tensor.batch_dimension
-    out.channel_dimension = tensor.channel_dimension
-    return out
+# @overload
+# def zeros(tensor: Array.Torch | Tensor, **kwargs):
+#     out = Tensor(torch.zeros_like(tensor, **kwargs), **kwargs)
+#     out.batch_dimension = tensor.batch_dimension
+#     out.channel_dimension = tensor.channel_dimension
+#     return out
 
-@overload
-def zeros(size: SizeRep | Size, **kwargs):
-    size = Size(size)
-    out = Tensor(torch.zeros(size, **kwargs), **kwargs)
-    out.batch_dimension = size.batch_dimension
-    out.channel_dimension = size.channel_dimension
-    return out
+# @overload
+# def zeros(size: SizeRep | Size, **kwargs):
+#     size = Size(size)
+#     out = Tensor(torch.zeros(size, **kwargs), **kwargs)
+#     out.batch_dimension = size.batch_dimension
+#     out.channel_dimension = size.channel_dimension
+#     return out
 
-@overload
-def zeros__default__(*args, **kwargs):
-    return Tensor(torch.zeros(*args, **kwargs), **kwargs)
+# @overload
+# def zeros__default__(*args, **kwargs):
+#     return Tensor(torch.zeros(*args, **kwargs), **kwargs)
 
-@overload
-def zeros_like(tensor: Array.Torch, **kwargs):
-    return zeros(tensor, **kwargs)
+# @overload
+# def zeros_like(tensor: Array.Torch, **kwargs):
+#     return zeros(tensor, **kwargs)
 
-@overload
-def ones(*size: SizeRep.itemtypes, **kwargs):
-    return ones(size, **kwargs)
+# @overload
+# def ones(*size: SizeRep.itemtypes, **kwargs):
+#     return ones(size, **kwargs)
 
-@overload
-def ones(tensor: Array.Torch | Tensor, **kwargs):
-    out = Tensor(torch.ones_like(tensor, **kwargs), **kwargs)
-    out.batch_dimension = tensor.batch_dimension
-    out.channel_dimension = tensor.channel_dimension
-    return out
+# @overload
+# def ones(tensor: Array.Torch | Tensor, **kwargs):
+#     out = Tensor(torch.ones_like(tensor, **kwargs), **kwargs)
+#     out.batch_dimension = tensor.batch_dimension
+#     out.channel_dimension = tensor.channel_dimension
+#     return out
 
-@overload
-def ones(size: SizeRep | Size, **kwargs):
-    size = Size(size)
-    out = Tensor(torch.ones(size, **kwargs), **kwargs)
-    out.batch_dimension = size.batch_dimension
-    out.channel_dimension = size.channel_dimension
-    return out
+# @overload
+# def ones(size: SizeRep | Size, **kwargs):
+#     size = Size(size)
+#     out = Tensor(torch.ones(size, **kwargs), **kwargs)
+#     out.batch_dimension = size.batch_dimension
+#     out.channel_dimension = size.channel_dimension
+#     return out
 
-@overload
-def ones__default__(*args, **kwargs):
-    return Tensor(torch.ones(*args, **kwargs), **kwargs)
+# @overload
+# def ones__default__(*args, **kwargs):
+#     return Tensor(torch.ones(*args, **kwargs), **kwargs)
 
-@overload
-def ones_as(tensor: Array.Torch, **kwargs):
-    return ones(tensor, **kwargs)
+# @overload
+# def ones_as(tensor: Array.Torch, **kwargs):
+#     return ones(tensor, **kwargs)
 
-@overload
-def eye(*size: SizeRep.itemtypes):
-    return eye(size)
+# @overload
+# def eye(*size: SizeRep.itemtypes):
+#     return eye(size)
 
-@overload
-def eye(size: SizeRep | Size):
-    size = Size(size)
-    if size.nspace < 1: raise TypeError("Empty size not valid for 'eye'. ")
-    if size.nspace == 1: size = size + (size.space[0],)
-    if size.nspace > 2: raise TypeError("No more than 2-D is allowed for 'eye'. ")
-    n = builtins.min(*size.space)
-    s = [slice(None)] * size.ndim
-    for i in builtins.range(size.ndim):
-        if i not in size.special:
-            s[i] = torch.arange(n)
-    out = zeros(size)
-    out[tuple(s)] = 1
-    return out
+# @overload
+# def eye(size: SizeRep | Size):
+#     size = Size(size)
+#     if size.nspace < 1: raise TypeError("Empty size not valid for 'eye'. ")
+#     if size.nspace == 1: size = size + (size.space[0],)
+#     if size.nspace > 2: raise TypeError("No more than 2-D is allowed for 'eye'. ")
+#     n = builtins.min(*size.space)
+#     s = [slice(None)] * size.ndim
+#     for i in builtins.range(size.ndim):
+#         if i not in size.special:
+#             s[i] = torch.arange(n)
+#     out = zeros(size)
+#     out[tuple(s)] = 1
+#     return out
 
-@overload
-def t(tensor: Array.Torch):
-    return Tensor(tensor).T
+# @overload
+# def t(tensor: Array.Torch):
+#     return Tensor(tensor).T
 
 # tensor = Tensor
 @return_tensor_wrapper(False)
