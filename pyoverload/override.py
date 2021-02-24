@@ -31,17 +31,20 @@ def _wrap_params(f):
 
 def _collect_declarations(func, collection, place_first=False, error=''):
     f = _get_wrapped(raw_function(func))
-    if f.__doc__:
-        lines = f.__doc__.split('\n')
-        toadd = ''
-        for l in lines:
-            if not l.strip(): continue
-            if l.startswith(_get_func_name(f)) or l[0] == '(': toadd = l
-            else: break
-        if toadd:
-            toadd = '\t'.join([toadd, error])
-            if place_first: collection.insert(0, toadd)
-            else: collection.append(toadd)
+    toadd = '\t'.join([_getDeclaration(f)] + ([error] if error else []))
+    if place_first: collection.insert(0, toadd)
+    else: collection.append(toadd)
+    # if f.__doc__:
+    #     lines = f.__doc__.split('\n')
+    #     toadd = ''
+    #     for l in lines:
+    #         if not l.strip(): continue
+    #         if l.startswith(_get_func_name(f)) or l[0] == '(': toadd = l
+    #         else: break
+    #     if toadd:
+    #         toadd = '\t'.join([toadd, error])
+    #         if place_first: collection.insert(0, toadd)
+    #         else: collection.append(toadd)
 
 def _get_func_name(f, change_name = True):
     f = raw_function(f)
