@@ -13,3 +13,4 @@ from .wrapper import *
 from .filemanager import *
 from .terminal import *
 from .timing import *
+from .visual import *
