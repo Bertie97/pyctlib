@@ -8955,8 +8955,10 @@ def t(tensor: Array.Torch):
     return Tensor(tensor).T
 
 # tensor = Tensor
-@return_tensor_wrapper
+@return_tensor_wrapper(False)
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
+    if device is None and _auto_device is True:
+        device = Device
     return torch.tensor(data, dtype=device, device=device, requires_grad=requires_grad, pin_memory=pin_memory)
 
 template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return torch.{key}(*args, **kwargs)"
