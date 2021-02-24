@@ -456,43 +456,14 @@ class Tensor(torch.Tensor):
 
     @staticmethod
     def _make_subclass(cls, data, auto_device=True, requires_grad=None):
-        if isinstance(data, Tensor):
-            if auto_device:
-                data._to(Device)
-            if requires_grad is not None:
-                data.requires_grad = requires_grad
-            return data
-        data = totensor(data)
         if auto_device:
-            if isinstance(data, Tensor):
-                data = data._to(Device)
-            elif isinstance(data, torch.Tensor):
-                data = data.to(Device)
-        default_tensor_type = Tensor.get_default_tensor_type()
-        torch.set_default_tensor_type(torch.cuda.FloatTensor if data.is_cuda else torch.FloatTensor)
-        if data.dim() == 0:
-            old_grad_fn = data.grad_fn
-            data = torch.unsqueeze(data, 0)
-            dim_zero = True
+            data = torch.as_tensor(data, device=Device)
         else:
-            dim_zero = False
-        if data.is_leaf:
-            self = torch.Tensor.__new__(cls, tofloat(data.detach()))
-            if touch(lambda: data.names) and builtins.any([n is not None for n in data.names]): self.refine_names(*data.names)
-            self.requires_grad = data.requires_grad
-        else:
-            self = torch.Tensor.__new__(cls, tofloat(data))
-            if touch(lambda: data.names) and builtins.any([n is not None for n in data.names]): self.refine_names(*data.names)
-        self.data = self.data.type(data.data.type())
-        self._dim_zero = dim_zero
-        if dim_zero and data.grad_fn is not None:
-            self.__grad_fn = GradWrapper(old_grad_fn.__class__.__name__, data.grad_fn)
-        else:
-            self.__grad_fn = data.grad_fn
-        torch.set_default_tensor_type(default_tensor_type)
-        if requires_grad == True:
-            self.requires_grad_()
-        return self
+            data = torch.as_tensor(data)
+        if requires_grad is None:
+            requires_grad = data.requires_grad
+        tensor = torch.Tensor._make_subclass(cls, data, requires_grad)
+        return tensor
 
     @overload
     def __new__(cls, *shape: int, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
