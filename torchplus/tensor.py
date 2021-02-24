@@ -9013,12 +9013,16 @@ for key in dir(torch):
     if isinstance(eval("torch.{}".format(key)), torch.dtype):
         exec("{} = torch.{}".format(key, key))
         __all__.append(key)
-    if key not in globals(): #['torch', "Tensor", "return_tensor_wrapper", "tofloat", "totensor", "nn"] + __all__:
+    if key not in globals() and key not in {"optim", "random"}:
         exec(template.format(key=key))
         __all__.append(key)
 
 no_grad = torch.no_grad
 __all__.append("no_grad")
+optim = torch.optim
+__all__.append("optim")
+random = torch.random
+__all__.append("random")
 
     # @property
     # def dtype(self):
