@@ -8,6 +8,7 @@
 
 import torchplus
 import torch
+from collections import OrderedDict
 
 class Parameter(torchplus.Tensor):
     r"""A kind of Tensor that is to be considered a module parameter.

@@ -601,7 +601,7 @@ class Tensor(torch.Tensor):
                 return torch.Tensor
         else:
             if dtype == torch.float32:
-                return torch.cuda.Tensor
+                return torch.cuda.FloatTensor
             elif dtype == torch.float64:
                 return torch.cuda.DoubleTensor
             elif dtype == torch.float16:
