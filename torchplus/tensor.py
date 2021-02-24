@@ -9002,7 +9002,7 @@ __all__.extend(["zeros", "ones", "zeros_like", "ones_like", "tensor", "t", "eye"
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:
         device = Device
-    return torch.tensor(data, dtype=device, device=device, requires_grad=requires_grad, pin_memory=pin_memory)
+    return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory)
 
 template = "@return_tensor_wrapper\ndef {key}(*args, **kwargs): return torch.{key}(*args, **kwargs)"
 for key in dir(torch):
