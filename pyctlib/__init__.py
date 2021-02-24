@@ -12,3 +12,4 @@ from .basicwrapper import *
 from .wrapper import *
 from .filemanager import *
 from .terminal import *
+from .timing import *

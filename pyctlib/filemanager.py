@@ -3,7 +3,7 @@
 
 ##############################
 ## Project PyCTLib
-## Package pyinout
+## Package <main>
 ##############################
 
 __all__ = """
