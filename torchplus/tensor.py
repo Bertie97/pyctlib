@@ -26,6 +26,10 @@ from pyctlib import raw_function, return_type_wrapper, touch
 from functools import wraps
 from typing import Union
 from types import GeneratorType
+
+import sys
+sys.path.insert(4, "/Users/zhangyiteng/Software/Python_Lib/pyctlib")
+from visual.debugger import profile
 """
 from torchplus import Tensor
 import torchplus as tp
@@ -464,51 +468,43 @@ class Tensor(torch.Tensor):
 
     @staticmethod
     def _make_subclass(cls, data, auto_device=_auto_device, requires_grad=None):
-        if auto_device:
-            data = torch.as_tensor(data, device=Device)
+        if isinstance(data, torch.Tensor):
+            if auto_device:
+                data = data.to(Device)
         else:
-            data = torch.as_tensor(data)
+            if auto_device:
+                data = torch.as_tensor(data, device=Device)
+            else:
+                data = torch.as_tensor(data)
         if requires_grad is None:
             requires_grad = data.requires_grad
         tensor = torch.Tensor._make_subclass(cls, data, requires_grad)
         return tensor
 
-    @overload
-    def __new__(cls, *shape: int, auto_device=_auto_device, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
-        return Tensor(Size(shape), auto_device=auto_device, requires_grad=requires_grad, batch_dim=batch_dim, channel_dim=channel_dim)
+    def __new__(cls, *args, **kwargs):
+        auto_device = kwargs.get("auto_device", _auto_device)
+        requires_grad = kwargs.get("requires_grad", None)
+        batch_dim = kwargs.get("batch_dim", None)
+        channel_dim = kwargs.get("channel_dim", None)
 
-    @overload
-    def __new__(cls, shape: Size, *, auto_device=_auto_device, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
-        if batch_dim is not None: shape.batch_dimension = batch_dim
-        if channel_dim is not None: shape.channel_dimension = channel_dim
-        if shape.ndim == 0: data = torch.tensor(0)
-        else: data = torch.Tensor(*shape)
+        if len(args) > 1 or len(args) == 0:
+            data = torch.Tensor(*args)
+        else:
+            if isinstance(args[0], Size):
+                shape = args[0]
+                if shape.ndim == 0:
+                    data = torch.tensor(0)
+                else:
+                    data = torch.Tensor(*shape)
+            elif isinstance(args[0], builtins.int):
+                data = torch.Tensor(args[0])
+            else:
+                data = args[0]
+
         self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
-        self._batch_dimension = shape.batch_dimension
-        self._channel_dimension = shape.channel_dimension
+        # self._batch_dimension = shape.batch_dimension
+        # self._channel_dimension = shape.channel_dimension
         return self
-
-    @overload
-    def __new__(cls, data, *, auto_device=_auto_device, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs):
-        self = Tensor._make_subclass(cls, data, auto_device=auto_device, requires_grad=requires_grad)
-        self._batch_dimension = batch_dim
-        self._channel_dimension = channel_dim
-        return self
-
-    # Wrong Inplement: looks fine but can not backpropograte
-    # self = torch.Tensor.__new__(cls, device=data.device)
-    # self.data = data.data
-    # self.__grad_fn = data.grad_fn
-    # self.requires_grad = data.requires_grad
-
-    @overload
-    def __init__(self, *shape: int, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs): ...
-
-    @overload
-    def __init__(self, shape: Size, *, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs): ...
-
-    @overload
-    def __init__(self, data, *, auto_device=True, requires_grad=None, batch_dim=None, channel_dim=None, **kwargs): ...
 
     @property
     def shape(self):
