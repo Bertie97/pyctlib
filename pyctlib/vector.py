@@ -243,16 +243,21 @@ class vector(list):
             return len(self)
         return super().count(args[0])
 
-    @overload
-    def index(self, element: int):
-        return super().index(element)
+    # @overload
+    # def index(self, element: int):
+    #     return super().index(element)
 
-    @overload
-    def index(self, func: Functional):
-        for index in range(len(self)):
-            if func(self[index]):
-                return index
-        return -1
+    # @overload
+    def index(self, element):
+        if isinstance(element, int):
+            return super().index(element)
+        elif callable(element):
+            for index in range(len(self)):
+                if element(self[index]):
+                    return index
+            return -1
+        else:
+            raise RuntimeError("error input for index")
 
     def all(self, func=lambda x: x):
         for t in self:
