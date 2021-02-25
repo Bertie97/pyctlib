@@ -11,7 +11,6 @@ __all__ = """
     ctgenerator
 """.split()
 
-from typing import Optional, List, Union
 from types import GeneratorType
 from collections import Counter
 from pyoverload import *

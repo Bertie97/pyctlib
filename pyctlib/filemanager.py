@@ -13,7 +13,7 @@ __all__ = """
 
 import os, re, struct
 from pyctlib import touch, vector, generator_wrapper
-from pyoverload import override, overload
+from pyoverload import overload
 from typing import TextIO
 
 """
@@ -308,7 +308,6 @@ class file(path):
     def pack_tag(tag, tag_type="B"):
         return struct.pack(tag_type, tag)
 
-    # @override
     @overload
     @staticmethod
     def _to_byte__default__(data):
@@ -330,7 +329,6 @@ class file(path):
             module_state_content, module_state_content_len = file._to_byte(data.state_dict())
             return file.torch_Module + module_state_content, module_state_content_len + 1
 
-    # @_to_byte
     @overload
     @staticmethod
     def _to_byte(data: int):
@@ -339,7 +337,6 @@ class file(path):
         result += file.pack(data)
         return result, 9
 
-    # @_to_byte
     @overload
     @staticmethod
     def _to_byte(data: str):

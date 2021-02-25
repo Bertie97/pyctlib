@@ -6,34 +6,48 @@
 ##############################
 
 import sys
+sys.path.append("/home1/zhangyiteng/pyctlib")
 
-from import_pyctlib import *
 
 # import torchplus as tp
 import torch
+import torchplus as tp
 from pyctlib import scope
 import copy
-with scope("test 1"):
-    a = tp.Tensor(300, 400)
-with scope("test 2"):
-    a_ = torch.Tensor(300, 400)
-with scope('transpose'):
-    b = a.unsqueeze(0).unsqueeze(0).unsqueeze(0)
-with scope('transpose'):
-    b_ = a_.unsqueeze(0).unsqueeze(0).unsqueeze(0)
-with scope('add'):
-    c = a+b
-with scope('add'):
-    c = a_+b_
 
-# print(b)
-# print(a+b)
+tp.set_autodevice(False)
+with scope("test tp, cpu"):
+    a = tp.Tensor(3000, 400, requires_grad=True)
+    LP = tp.nn.Linear(400, 400)
+    for t in range(1000): a = LP(a)
+    a.sum().backward()
 
-# def test(*args, t=1):
-#     print(args, t)
+with scope("test torch, cpu"):
+    a = torch.Tensor(3000, 400).requires_grad_()
+    LP = torch.nn.Linear(400, 400)
+    for t in range(1000): a = LP(a)
+    a.sum().backward()
 
-a = tp.zeros(3, 2, dtype=torch.float)
+with scope("test tp, gpu"):
+    a = tp.Tensor(3000, 400, requires_grad=True)
+    LP = tp.Tensor(400, 400, requires_grad=True)
+    for t in range(10): a = a @ LP
+    a.sum().backward()
 
-LP = tp.nn.Linear(2, 5)
+with scope("test torch, gpu"):
+    a = torch.Tensor(3000, 400).requires_grad_().cuda()
+    LP = torch.Tensor(400, 400).requires_grad_().cuda()
+    for t in range(10): a = a @ LP
+    a.sum().backward()
 
-LP(a)
+with scope("test tp, gpu"):
+    a = tp.Tensor(3000, 400, requires_grad=True)
+    LP = tp.Tensor(400, 400, requires_grad=True)
+    for t in range(10): a = a @ LP
+    a.sum().backward()
+
+with scope("test torch, gpu"):
+    a = torch.Tensor(3000, 400).requires_grad_().cuda()
+    LP = torch.Tensor(400, 400).requires_grad_().cuda()
+    for t in range(10): a = a @ LP
+    a.sum().backward()

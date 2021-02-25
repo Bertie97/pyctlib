@@ -7,11 +7,9 @@
 ##############################
 __all__ = """
     touch
-    get
 """.split()
 
 import sys
-from pyoverload import *
 
 class get_environ_vars(dict):
     """
@@ -82,24 +80,13 @@ class get_environ_vars(dict):
         for varset in self.all_vars[::-1]: collector.update(varset)
         return collector
 
-@overload
-def touch(f: Callable, default=None):
-    try: return f()
-    except: return default
-
-@overload
-def touch(s: str, default=None):
-    local_vars = get_environ_vars(touch)
-    local_vars.update(locals())
-    locals().update(local_vars.simplify())
-    try: return eval(s)
-    except: return default
-
-@overload
-def get__default__(var, value):
-    if var is None: return value
-    else: return var
-
-@overload
-def get(f: Callable, v):
-    return get(touch(f), v)
+def touch(v: [callable, str], default=None):
+    if isinstance(v, str):
+        local_vars = get_environ_vars()
+        local_vars.update(locals())
+        locals().update(local_vars.simplify())
+        try: return eval(v)
+        except: return default
+    else:
+        try: return v()
+        except: return default

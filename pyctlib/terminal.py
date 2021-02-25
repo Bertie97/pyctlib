@@ -12,7 +12,7 @@ __all__ = """
 """.split()
 
 import os, sys
-from pyoverload import *
+from pyoverload import overload, params
 
 class executor:
 
@@ -34,7 +34,7 @@ class executor:
             self(self.__dict__.get(string, string) + x, variables, force)
         return run
 
-    @override
+    @overload
     def __call__(self, string:str, force:bool = False, **variables):
         local_variables = sys._getframe().f_back.f_locals
         local_variables.update(variables)
@@ -59,8 +59,8 @@ class executor:
         if self.verbose: os.system(cmd)
         else: return os.popen(cmd).read()
 
-    @__call__
-    def _(self, string:str, variables:dict={}, force:bool=False):
+    @overload
+    def __call__(self, string:str, variables:dict={}, force:bool=False):
         return self(string, force, **variables)
 
     def set_wd(self, working_dir:str=''):
