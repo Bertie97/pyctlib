@@ -104,11 +104,7 @@ def iterable(x):
     if isinstance(x, str): return False
     if isinstance(x, type): return False
     if callable(x): return False
-    try:
-        iter(x); len(x)
-        return True
-    except Exception: return False
-    return False
+    return hasattr(x, '__iter__') and hasattr(x, '__len__')
 
 def isitertype(x):
     """
@@ -133,10 +129,10 @@ def isitertype(x):
         try: x = eval(x)
         except: return False
     if isinstance(x, Type):
+        if x.itemtypes is not None: return True
         return all([isitertype(i) for i in x.types])
     if isinstance(x, type):
-        try: return iterable(x())
-        except Exception: return False
+        hasattr(x, '__iter__') and hasattr(x, '__len__')
     if callable(x):
         try: return equals(x('iterable check'), '')
         except Exception: return False
@@ -174,7 +170,7 @@ def isarray(x):
         False
     """
     if equals(x, 'iterable check'): return ''
-    if not isatype(x) and hasattr(x, 'shape'): return True
+    if not isinstance(x, type) and hasattr(x, 'shape'): return True
     return False
 
 def isdtype(x):

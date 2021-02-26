@@ -10,7 +10,7 @@ __all__ = """
 """.split()
 
 from pyoverload import *
-from .tensor import Tensor, ones, return_tensor_wrapper
+from .tensor import Tensor, ones
 from pyctlib import restore_type_wrapper
 from pyctlib import vector
 import torch
@@ -56,7 +56,6 @@ def crop_as(x: Array, y: [tuple, Array], fill: Scalar=0) -> Array:
     center = tuple(m/2 for m in x.shape)
     return crop_as(x, y, center, fill)
 
-@return_tensor_wrapper
 def linear(input, weight, bias):
     result = input @ weight.T
     if bias is not None:

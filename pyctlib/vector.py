@@ -10,6 +10,7 @@ __all__ = """
     vector
     generator_wrapper
     ctgenerator
+    recursive_apply
 """.split()
 
 from types import GeneratorType
@@ -364,6 +365,22 @@ class vector(list):
 
     def generator(self):
         return ctgenerator(self)
+
+def recursive_apply(container, func):
+    if isinstance(container, vector):
+        return container.map(lambda x: recursive_apply(x, func))
+    if isinstance(container, list):
+        return [recursive_apply(x, func) for x in container]
+    if isinstance(container, tuple):
+        return tuple([recursive_apply(x, func) for x in container])
+    if isinstance(container, set):
+        return set([recursive_apply(x, func) for x in container])
+    if isinstance(container, dict):
+        return {key: recursive_apply(value, func) for key, value in enumerate(container)}
+    try:
+        return func(container)
+    except:
+        return container
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
