@@ -187,16 +187,19 @@ class vector(list):
     def _(self, other: list):
         return vector(zip(self, other)).map(lambda x: x[0] >= x[1])
 
-    @override
+    # @override
     def __getitem__(self, index):
         if isinstance(index, slice):
             return vector(super().__getitem__(index))
+        if isinstance(index, list):
+            assert len(self) == len(index)
+            return vector(zip(self, index)).filter(lambda x: x[1]).map(lambda x: x[0])
         return super().__getitem__(index)
 
-    @__getitem__
-    def _(self, index_list: list):
-        assert len(self) == len(index_list)
-        return vector(zip(self, index_list)).filter(lambda x: x[1]).map(lambda x: x[0])
+    # @__getitem__
+    # def _(self, index_list: list):
+    #     assert len(self) == len(index_list)
+    #     return vector(zip(self, index_list)).filter(lambda x: x[1]).map(lambda x: x[0])
 
     @overload
     def __sub__(self, other: Iterable):
