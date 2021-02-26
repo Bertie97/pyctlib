@@ -65,16 +65,22 @@ class vector(list):
         else:
             list.__init__(self, args)
 
-    def filter(self, func=None):
+    def filter(self, func=None, ignore_error=True):
         if func is None:
             return self
         try:
+            if ignore_error:
+                return vector([a for a in self if touch(lambda: func(a))])
             return vector([a for a in self if func(a)])
         except:
             pass
         for index, a in enumerate(self):
             if touch(lambda: func(a)) is None:
-                raise RuntimeError("Exception raised in filter function at location {} for element {}".format(index, a))
+                try:
+                    error_information = "Exception raised in filter function at location {} for element {}".format(index, a)
+                except:
+                    error_information = "Exception raised in filter function at location {} for element {}".format(index, "<unknown>")
+                raise RuntimeError(error_information)
 
     def test(self, func):
         return vector([a for a in self if touch(lambda: func(a))])
@@ -94,7 +100,11 @@ class vector(list):
             pass
         for index, a in enumerate(self):
             if touch(lambda: func(a)) is None:
-                raise RuntimeError("Exception raised in map function at location {} for element {}".format(index, a))
+                try:
+                    error_information = "Exception raised in map function at location {} for element {}".format(index, a)
+                except:
+                    error_information = "Exception raised in map function at location {} for element {}".format(index, "<unknown>")
+                raise RuntimeError(error_information)
 
     def apply(self, func) -> None:
         for x in self:
