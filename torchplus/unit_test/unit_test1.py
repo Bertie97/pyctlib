@@ -7,7 +7,7 @@
 
 import sys
 # sys.path.append("/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib")
-sys.path = ["/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib"] + sys.path
+# sys.path = ["/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib"] + sys.path
 
 
 # import torchplus as tp
@@ -20,22 +20,22 @@ import copy
 tp.set_autodevice(False)
 tp.manual_seed(0)
 with scope("test tp, cpu"):
-    t = tp.Tensor(3000, 400, requires_grad=True)
+    t = tp.randn([3000, 400], requires_grad=True)
     a = t
     LP = tp.nn.Linear(400, 400)
-    for t in range(10): a = LP(a)
+    for _ in range(10): a = LP(a)
     a.sum().backward()
 
 torch.manual_seed(0)
 with scope("test torch, cpu"):
-    t_ = torch.Tensor(3000, 400).requires_grad_()
+    t_ = torch.randn([3000, 400], requires_grad=True)
     a_ = t_
     LP_ = torch.nn.Linear(400, 400)
-    for t in range(10): a_ = LP(a_)
+    for _ in range(10): a_ = LP(a_)
     a_.sum().backward()
 
-assert t.all_close(t_)
-assert t._grad.all_close(t_._grad)
+assert t.allclose(t_)
+assert t._grad.allclose(t_._grad)
 
 
 

@@ -264,6 +264,15 @@ class vector(list):
                 pushfunc(x)
         return vector(unique_elements)
 
+    def count_all(self):
+        if len(self) == 0:
+            return vector([])
+        hashable = self._hashable()
+        if hashable:
+            return Counter(self)
+        else:
+            return self.unique().map(lambda x: (x, self.count(x)))
+
     def count(self, *args):
         if len(args) == 0:
             return len(self)
