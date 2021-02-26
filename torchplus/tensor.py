@@ -19,14 +19,15 @@ try:
     import numpy as np
 except ImportError:
     raise ImportError("'pyctlib.torchplus' cannot be used without dependency 'torch' and 'numpy'.")
-import torch.nn as nn
 import typing
 import inspect
 import builtins
+import torchplus as tp
 from pyoverload import *
 from pyctlib import raw_function, return_type_wrapper, touch
 from functools import wraps
 from types import GeneratorType, MethodWrapperType
+from collections import OrderedDict
 
 """
 from torchplus import Tensor
@@ -194,10 +195,10 @@ class Size(tuple):
     def nspace(self): return self.ndim - self.has_batch - self.has_channel
 
     @property
-    def has_batch(self): return hasattr(self, '_batch_dimension')
+    def has_batch(self): return getattr(self, '_batch_dimension', None) is not None
 
     @property
-    def has_channel(self): return hasattr(self, '_channel_dimension')
+    def has_channel(self): return getattr(self, '_channel_dimension', None) is not None
 
     @property
     def has_special(self): return self.has_batch or self.has_channel
@@ -513,20 +514,40 @@ class Tensor(torch.Tensor):
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         self = args[0]
+        args = tuple(tp.nn.Parameter(x) if isinstance(x, torch.nn.Parameter) else x for x in args)
+        types = tuple(cls if t == torch.nn.Parameter else t for t in types)
         ret = super().__torch_function__(func, types, args, kwargs)
-        if not isinstance(self, Tensor): return ret
+        if isinstance(ret, type(NotImplemented)):
+            raise NotImplementedError(f"{func} for {args} is not implemented. ")
+        if not isinstance(self, torch.Tensor): return ret
+        if not isinstance(self, Tensor): self = Tensor(self)
+        to_squeeze = False
         if not isinstance(ret, tuple):
-            if isinstance(ret, Tensor) and self.has_special:
-                if len(self.ishape) == len(ret.ishape):
-                    ret.special_from(self)
-                else: raise RuntimeError(f"{func} needs to be override. ")
-            return ret
+            ret = (ret,)
+            to_squeeze = True
         for r in ret:
-            if isinstance(r, Tensor) and self.has_special:
+            if not isinstance(r, torch.Tensor): continue
+            if not isinstance(r, Tensor): r = Tensor(r)
+            if self.has_special and not r.has_special:
                 if len(self.ishape) == len(r.ishape):
                     r.special_from(self)
+                elif func in [
+                    torch.Tensor.sum, torch.Tensor.prod,
+                    torch.Tensor.mean, torch.Tensor.squeeze,
+                    torch.Tensor.min, torch.Tensor.max,
+                    torch.Tensor.argmin, torch.Tensor.argmax
+                ]:
+                    dims = args[1:]
+                    if len(dims) == 1 and iterable(dims[0]): dims = dims[0]
+                    ibatch = self.batch_dimension
+                    ichannel = self.channel_dimension
+                    if ibatch in dims: ibatch = None
+                    if ichannel in dims: ichannel = None
+                    if ibatch is not None: r._batch_dimension = ibatch - len([d for d in dims if d < ibatch])
+                    if ichannel is not None: r._channel_dimension = ichannel - len([d for d in dims if d < ichannel])
                 else: raise RuntimeError(f"{func} needs to be override. ")
-        return ret
+        if to_squeeze: return ret[0]
+        else: return ret
 
     def requires_grad_(self, mode=True):
         self.requires_grad = mode
@@ -537,8 +558,8 @@ class Tensor(torch.Tensor):
         return super().refine_names(*args, **kwargs)
 
     def special_from(self, other):
-        self.batch_dimension = other.batch_dimension
-        self.channel_dimension = other.channel_dimension
+        self.batch_dimension = getattr(other, '_batch_dimension', None)
+        self.channel_dimension = getattr(other, '_channel_dimension', None)
 
     @property
     def ishape(self): return super().shape
@@ -629,12 +650,7 @@ class Tensor(torch.Tensor):
         self._batch_dimension = None
         self._channel_dimension = None
 
-    # def tensor(self):
-    #     if self.dim() > 0:
-    #         return Tensor.tensor_type(self.dtype, self.is_cuda)(self.data)
-    #     else:
-    #         return Tensor.tensor_type(self.dtype, self.is_cuda)([self.item()]).sum()
-
+    def tensor(self): return super()._make_subclass(torch.Tensor, self, self.requires_grad)
     def numpy(self): return super(torch.Tensor, self.cpu().detach()).numpy()
 
     @params
@@ -648,7 +664,6 @@ class Tensor(torch.Tensor):
             return self.shape[i[0]]
         return tuple(self.shape[x] for x in i)
 
-    def numel(self): return self.nele
 
     # def expand_to(self, target):
     #     target = Size(target)
@@ -760,7 +775,7 @@ class Tensor(torch.Tensor):
             if self.shape[-2:].has_special or other.shape[-2:].has_special:
                 raise RuntimeError("'matmul' cannot operate for special dimensions. Please make sure that the last two dimension of both tensors are not batch/channel dimensions. ")
             a, b = self.shape[:-2] ^ other.shape[:-2]
-            return (self.view(a + tuple(self.shape[-2:]))) @ (other.view(b + tuple(other.shape[-2:])))
+            return super(Tensor, self.view(a + tuple(self.shape[-2:]))).__matmul__(other.view(b + tuple(other.shape[-2:])))
         return super().__matmul__(*args, **kwargs)
 
     def __op__(self, opname, *args, **kwargs):
@@ -877,6 +892,11 @@ def t(tensor: Array.Torch):
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:
         device = Device
+    if isinstance(data, torch.Tensor) and type(data) is not torch.Tensor:
+        if device == torch.device('cpu'):
+            return torch.Tensor._make_subclass(torch.Tensor, data, data.requires_grad)
+        else:
+            return torch.cuda.Tensor._make_subclass(torch.cuda.Tensor, data, data.requires_grad).to(Device)
     return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory)
 
 for key in dir(torch):
