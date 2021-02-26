@@ -6,6 +6,7 @@
 ## Package <main>
 ##############################
 __all__ = """
+    recursive_apply
     vector
     generator_wrapper
     ctgenerator
@@ -37,6 +38,22 @@ class _Vector_Dict(dict):
 
     def keys(self):
         return vector(super().keys())
+
+def recursive_apply(container, func):
+    if isinstance(container, vector):
+        return container.map(lambda x: recursive_apply(x, func))
+    if isinstance(container, list):
+        return [recursive_apply(x, func) for x in container]
+    if isinstance(container, tuple):
+        return tuple([recursive_apply(x, func) for x in container])
+    if isinstance(container, set):
+        return set([recursive_apply(x, func) for x in container])
+    if isinstance(container, dict):
+        return {key: recursive_apply(value, func) for key, value in enumerate(container)}
+    try:
+        return func(container)
+    except:
+        return container
 
 class vector(list):
 
