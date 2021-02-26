@@ -132,7 +132,7 @@ def isitertype(x):
         if x.itemtypes is not None: return True
         return all([isitertype(i) for i in x.types])
     if isinstance(x, type):
-        hasattr(x, '__iter__') and hasattr(x, '__len__')
+        return hasattr(x, '__iter__') and hasattr(x, '__len__')
     if callable(x):
         try: return equals(x('iterable check'), '')
         except Exception: return False
