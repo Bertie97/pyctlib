@@ -26,7 +26,7 @@ def timethis(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        if '__name__' in func.__dict__:
+        if hasattr(getattr(func, '__wrapped__', func), '__name__'):
             print("[%s takes %lfs]"%(func.__name__, end-start))
         else:
             print("[%s takes %lfs]"%(func.__class__.__name__, end-start))

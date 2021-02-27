@@ -2,7 +2,7 @@
 
 ## Introduction
 
-[`pyoverload`](https://github.com/Bertie97/pyctlib/tree/main/pyoverload) is a package affiliated to project [`pyctlib`](https://github.com/Bertie97/pyctlib). It is a powerful overloading tools to provide easy overload for `python v3.6+`. `pyoverload` provide multiple usages. The simplest one, however, can be easily implemented as follows. 
+[`pyoverload`](https://github.com/Bertie97/pyctlib/tree/main/pyoverload) is a package affiliated to project [`PyCTLib`](https://github.com/Bertie97/pyctlib). It is a powerful overloading tools to provide easy overload for `python v3.6+`. `pyoverload` provide multiple usages. The simplest one, however, can be easily implemented as follows. 
 
 ```python
 >>> from pyoverload import overload
@@ -160,7 +160,7 @@ Note that the last function in the function list is the default function.
 
 Theoretically, decorator `@override` can also be used in **usages 1&2**, but this is not recommended either. 
 
-## Usage List
+## Implementation List
 
 When an overloaded function receives arguments that are not suitable for all implementations, the error information will tell you which ones are correct. 
 
@@ -182,7 +182,7 @@ func(x:int)
 func(x:str)
 ```
 
-This function is available for all three usages. 
+This function is available for all two Implementations but none of them takes `1.`. 
 
 ## Typehints
 
@@ -216,7 +216,7 @@ One can use `Type(int)` to convert a python type like `int` to a `Type` or use `
 
 For a `Type`, `List` for example, we can do the following operations. Except the first four, these usages are designed for iterable types only. 
 
-1. `+List`: This indicates that this is an extendable argument, which means it decorates arguments after `*`. Commonly, it is only used for arguments `@params` decorator. 
+1. `+List`: This indicates that this is an extendable argument, which means it decorates arguments after `*`. It was used to specify `*args` arguments in `@params` but currently deprecated though adding `+` would not lead to failures. 
 
 2. `~List`: This invert the typehint, meaning that all non-list types. 
 
@@ -251,6 +251,13 @@ For a `Type`, `List` for example, we can do the following operations. Except the
 
 10. `len(List[10, 20])`: Function `len` returns the length of the array. `200` should be the result for the given example. 
 
+## Limitations
+
+1. The speed of type check for `pyoverload.typehint.Type` is not very fast, hence please try your best to use builtin types, types from module `types` or list of types to do the typehint. 
+2. The `overload` takes extra time for delivering the arguments, hence using it for functions require fast speed is not recommended. 
+3. Do use `@params` for functions not overloaded but needs typehint constraints instead of using `@overload` without actually has multiple implementations. This is because `@params` is way faster. 
+
 ## Acknowledgment
 
+@Yuncheng Zhou: Developer
 @Yiteng Zhang: Tests and Maintenance

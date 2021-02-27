@@ -165,8 +165,13 @@ class Size(tuple):
     def bc(self): return [x for x in [self.batch_dimension, self.channel_dimension] if x is not None]
 
     def special_from(self, other):
-        self.batch_dimension = other.batch_dimension
-        self.channel_dimension = other.channel_dimension
+        self.batch_dimension = getattr(other, '_batch_dimension', None)
+        self.channel_dimension = getattr(other, '_channel_dimension', None)
+
+    def special_from_(self, other):
+        self.batch_dimension = getattr(other, '_batch_dimension', None)
+        self.channel_dimension = getattr(other, '_channel_dimension', None)
+        return self
 
     @property
     def space(self):
@@ -212,9 +217,7 @@ class Size(tuple):
 
     def __add__(self, other: [tuple, 'Size']):
         if not isinstance(other, Size):
-            res = Size(tuple(self) + other, force=True)
-            res.special_from(self)
-            return res
+            return Size(tuple(self) + other, force=True).special_from_(self)
         if self.has_batch and other.has_batch: raise TypeError("Batch dimension conflict in addition. ")
         if self.has_channel and other.has_channel: raise TypeError("Channel dimension conflict in addition. ")
         ibatch = ichannel = None
@@ -236,9 +239,7 @@ class Size(tuple):
 
     @params
     def __mul__(self, value: builtins.int):
-        res = Size(tuple(self) * value, force=True)
-        res.special_from(self)
-        return res
+        return Size(tuple(self) * value, force=True).special_from_(self)
     __imul__ = __rmul__ = __mul__
 
     @params
@@ -514,7 +515,24 @@ class Tensor(torch.Tensor):
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         self = args[0]
-        args = tuple(tp.nn.Parameter(x) if isinstance(x, torch.nn.Parameter) else x for x in args)
+        if func == torch.Tensor.dim:
+            return super().__torch_function__(func, types, args, kwargs)
+        ibatch = self.batch_dimension
+        ichannel = self.channel_dimension
+        ndim = self.dim()
+        if func in [
+            torch.reshape, torch.Tensor.reshape, torch.Tensor.view,
+            torch.zeros, torch.ones, torch.rand, torch.randn
+        ]:
+            dims = Size(args[1:])
+            args = args[:1] + dims
+        if func in [torch.unsqueeze, torch.Tensor.unsqueeze, torch.Tensor.unsqueeze_]:
+            dims = args[1:]
+        elif func in [torch.Tensor.view_as, torch.Tensor.reshape_as]:
+            dims = args[1].shape
+        elif func == torch.randint:
+            dims = Size(args[3])
+            args = args[:3] + (dims,)
         types = tuple(cls if t == torch.nn.Parameter else t for t in types)
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
@@ -528,23 +546,48 @@ class Tensor(torch.Tensor):
         for r in ret:
             if not isinstance(r, torch.Tensor): continue
             if not isinstance(r, Tensor): r = Tensor(r)
-            if self.has_special and not r.has_special:
-                if len(self.ishape) == len(r.ishape):
-                    r.special_from(self)
-                elif func in [
-                    torch.Tensor.sum, torch.Tensor.prod,
-                    torch.Tensor.mean, torch.Tensor.squeeze,
-                    torch.Tensor.min, torch.Tensor.max,
-                    torch.Tensor.argmin, torch.Tensor.argmax
+            if func in [
+                torch.reshape, torch.Tensor.reshape, torch.Tensor.reshape_as,
+                torch.Tensor.view, torch.Tensor.view_as,
+                torch.zeros, torch.ones, torch.rand, torch.randn, torch.randint
+            ]:
+                r.special_from(dims)
+            if (ibatch is not None or ichannel is not None) and not r.has_special:
+                if ndim == len(r.ishape):
+                    r._batch_dimension = ibatch
+                    r._channel_dimension = ichannel
+                    continue
+                if func in [
+                    torch.cummin, torch.Tensor.cummin, torch.cummax, torch.Tensor.cummax,
+                    torch.cumsum, torch.Tensor.cumsum, torch.cumprod, torch.Tensor.cumprod,
+                    torch.sum, torch.Tensor.sum, torch.prod, torch.Tensor.prod,
+                    torch.min, torch.Tensor.min, torch.max, torch.Tensor.max,
+                    torch.mean, torch.Tensor.mean,
+                    torch.argmin, torch.Tensor.argmin, torch.argmax, torch.Tensor.argmax
                 ]:
+                    if len(args) > 1:
+                        dims = args[1:]
+                        if len(dims) == 1 and iterable(dims[0]): dims = dims[0]
+                        if ibatch in dims: ibatch = None
+                        if ichannel in dims: ichannel = None
+                        if ibatch is not None: r._batch_dimension = ibatch - len([d for d in dims if d < ibatch])
+                        if ichannel is not None: r._channel_dimension = ichannel - len([d for d in dims if d < ichannel])
+                elif func in [torch.squeeze, torch.Tensor.squeeze, torch.Tensor.squeeze_]:
                     dims = args[1:]
                     if len(dims) == 1 and iterable(dims[0]): dims = dims[0]
-                    ibatch = self.batch_dimension
-                    ichannel = self.channel_dimension
+                    if len(dims) == 0: dims = tuple(i for i, x in enumerate(self.ishape) if x == 1)
                     if ibatch in dims: ibatch = None
                     if ichannel in dims: ichannel = None
                     if ibatch is not None: r._batch_dimension = ibatch - len([d for d in dims if d < ibatch])
                     if ichannel is not None: r._channel_dimension = ichannel - len([d for d in dims if d < ichannel])
+                elif func in [torch.unsqueeze, torch.Tensor.unsqueeze, torch.Tensor.unsqueeze_]:
+                    dims = args[1:]
+                    if len(dims) == 1 and iterable(dims[0]): dims = dims[0]
+                    for d in dims:
+                        if ibatch is not None and d <= ibatch: ibatch += 1
+                        if ichannel is not None and d <= ichannel: ichannel += 1
+                    if ibatch is not None: r._batch_dimension = ibatch
+                    if ichannel is not None: r._channel_dimension = ichannel
                 else: raise RuntimeError(f"{func} needs to be override. ")
         if to_squeeze: return ret[0]
         else: return ret
@@ -560,6 +603,11 @@ class Tensor(torch.Tensor):
     def special_from(self, other):
         self.batch_dimension = getattr(other, '_batch_dimension', None)
         self.channel_dimension = getattr(other, '_channel_dimension', None)
+
+    def special_from_(self, other):
+        self.batch_dimension = getattr(other, '_batch_dimension', None)
+        self.channel_dimension = getattr(other, '_channel_dimension', None)
+        return self
 
     @property
     def ishape(self): return super().shape
@@ -664,6 +712,18 @@ class Tensor(torch.Tensor):
             return self.shape[i[0]]
         return tuple(self.shape[x] for x in i)
 
+    @params
+    def unsqueeze(self, *dim:int):
+        if len(dim) == 0: dim = (0,)
+        for d in dim:
+            self = super(torch.Tensor, self).unsqueeze(d)
+        return self
+
+    @params
+    def unsqueeze_(self, *dim:int):
+        if len(dim) == 0: dim = (0,)
+        for d in dim: super(torch.Tensor, self).unsqueeze_(d)
+        return self
 
     # def expand_to(self, target):
     #     target = Size(target)
@@ -714,8 +774,8 @@ class Tensor(torch.Tensor):
         Sample a few subspaces from a given dimension.
         data.sample(2, 1, random=False) is equivalant to data[:, :, 0, ...].
         """
-        if dim is None: dim = self.batch_dimension
-        if dim is None: dim = self.channel_dimension
+        if dim is None or isinstance(dim, list) and dim == []: dim = self.batch_dimension
+        if dim is None or isinstance(dim, set) and dim == {}: dim = self.channel_dimension
         if dim is None: raise TypeError("Argument 'dim' needed for sampling Tensors with no special dimensions. ")
         sample_indices = [slice(None)] * self.dim()
         if self.shape[dim] < number: raise TypeError(f"Too many elements needed to be sampled from dimension {dim}")
@@ -783,9 +843,7 @@ class Tensor(torch.Tensor):
             if not isinstance(args[0], Tensor): other = Tensor(args[0])
             else: other = args[0]
             a, b = self.shape ^ other.shape
-            res = getattr(super(Tensor, self.view(a)), opname)(other.view(b))
-            res.special_from(a)
-            return res
+            return getattr(super(Tensor, self.view(a)), opname)(other.view(b)).special_from_(a)
         return getattr(super(), opname)(*args, **kwargs)
 
     for op in '''
@@ -830,8 +888,6 @@ class Tensor(torch.Tensor):
             string = string.rstrip(')') + f', shape={self.shape})'
         return string.replace("tensor", "Tensor")
 
-__all__.extend(["eye", "t", "tensor"])
-
 for func in '''
 zeros ones
 rand randn
@@ -866,6 +922,42 @@ def {func}_like(tensor: Array.Torch, **kwargs):
     return {func}(tensor, **kwargs)
 """)
 
+class _Randint:
+
+    def __init__(self):
+        self.range = (0, 2)
+
+    def __getitem__(self, t):
+        if len(t) == 0: t = (0, 2)
+        elif len(t) == 1: t = (0, t[0])
+        elif len(t) > 2: raise TypeError(f"Please use randint[lower, upper] to specify the range with upper end excluded. ")
+        self.range = t
+        return self
+
+    def __call__(self, *size, **kwargs):
+        return Tensor(torch.randint(self.range[0], self.range[1], Size(size), **kwargs)).special_from_(size)
+
+class _Randint_like:
+
+    def __init__(self):
+        self.range = (0, 2)
+
+    def __getitem__(self, t):
+        if len(t) == 0: t = (0, 2)
+        elif len(t) == 1: t = (0, t[0])
+        elif len(t) > 2: raise TypeError(f"Please use randint_like[lower, upper] to specify the range with upper end excluded. ")
+        self.range = t
+        return self
+
+    def __call__(self, data, **kwargs):
+        return Tensor(torch.randint_like(data, self.range[0], self.range[1], **kwargs)).special_from_(data.shape)
+
+randint = _Randint()
+randint_like = _Randint_like()
+__all__.extend(["randint", "randint_like"])
+
+__all__.extend(["eye", "t", "unsqueeze", "tensor"])
+
 @overload
 def eye(*size: SizeRep.itemtypes):
     return eye(size)
@@ -888,6 +980,10 @@ def eye(size: SizeRep | Size):
 @params
 def t(tensor: Array.Torch):
     return Tensor(tensor).T
+
+@params
+def unsqueeze(tensor: Array.Torch, *dim: int):
+    return Tensor(tensor).unsqueeze(*dim)
 
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:

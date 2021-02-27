@@ -6,10 +6,14 @@
 ## Package <main>
 ##############################
 __all__ = """
+    get_environ_vars
     touch
 """.split()
 
 import sys
+
+_mid = lambda x: x[1] if len(x) > 1 else x[0]
+_rawname = lambda s: _mid(str(s).split("'"))
 
 class get_environ_vars(dict):
     """
@@ -39,23 +43,29 @@ class get_environ_vars(dict):
             }
     """
 
-    def __new__(cls, pivot):
+    def __new__(cls):
         self = super().__new__(cls)
         frame = sys._getframe()
         self.all_vars = []
-        filename = raw_function(_get_wrapped(pivot)).__globals__.get('__file__', '')
+        # filename = raw_function(_get_wrapped(pivot)).__globals__.get('__file__', '')
+        prev_frame = frame
+        prev_frame_file = _rawname(frame)
         while frame.f_back is not None:
             frame = frame.f_back
-            if not filename: continue
-            if _rawname(frame).startswith('<') and _rawname(frame).endswith('>'): continue
-            if _rawname(frame) != filename: continue
-            self.all_vars.extend([frame.f_locals, frame.f_globals])
+            frame_file = _rawname(frame)
+            if frame_file.startswith('<') and frame_file.endswith('>') and frame_file != '<stdin>': continue
+            if '<module>' not in str(frame):
+                if frame_file != prev_frame_file:
+                    prev_frame = frame
+                    prev_frame_file = frame_file
+                continue
+            if frame_file != prev_frame_file: self.all_vars.extend([frame.f_locals])
+            else: self.all_vars.extend([prev_frame.f_locals])
             break
-        else:
-            self.all_vars.extend([frame.f_locals, frame.f_globals])
+        else: raise TypeError("Unexpected function stack, please contact the developer for further information. ")
         return self
 
-    def __init__(self, _): pass
+    def __init__(self): pass
     
     def __getitem__(self, k):
         for varset in self.all_vars:
