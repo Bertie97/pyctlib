@@ -10,7 +10,7 @@ import torchplus
 import torch
 from collections import OrderedDict
 from ..tensor import _auto_device
-from torch._C import _disabled_torch_function_impl
+from torch import _C
 
 class Parameter(torchplus.Tensor):
     r"""A kind of Tensor that is to be considered a module parameter.
@@ -29,12 +29,20 @@ class Parameter(torchplus.Tensor):
         requires_grad (bool, optional): if the parameter requires gradient. See
             :ref:`excluding-subgraphs` for more details. Default: `True`
     """
+    
+    @staticmethod
+    def _make_subclass(cls, data, auto_device=torchplus.is_autodevice(), requires_grad=False, device=None):
+        print('hi')
+        self = super()._make_subclass(cls, data, requires_grad)
+        if device is None and auto_device: return self.to(Device)
+        if device is not None: return self.to(device)
+        return self
 
     def __new__(cls, data=None, requires_grad=True):
         if data is None:
             data = torchplus.Tensor()
         assert isinstance(data, torch.Tensor)
-        self = torchplus.Tensor._make_subclass(cls, data.data, auto_device=torchplus.is_autodevice(), requires_grad=requires_grad)
+        self = torchplus.Tensor._make_subclass(cls, data, auto_device=torchplus.is_autodevice(), requires_grad=requires_grad)
         return self
 
     def __deepcopy__(self, memo):
@@ -56,4 +64,19 @@ class Parameter(torchplus.Tensor):
             (self.data, self.requires_grad, OrderedDict())
         )
 
-    __torch_function__ = _disabled_torch_function_impl
+    @classmethod
+    def __torch_function__(cls, func, types, args=(), kwargs=None):
+        ret = super().__torch_function__(func, types, args, kwargs)
+        with _C.DisableTorchFunction():
+            return _convert(ret, torchplus.Tensor)
+
+def _convert(ret, cls):
+
+    if isinstance(ret, torch.Tensor):
+        ret = ret.as_subclass(cls)
+
+    if isinstance(ret, (tuple, list)):
+        # Also handles things like namedtuples
+        ret = type(ret)(_convert(r, cls) for r in ret)
+
+    return ret

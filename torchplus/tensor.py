@@ -173,10 +173,6 @@ class Size(tuple):
     @property
     def bc(self): return [x for x in [self.batch_dimension, self.channel_dimension] if x is not None]
 
-    def special_from(self, other):
-        self.batch_dimension = getattr(other, '_batch_dimension', None)
-        self.channel_dimension = getattr(other, '_channel_dimension', None)
-
     def special_from_(self, other):
         self.batch_dimension = getattr(other, '_batch_dimension', None)
         self.channel_dimension = getattr(other, '_channel_dimension', None)
@@ -254,7 +250,6 @@ class Size(tuple):
     @params
     @staticmethod
     def __op__(a: [builtins.int, tuple, 'Size'], b: [builtins.int, tuple, 'Size'], *, op):
-        print(a, b)
         if not isinstance(a, Size): a = Size(a, force=True)
         if not isinstance(b, Size): b = Size(b, force=True)
         def getvalue(x, y):
@@ -463,9 +458,11 @@ class Size(tuple):
         if isinstance(k, builtins.int): return super().__getitem__(k)
         if isinstance(k, slice):
             s = Size(super().__getitem__(k))
+            if k.start is None: ks = 0
+            if k.start is not None and k.start < 0: ks = k.start + self.ndim
             try:
-                s.batch_dimension = self.batch_dimension - k.start
-                s.channel_dimension = self.channel_dimension - k.start
+                s.batch_dimension = self.batch_dimension - ks
+                s.channel_dimension = self.channel_dimension - ks
             except: pass
             return s
         return Size(self.python_repr[k])
@@ -494,6 +491,8 @@ class Tensor(torch.Tensor):
         self = super()._make_subclass(cls, data, requires_grad)
         if device is None and auto_device: return self.to(Device)
         if device is not None: return self.to(device)
+        if isinstance(data, cls):
+            self.special_from_(data)
         return self
 
     def __new__(cls, *args, **kwargs):
@@ -524,6 +523,13 @@ class Tensor(torch.Tensor):
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         self = args[0]
+        assert isinstance(self, torch.Tensor)
+        if type(self) != Tensor:
+            isTensor = [type(x) == Tensor for x in args]
+            isofTensor = [isinstance(x, Tensor) for x in args]
+            if builtins.any(isTensor): self = args[isTensor.index(True)]
+            elif builtins.any(isofTensor): self = args[isofTensor.index(True)]
+            else: return super().__torch_function__(func, types, args, kwargs)
         if func == torch.Tensor.dim:
             return super().__torch_function__(func, types, args, kwargs)
         ibatch = self.batch_dimension
@@ -545,21 +551,28 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        if not isinstance(self, torch.Tensor): return ret
         if not isinstance(self, Tensor): self = Tensor(self)
-        to_squeeze = False
-        if not isinstance(ret, tuple):
-            ret = (ret,)
-            to_squeeze = True
-        for r in ret:
-            if not isinstance(r, torch.Tensor): continue
-            if not isinstance(r, Tensor): r = Tensor(r)
+        def _convert(ret, cls):
+            if isinstance(ret, torch.Tensor):
+                ret = ret.as_subclass(cls)
+            if isinstance(ret, (tuple, list)):
+                # Also handles things like namedtuples
+                ret = type(ret)(_convert(r, cls) for r in ret)
+            return ret
+        def _collect(r, c):
+            if isinstance(r, (tuple, list)):
+                for x in r: _collect(x, c)
+            if isinstance(r, torch.Tensor): c.append(r)
+        collection = []
+        ret = _convert(ret, Tensor)
+        _collect(ret, collection)
+        for r in collection:
             if func in [
                 torch.reshape, torch.Tensor.reshape, torch.Tensor.reshape_as,
                 torch.Tensor.view, torch.Tensor.view_as,
                 torch.zeros, torch.ones, torch.rand, torch.randn, torch.randint
             ]:
-                r.special_from(dims)
+                r.special_from_(dims)
             if (ibatch is not None or ichannel is not None) and not r.has_special:
                 if func in [torch.transpose, torch.Tensor.transpose, torch.Tensor.transpose_]:
                     dim1, dim2 = args[1:]
@@ -576,6 +589,14 @@ class Tensor(torch.Tensor):
                     dims = args[1:]
                     if ibatch is not None: r._batch_dimension = dims.index(ibatch)
                     if ichannel is not None: r._channel_dimension = dims.index(ichannel)
+                    continue
+                if func in [torch.mm, torch.bmm, torch.smm]:
+                    self, other = args[:2]
+                    r.special_from_(self.shape[:-1] + other.shape[-1:])
+                    continue
+                if func in [torch.addmm, torch.addbmm, torch.saddmm]:
+                    self, other = args[1:]
+                    r.special_from_(self.shape[:-1] + other.shape[-1:])
                     continue
                 if ndim == len(r.ishape):
                     r._batch_dimension = ibatch
@@ -650,8 +671,7 @@ class Tensor(torch.Tensor):
                             len([d for d in builtins.range(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(lp[d], builtins.int)]) - \
                             len([d for d in builtins.range(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(rp[d-offset], builtins.int)])
                 else: raise RuntimeError(f"{func} needs to be override. ")
-        if to_squeeze: return ret[0]
-        else: return ret
+        return ret
 
     def requires_grad_(self, mode=True):
         self.requires_grad = mode
@@ -660,10 +680,6 @@ class Tensor(torch.Tensor):
     def refine_names(self, *args, kwargs):
         self.has_names = True
         return super().refine_names(*args, **kwargs)
-
-    def special_from(self, other):
-        self.batch_dimension = getattr(other, '_batch_dimension', None)
-        self.channel_dimension = getattr(other, '_channel_dimension', None)
 
     def special_from_(self, other):
         self.batch_dimension = getattr(other, '_batch_dimension', None)
@@ -888,7 +904,7 @@ class Tensor(torch.Tensor):
 
     @property
     def T(self: 'Tensor') -> 'Tensor':
-        if not self.has_special: return super().T
+        if not self.has_special: return Tensor(super().T)
         s = self.special
         if len(s) == 1: permute_dim = tuple(builtins.range(s[0]))[::-1] + (s[0],) + tuple(builtins.range(s[0]+1, self.ndim))[::-1]
         elif len(s) == 2: permute_dim = tuple(builtins.range(s[0]))[::-1] + (s[0],) + tuple(builtins.range(s[0]+1, s[1]))[::-1] + (s[1],) + tuple(builtins.range(s[1]+1, self.ndim))[::-1]
