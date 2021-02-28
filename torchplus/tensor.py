@@ -28,6 +28,7 @@ from pyctlib import raw_function, return_type_wrapper, touch
 from functools import wraps
 from types import GeneratorType, MethodWrapperType
 from collections import OrderedDict
+from .torch_namespace import *
 
 """
 from torchplus import Tensor
@@ -39,9 +40,11 @@ Device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 _auto_device = True
 
 def set_autodevice(flag=True):
+    global _auto_device
     _auto_device = flag
 
 def unset_autodevice():
+    global _auto_device
     _auto_device = False
 
 # def totensor(x) -> 'Tensor':
@@ -176,9 +179,9 @@ class Size(tuple):
     @property
     def space(self):
         s = self.special
-        if len(s) == 0: return self.remove_special()
-        elif len(s) == 1: return (self[:s[0]] + self[s[0]+1:]).remove_special()
-        return (self[:s[0]] + self[s[0]+1:s[1]] + self[s[1]+1:]).remove_special()
+        if len(s) == 0: return self
+        elif len(s) == 1: return (self[:s[0]] + self[s[0]+1:])
+        return (self[:s[0]] + self[s[0]+1:s[1]] + self[s[1]+1:])
 
     @property
     def nele(self):
@@ -526,7 +529,7 @@ class Tensor(torch.Tensor):
         ]:
             dims = Size(args[1:])
             args = args[:1] + dims
-        if func in [torch.unsqueeze, torch.Tensor.unsqueeze, torch.Tensor.unsqueeze_]:
+        elif func in [torch.unsqueeze, torch.Tensor.unsqueeze, torch.Tensor.unsqueeze_]:
             dims = args[1:]
         elif func in [torch.Tensor.view_as, torch.Tensor.reshape_as]:
             dims = args[1].shape
@@ -588,6 +591,30 @@ class Tensor(torch.Tensor):
                         if ichannel is not None and d <= ichannel: ichannel += 1
                     if ibatch is not None: r._batch_dimension = ibatch
                     if ichannel is not None: r._channel_dimension = ichannel
+                elif func == torch.Tensor.__getitem__:
+                    dims = args[1]
+                    if not isinstance(dims, tuple): dims = (dims,)
+                    if ... in dims:
+                        lp = dims[:dims.index(...)]
+                        rp = dims[dims.index(...)+1:]
+                    else:
+                        lp = dims
+                        rp = tuple()
+                    offset = ndim - len(rp)
+                    if ibatch is not None:
+                        if ibatch < len(lp) and isinstance(lp[ibatch], builtins.int): ibatch = None
+                        elif ibatch >= offset and isinstance(rp[ibatch - offset], builtins.int): ibatch = None
+                    if ichannel is not None:
+                        if ichannel < len(lp) and isinstance(lp[ichannel], builtins.int): ichannel = None
+                        elif ichannel >= offset and isinstance(rp[ichannel - offset], builtins.int): ichannel = None
+                    if ibatch is not None:
+                        r._batch_dimension = ibatch - \
+                            len([d for d in range(len(lp)) if d < ibatch and isinstance(lp[d], builtins.int)]) - \
+                            len([d for d in range(offset, ndim) if d < ibatch and isinstance(rp[d-offset], builtins.int)])
+                    if ichannel is not None:
+                        r._channel_dimension = ichannel - \
+                            len([d for d in range(len(lp)) if d < ichannel and isinstance(lp[d], builtins.int)]) - \
+                            len([d for d in range(offset, ndim) if d < ichannel and isinstance(rp[d-offset], builtins.int)])
                 else: raise RuntimeError(f"{func} needs to be override. ")
         if to_squeeze: return ret[0]
         else: return ret
@@ -1002,16 +1029,16 @@ for key in dir(torch):
         continue
     if key in __all__ or key in globals():
         continue
-    if isinstance(eval(f"torch.{key}"), torch.dtype):
+    if key in torch_dtype_list:
         # dtypes
         exec(f"{key} = torch.{key}")
         __all__.append(key)
-    if key not in {"optim", "random"}:
+    if key in torch_func_list:
         # functions
         exec(f"{key} = torch.{key}")
         __all__.append(key)
 
 for key in '''
-no_grad optim random
+no_grad
 '''.split():
     exec(f"{key} = torch.{key}")
