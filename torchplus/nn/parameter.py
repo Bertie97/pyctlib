@@ -34,14 +34,15 @@ class Parameter(torchplus.Tensor):
         if data is None:
             data = torchplus.Tensor()
         assert isinstance(data, torch.Tensor)
-        self = torchplus.Tensor._make_subclass(cls, data.data, auto_device=_auto_device, requires_grad=requires_grad)
+        self = torchplus.Tensor._make_subclass(cls, data.data, auto_device=torchplus.is_autodevice(), requires_grad=requires_grad)
         return self
 
     def __deepcopy__(self, memo):
         if id(self) in memo:
             return memo[id(self)]
         else:
-            result = type(self)(self.data.clone(memory_format=torch.preserve_format), self.auto_device, self.requires_grad, self.batch_dimension)
+            # result = type(self)(self.data.clone(memory_format=torch.preserve_format), self.auto_device, self.requires_grad, self.batch_dimension)
+            result = type(self)(self.data.clone(memory_format=torch.preserve_format), self.requires_grad)
             memo[id(self)] = result
             return result
 

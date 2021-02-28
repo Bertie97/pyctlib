@@ -12,6 +12,7 @@ __all__ = """
     Size
     set_autodevice
     unset_autodevice
+    get_autodevice
 """.split()
 
 try:
@@ -47,6 +48,10 @@ def set_autodevice(flag=True):
 def unset_autodevice():
     global _auto_device
     _auto_device = False
+
+def is_autodevice():
+    global _auto_device
+    return _auto_device
 
 # def totensor(x) -> 'Tensor':
 #     if isinstance(x, Tensor):
