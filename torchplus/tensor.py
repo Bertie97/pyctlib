@@ -800,7 +800,7 @@ class Tensor(torch.Tensor):
         sample(self, dim: int = self.batch_dimension, numbder: int = 1, random: bool = True) -> Tensor
 
         Sample a few subspaces from a given dimension.
-        data.sample(2, 1, random=False) is equivalant to data[:, :, 0, ...].
+        data.sample(2, 1, random=False) is equivalant to data[:, :, :1, ...].
         """
         if dim is None or isinstance(dim, list) and dim == []: dim = self.batch_dimension
         if dim is None or isinstance(dim, set) and dim == {}: dim = self.channel_dimension
