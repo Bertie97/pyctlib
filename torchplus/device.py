@@ -15,7 +15,7 @@ def all_memory_amount(device_number):
     nvmlInit()
     h = nvmlDeviceGetHandleByIndex(device_number)
     info = nvmlDeviceGetMemoryInfo(h)
-    return info.all
+    return info.total
 
 available_gpus_memory = vector([free_memory_amount(i) for i in range(torch.cuda.device_count())])
 all_gpus_memory = vector([all_memory_amount(i) for i in range(torch.cuda.device_count())])
