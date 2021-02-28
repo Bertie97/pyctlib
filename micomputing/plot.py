@@ -9,9 +9,6 @@
 __all__ = """
 """.split()
 
-import numpy as np
-import torch
-
 try: from matplotlib import pyplot as plt
 except ImportError:
     raise ImportError("'pyctlib.mic.plot' cannot be used without dependency 'matplotlib'. ")
@@ -19,24 +16,49 @@ import torchplus as tp
 from matplotlib.pyplot import *
 from pyoverload import *
 
+canvas = None
 
 @params
-def imshow(data: Array, **kwargs):
-    "Show transverse medical image with the right hand side of the subject shown on the left and anterior shown at the bottom. "
-    if 'cmap' not in kwargs: kwargs['cmap'] = plt.cm.gray
+def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
+    """
+    An automatic image display function for all kinds of tensors. 
+    The first image in batched images will be selected to be showed. 
+    For medical images:
+    Displacements with channel dimension identified will be displayed as RGB colored maps.
+    If there are no dimension <=3, gray scaled images will be showed. 
+    Transverse medical image with the right hand side of the subject shown on the left
+        and anterior shown at the bottom will be selected for 3D volumes.
+    `nslice` and `dim` are used for 3D volumes only, meaning to show the `nslice` slice of dimension `dim`. 
+    """
+    global canvas
+    has_cmap = True
+    if 'cmap' not in kwargs:
+        has_cmap = False
+        kwargs['cmap'] = plt.cm.gray
     data = tp.Tensor(data).squeeze()
-    if data.dim() > 2 and data.batch_dimension: data = data.sample(number=1, random=False)
-    if data.dim() > 2: raise TypeError("'plot.imshow' takes 2D-data as input, please reduce the dimension manually or specify a batch dimension to reduce. ")
-    if data.dim() <= 1: data = data.unsqueeze(0)
-    if data.dim() == 0: raise TypeError("Please don't use 'plot.imshow' to demonstrate a scalar. ")
-    return plt.imshow(data.numpy(), **kwargs)
+    if data.ndim <= 1: raise TypeError("Please don't use 'plot.imshow' to demonstrate an array or a scalar. ")
+    if data.nspace > 3: raise TypeError("'plot.imshow' takes 2 or 3D-data as input, please reduce the dimension manually or specify special dimensions to reduce. ")
+    if data.nspace == 3:
+        if data.has_batch: data = data.sample(random=False, dim=[])
+        if data.has_channel: data = data.sample(random=False, dim={})
+        if nslice is None:
+            if data.space[-1] <= 3: canvas = data.numpy()
+            elif data.space[0] <= 3: canvas = data.mvdim(0, 2).numpy()
+            else: nslice = data.space[-1] // 2
+        else: canvas = data.pick(dim, nslice).numpy()
+    elif data.nspace == 2:
+        if data.has_batch: data = data.sample(random=False, dim=[])
+        if data.has_channel:
+            if has_cmap: data = data.sample(random=False, dim={})
+            else: data = data.sample(number=min(data.channel_size, 3), random=False, dim={}).mvdim(data.channel_dimension, -1)
+        canvas = data.numpy()
+    elif data.ndim == 3: canvas = data.sample(random=False, dim=[]).numpy()
+    else: canvas = data.numpy()
+    return plt.imshow(canvas, **kwargs)
 
 @params
-def sliceshow(data: Array, dim=-1: int, **kwargs):
-    data = tp.Tensor(data)
-    sample_indices = [slice(None)] * data.dim()
-    sample_indices[dim] = data.shape[dim] // 2
-    return imshow(data[sample_indices], **kwargs)
+def maskshow(*masks, alpha=0.5, **kwargs):
+    pass
 
 @overload
 def maskshow(*masks: Array, on=None: [null, Array], **kwargs):

@@ -541,7 +541,7 @@ class Tensor(torch.Tensor):
         elif func == torch.randint:
             dims = Size(args[3])
             args = args[:3] + (dims,)
-        types = tuple(cls if t == torch.nn.Parameter else t for t in types)
+        types = tuple(cls if t in [torch.nn.Parameter, tp.nn.Parameter] else t for t in types)
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
@@ -643,12 +643,12 @@ class Tensor(torch.Tensor):
                         elif ichannel >= offset and isinstance(rp[ichannel - offset], builtins.int): ichannel = None
                     if ibatch is not None:
                         r._batch_dimension = ibatch - \
-                            len([d for d in range(len(lp)) if (0 <= d < ibatch or d + ndim < ibatch) and isinstance(lp[d], builtins.int)]) - \
-                            len([d for d in range(offset, ndim) if (0 <= d < ibatch or d + ndim < ibatch) and isinstance(rp[d-offset], builtins.int)])
+                            len([d for d in builtins.range(len(lp)) if (0 <= d < ibatch or d + ndim < ibatch) and isinstance(lp[d], builtins.int)]) - \
+                            len([d for d in builtins.range(offset, ndim) if (0 <= d < ibatch or d + ndim < ibatch) and isinstance(rp[d-offset], builtins.int)])
                     if ichannel is not None:
                         r._channel_dimension = ichannel - \
-                            len([d for d in range(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(lp[d], builtins.int)]) - \
-                            len([d for d in range(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(rp[d-offset], builtins.int)])
+                            len([d for d in builtins.range(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(lp[d], builtins.int)]) - \
+                            len([d for d in builtins.range(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(rp[d-offset], builtins.int)])
                 else: raise RuntimeError(f"{func} needs to be override. ")
         if to_squeeze: return ret[0]
         else: return ret
@@ -851,6 +851,17 @@ class Tensor(torch.Tensor):
         return output_tensor
 
     @params
+    def pick(self, dim: builtins.int, index: builtins.int):
+        """
+        pick(self, dim, index) -> Tensor
+
+        pick one of the item on dimension `dim` for big tensors. 
+        data.pick(2, 4) is equivalent to data[:, :, 4]
+        """
+        if dim < 0: dim += self.ndim
+        return self[(slice(None),) * dim + (index,)]
+
+    @params
     def mvdim(self, dim1: builtins.int, dim2: builtins.int):
         """
         mvdim(self, dim1, dim2) -> Tensor
@@ -858,9 +869,22 @@ class Tensor(torch.Tensor):
         move dim1 to dim2(specified in the targeting size)
         data of size (2, 3, 4, 5) can be transform to (2, 4, 5, 3) by data.mvdim(1, -1) or data.mvdim(1, 3)
         """
+        if dim1 < 0: dim1 += self.ndim
+        if dim2 < 0: dim2 += self.ndim
         if dim1 == dim2: return self
         elif dim1 < dim2: return self.unsqueeze(dim2+1).transpose(dim1, dim2+1).squeeze(dim1)
         else: return self.unsqueeze(dim2).transpose(dim1+1, dim2).squeeze(dim1+1)
+
+    @params
+    def mvdim_(self, dim1: builtins.int, dim2: builtins.int):
+        """
+        In-place operation for mvdim
+        """
+        if dim1 < 0: dim1 += self.ndim
+        if dim2 < 0: dim2 += self.ndim
+        if dim1 == dim2: return self
+        elif dim1 < dim2: return self.unsqueeze_(dim2+1).transpose_(dim1, dim2+1).squeeze_(dim1)
+        else: return self.unsqueeze_(dim2).transpose_(dim1+1, dim2).squeeze_(dim1+1)
 
     @property
     def T(self: 'Tensor') -> 'Tensor':
