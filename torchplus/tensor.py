@@ -531,8 +531,6 @@ class Tensor(torch.Tensor):
             dims = args[1:]
             if len(dims) == 1: dims = dims[0]
             args = args[:1] + Size(dims)
-        elif func in [torch.unsqueeze, torch.Tensor.unsqueeze, torch.Tensor.unsqueeze_]:
-            dims = args[1:]
         elif func in [torch.Tensor.view_as, torch.Tensor.reshape_as]:
             dims = args[1].shape
         elif func == torch.randint:
@@ -558,6 +556,22 @@ class Tensor(torch.Tensor):
             ]:
                 r.special_from(dims)
             if (ibatch is not None or ichannel is not None) and not r.has_special:
+                if func in [torch.transpose, torch.Tensor.transpose, torch.Tensor.transpose_]:
+                    dim1, dim2 = args[1:]
+                    if dim1 < 0: dim1 += ndim
+                    if dim2 < 0: dim2 += ndim
+                    r._batch_dimension = ibatch
+                    r._channel_dimension = ichannel
+                    if ibatch == dim1: r._batch_dimension = dim2
+                    elif ibatch == dim2: r._batch_dimension = dim1
+                    if ichannel == dim1: r._channel_dimension = dim2
+                    elif ichannel == dim2: r._channel_dimension = dim1
+                    continue
+                if func == torch.Tensor.permute:
+                    dims = args[1:]
+                    if ibatch is not None: r._batch_dimension = dims.index(ibatch)
+                    if ichannel is not None: r._channel_dimension = dims.index(ichannel)
+                    continue
                 if ndim == len(r.ishape):
                     r._batch_dimension = ibatch
                     r._channel_dimension = ichannel
@@ -593,6 +607,19 @@ class Tensor(torch.Tensor):
                         if ichannel is not None and (0 <= d <= ichannel or d + ndim <= ichannel): ichannel += 1
                     if ibatch is not None: r._batch_dimension = ibatch
                     if ichannel is not None: r._channel_dimension = ichannel
+                elif func in [torch.flatten, torch.Tensor.flatten]:
+                    dims = args[1:]
+                    if len(dims) == 1:
+                        dim = dims[0]
+                        if dim < 0: dim += ndim
+                        if ibatch is not None and ibatch >= dim: r._batch_dimension = None
+                        if ichannel is not None and ichannel >= dim: r._channel_dimension = None
+                    else:
+                        dim1, dim2 = dims
+                        if dim1 < 0: dim1 += ndim
+                        if dim2 < 0: dim2 += ndim
+                        if ibatch is not None and dim1 <= ibatch <= dim2: r._batch_dimension = None
+                        if ichannel is not None and dim1 <= ichannel <= dim2: r._channel_dimension = None
                 elif func == torch.Tensor.__getitem__:
                     dims = args[1]
                     if not isinstance(dims, tuple): dims = (dims,)
@@ -826,8 +853,9 @@ class Tensor(torch.Tensor):
         move dim1 to dim2(specified in the targeting size)
         data of size (2, 3, 4, 5) can be transform to (2, 4, 5, 3) by data.mvdim(1, -1) or data.mvdim(1, 3)
         """
-        # self.unsqueeze(-1)
-        # return 
+        if dim1 == dim2: return self
+        elif dim1 < dim2: return self.unsqueeze(dim2+1).transpose(dim1, dim2+1).squeeze(dim1)
+        else: return self.unsqueeze(dim2).transpose(dim1+1, dim2).squeeze(dim1+1)
 
     @property
     def T(self: 'Tensor') -> 'Tensor':
