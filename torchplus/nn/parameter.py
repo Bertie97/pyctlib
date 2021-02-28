@@ -10,6 +10,7 @@ import torchplus
 import torch
 from collections import OrderedDict
 from ..tensor import _auto_device
+from torch._C import _disabled_torch_function_impl
 
 class Parameter(torchplus.Tensor):
     r"""A kind of Tensor that is to be considered a module parameter.
@@ -54,3 +55,5 @@ class Parameter(torchplus.Tensor):
             torch._utils._rebuild_parameter,
             (self.data, self.requires_grad, OrderedDict())
         )
+
+    __torch_function__ = _disabled_torch_function_impl

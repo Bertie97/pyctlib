@@ -528,8 +528,9 @@ class Tensor(torch.Tensor):
             torch.reshape, torch.Tensor.reshape, torch.Tensor.view,
             torch.zeros, torch.ones, torch.rand, torch.randn
         ]:
-            dims = Size(args[1:])
-            args = args[:1] + dims
+            dims = args[1:]
+            if len(dims) == 1: dims = dims[0]
+            args = args[:1] + Size(dims)
         elif func in [torch.unsqueeze, torch.Tensor.unsqueeze, torch.Tensor.unsqueeze_]:
             dims = args[1:]
         elif func in [torch.Tensor.view_as, torch.Tensor.reshape_as]:
@@ -574,22 +575,22 @@ class Tensor(torch.Tensor):
                         if len(dims) == 1 and iterable(dims[0]): dims = dims[0]
                         if ibatch in dims: ibatch = None
                         if ichannel in dims: ichannel = None
-                        if ibatch is not None: r._batch_dimension = ibatch - len([d for d in dims if d < ibatch])
-                        if ichannel is not None: r._channel_dimension = ichannel - len([d for d in dims if d < ichannel])
+                        if ibatch is not None: r._batch_dimension = ibatch - len([d for d in dims if 0 <= d < ibatch or d + ndim < ibatch])
+                        if ichannel is not None: r._channel_dimension = ichannel - len([d for d in dims if 0 <= d < ichannel or d + ndim < ichannel])
                 elif func in [torch.squeeze, torch.Tensor.squeeze, torch.Tensor.squeeze_]:
                     dims = args[1:]
                     if len(dims) == 1 and iterable(dims[0]): dims = dims[0]
                     if len(dims) == 0: dims = tuple(i for i, x in enumerate(self.ishape) if x == 1)
                     if ibatch in dims: ibatch = None
                     if ichannel in dims: ichannel = None
-                    if ibatch is not None: r._batch_dimension = ibatch - len([d for d in dims if d < ibatch])
-                    if ichannel is not None: r._channel_dimension = ichannel - len([d for d in dims if d < ichannel])
+                    if ibatch is not None: r._batch_dimension = ibatch - len([d for d in dims if 0 <= d < ibatch or d + ndim < ibatch])
+                    if ichannel is not None: r._channel_dimension = ichannel - len([d for d in dims if 0 <= d < ichannel or d + ndim < ichannel])
                 elif func in [torch.unsqueeze, torch.Tensor.unsqueeze, torch.Tensor.unsqueeze_]:
                     dims = args[1:]
                     if len(dims) == 1 and iterable(dims[0]): dims = dims[0]
                     for d in dims:
-                        if ibatch is not None and d <= ibatch: ibatch += 1
-                        if ichannel is not None and d <= ichannel: ichannel += 1
+                        if ibatch is not None and (0 <= d <= ibatch or d + ndim <= ibatch): ibatch += 1
+                        if ichannel is not None and (0 <= d <= ichannel or d + ndim <= ichannel): ichannel += 1
                     if ibatch is not None: r._batch_dimension = ibatch
                     if ichannel is not None: r._channel_dimension = ichannel
                 elif func == torch.Tensor.__getitem__:
@@ -610,12 +611,12 @@ class Tensor(torch.Tensor):
                         elif ichannel >= offset and isinstance(rp[ichannel - offset], builtins.int): ichannel = None
                     if ibatch is not None:
                         r._batch_dimension = ibatch - \
-                            len([d for d in range(len(lp)) if d < ibatch and isinstance(lp[d], builtins.int)]) - \
-                            len([d for d in range(offset, ndim) if d < ibatch and isinstance(rp[d-offset], builtins.int)])
+                            len([d for d in range(len(lp)) if (0 <= d < ibatch or d + ndim < ibatch) and isinstance(lp[d], builtins.int)]) - \
+                            len([d for d in range(offset, ndim) if (0 <= d < ibatch or d + ndim < ibatch) and isinstance(rp[d-offset], builtins.int)])
                     if ichannel is not None:
                         r._channel_dimension = ichannel - \
-                            len([d for d in range(len(lp)) if d < ichannel and isinstance(lp[d], builtins.int)]) - \
-                            len([d for d in range(offset, ndim) if d < ichannel and isinstance(rp[d-offset], builtins.int)])
+                            len([d for d in range(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(lp[d], builtins.int)]) - \
+                            len([d for d in range(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(rp[d-offset], builtins.int)])
                 else: raise RuntimeError(f"{func} needs to be override. ")
         if to_squeeze: return ret[0]
         else: return ret
@@ -800,21 +801,33 @@ class Tensor(torch.Tensor):
         sample(self, dim: int = self.batch_dimension, numbder: int = 1, random: bool = True) -> Tensor
 
         Sample a few subspaces from a given dimension.
-        data.sample(2, 1, random=False) is equivalant to data[:, :, :1, ...].
+        data.sample(2, 1, random=False) is equivalant to data[:, :, 0, ...].
         """
         if dim is None or isinstance(dim, list) and dim == []: dim = self.batch_dimension
         if dim is None or isinstance(dim, set) and dim == {}: dim = self.channel_dimension
         if dim is None: raise TypeError("Argument 'dim' needed for sampling Tensors with no special dimensions. ")
+        if number < 1: raise TypeError("Argument 'number' for sampling Tensors can not be smaller than 1. ")
         sample_indices = [slice(None)] * self.dim()
         if self.shape[dim] < number: raise TypeError(f"Too many elements needed to be sampled from dimension {dim}")
         if random:
             import random
             samples = random.sample(builtins.range(self.shape[dim]), k = number)
         else: samples = list(builtins.range(number))
-        sample_indices[dim] = samples
+        sample_indices[dim] = samples if len(samples) > 1 else samples[0]
         output_tensor = Tensor(self[tuple(sample_indices)])
         output_tensor.indices = samples
         return output_tensor
+
+    @params
+    def mvdim(self, dim1: builtins.int, dim2: builtins.int):
+        """
+        mvdim(self, dim1, dim2) -> Tensor
+
+        move dim1 to dim2(specified in the targeting size)
+        data of size (2, 3, 4, 5) can be transform to (2, 4, 5, 3) by data.mvdim(1, -1) or data.mvdim(1, 3)
+        """
+        # self.unsqueeze(-1)
+        # return 
 
     @property
     def T(self: 'Tensor') -> 'Tensor':
