@@ -7,7 +7,8 @@
 
 import sys
 # sys.path.append("/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib")
-sys.path.append("../..")
+# sys.path.append("../..")
+sys.path = ["../.."] + sys.path
 
 
 import torch
@@ -23,7 +24,7 @@ with scope("test tp, cpu"):
     LP = tp.nn.Linear(400, 400)
     for _ in range(10): a = LP(a)
     a.sum().backward()
-    
+
 torch.manual_seed(0)
 with scope("test torch, cpu"):
     t_ = torch.Tensor(3000, 400).requires_grad_(True)
@@ -31,7 +32,7 @@ with scope("test torch, cpu"):
     LP_ = torch.nn.Linear(400, 400)
     for _ in range(10): a_ = LP(a_)
     a_.sum().backward()
-    
+
 assert t.allclose(t_)
 assert t._grad.allclose(t_._grad)
 
