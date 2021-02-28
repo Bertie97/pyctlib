@@ -29,13 +29,14 @@ from functools import wraps
 from types import GeneratorType, MethodWrapperType
 from collections import OrderedDict
 from .torch_namespace import *
+from .device import AutoDevice as Device
 
 """
 from torchplus import Tensor
 import torchplus as tp
 """
 
-Device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# Device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 _auto_device = True
 

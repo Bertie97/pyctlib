@@ -9,6 +9,7 @@
 import torchplus
 import torch
 from collections import OrderedDict
+from ..tensor import _auto_device
 
 class Parameter(torchplus.Tensor):
     r"""A kind of Tensor that is to be considered a module parameter.
@@ -32,7 +33,7 @@ class Parameter(torchplus.Tensor):
         if data is None:
             data = torchplus.Tensor()
         assert isinstance(data, torch.Tensor)
-        self = torchplus.Tensor._make_subclass(cls, data.data, auto_device=False, requires_grad=requires_grad)
+        self = torchplus.Tensor._make_subclass(cls, data.data, auto_device=_auto_device, requires_grad=requires_grad)
         # self._batch_dimension = data._batch_dimension
         return self
 
