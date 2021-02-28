@@ -977,7 +977,7 @@ class Tensor(torch.Tensor):
     lt le gt ge
     '''.split():
         exec(f"def __{op}__(self, *args, **kwargs): return self.__op__('__{op}__', *args, **kwargs)")
-    
+
     ###### old operation code ######
     #    if isinstance(other, torch.Tensor):
     #        other = Tensor(other)
