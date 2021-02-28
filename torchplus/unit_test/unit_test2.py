@@ -16,7 +16,7 @@ sys.path = ["../.."] + sys.path
 import torchplus as tp
 from pyctlib import scope
 
-tp.set_autodevice(False)
+tp.set_autodevice(True)
 tp.manual_seed(0)
 with scope("test tp, cpu"):
     t = tp.randn(3000, 400, requires_grad=True)
