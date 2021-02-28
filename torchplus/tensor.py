@@ -12,7 +12,7 @@ __all__ = """
     Size
     set_autodevice
     unset_autodevice
-    get_autodevice
+    is_autodevice
 """.split()
 
 try:

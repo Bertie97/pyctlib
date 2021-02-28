@@ -29,9 +29,9 @@ class Linear(Module):
             self.bias = Parameter(torchplus.zeros(out_features))
         else:
             self.register_parameter('bias', None)
-        print(self.weight)
+        # print(self.weight)
         self.reset_parameters()
-        print(self.weight)
+        # print(self.weight)
         self.activation = activation
 
     def reset_parameters(self) -> None:
