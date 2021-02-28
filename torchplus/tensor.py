@@ -1038,8 +1038,11 @@ for key in dir(torch):
         # functions
         exec(f"{key} = torch.{key}")
         __all__.append(key)
+    if key in torch_type_list:
+        exec(f"{key} = torch.{key}")
+        __all__.append(key)
 
-for key in '''
-no_grad
-'''.split():
-    exec(f"{key} = torch.{key}")
+# for key in '''
+# no_grad
+# '''.split():
+#     exec(f"{key} = torch.{key}")

@@ -8,13 +8,13 @@
 import sys
 # sys.path.append("/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib")
 # sys.path.append("../..")
+import copy
+import torch
 sys.path = ["../.."] + sys.path
 
 
-import torch
 import torchplus as tp
 from pyctlib import scope
-import copy
 
 tp.set_autodevice(False)
 tp.manual_seed(0)
