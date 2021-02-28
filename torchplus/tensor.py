@@ -1073,11 +1073,11 @@ __all__.extend(["randint", "randint_like"])
 __all__.extend(["eye", "t", "unsqueeze", "tensor"])
 
 @overload
-def eye(*size: SizeRep.itemtypes):
-    return eye(size)
+def eye(*size: SizeRep.itemtypes, **kwargs):
+    return eye(size, **kwargs)
 
 @overload
-def eye(size: SizeRep | Size):
+def eye(size: SizeRep | Size, **kwargs):
     size = Size(size)
     if size.nspace < 1: raise TypeError("Empty size not valid for 'eye'. ")
     if size.nspace == 1: size = size + (size.space[0],)
@@ -1087,7 +1087,7 @@ def eye(size: SizeRep | Size):
     for i in builtins.range(size.ndim):
         if i not in size.special:
             s[i] = torch.arange(n)
-    out = zeros(size)
+    out = zeros(size, **kwargs)
     out[tuple(s)] = 1
     return out
 
