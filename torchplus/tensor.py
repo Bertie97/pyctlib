@@ -826,6 +826,8 @@ class Tensor(torch.Tensor):
             raise TypeError("unsqueeze function only accept either argument or positional argument. But both are given")
         if dim is None:
             dim = dims
+        if isinstance(dim, builtins.int):
+            dim = (dim, )
         if len(dim) == 0: dim = (0,)
         for d in dim:
             self = super(torch.Tensor, self).unsqueeze(d)
@@ -837,6 +839,8 @@ class Tensor(torch.Tensor):
             raise TypeError("unsqueeze function only accept either argument or positional argument. But both are given")
         if dim is None:
             dim = dims
+        if isinstance(dim, builtins.int):
+            dim = (dim, )
         if len(dim) == 0: dim = (0,)
         for d in dim: super(torch.Tensor, self).unsqueeze_(d)
         return self
