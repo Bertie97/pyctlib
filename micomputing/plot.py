@@ -15,6 +15,7 @@ except ImportError:
 import torchplus as tp
 from matplotlib.pyplot import *
 from pyoverload import *
+from matplotlib import colors as mc
 
 canvas = None
 
@@ -26,19 +27,37 @@ def to_image(data: Array, nslice: [int, null]=None, dim: int=-1):
         if data.has_batch: data = data.sample(random=False, dim=[])
         if data.has_channel: data = data.sample(random=False, dim={})
         if nslice is None:
-            if data.space[-1] <= 3: ret = data.normalize().numpy()
-            elif data.space[0] <= 3: ret = data.mvdim(0, 2).normalize().numpy()
+            if data.space[-1] <= 3: return data.normalize().numpy()
+            elif data.space[0] <= 3: return data.mvdim(0, 2).normalize().numpy()
             else: nslice = data.space[-1] // 2
-        else: ret = data.pick(dim, nslice).normalize().numpy()
+        return data.pick(dim, nslice).normalize().numpy()
     elif data.nspace == 2:
         if data.has_batch: data = data.sample(random=False, dim=[])
         if data.has_channel:
             if has_cmap: data = data.sample(random=False, dim={})
             else: data = data.sample(number=min(data.channel_size, 3), random=False, dim={}).mvdim(data.channel_dimension, -1)
-        ret = data.normalize().numpy()
-    elif data.ndim == 3: ret = data.sample(random=False, dim=[]).normalize().numpy()
-    else: ret = data.normalize().numpy()
-    return ret
+        return data.normalize().numpy()
+    elif data.ndim == 3: return data.sample(random=False, dim=[]).normalize().numpy()
+    return data.normalize().numpy()
+
+def to_RGB(*color):
+    if len(color) = 0: return (1.,) * 3
+    elif len(color) == 1:
+        c = color[0]
+        if isinstance(c, float) and 0 <= c <= 1: return (c,) * 3
+        elif isinstance(c, (int, float)) and 0 <= c <= 255: return (c / 255,) * 3
+        elif isinstance(c, tuple): return to_RGB(*c)
+        elif isinstance(c, str):
+            if not c.startswith('#'): c = mc.BASE_COLORS.get(c.lower(), mc.CSS4_COLORS.get(c.lower(), '#FFF'))
+            if isinstance(c, tuple): return to_RGB(*c)
+            return mc.hex2color(c)
+        else: raise TypeError("Unaccepted color type. ")
+    elif len(color) == 3:
+        if all(isinstance(c, float) and 0 <= c <= 1 for c in color): return color
+        elif all(isinstance(c, (int, float)) and 0 <= c <= 255 for c in color): return tuple(c / 255 for c in color)
+        else: raise TypeError("Unaccepted color type. ")
+    else: raise TypeError("Unaccepted color type. ")
+
 
 @params
 def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
@@ -60,17 +79,27 @@ def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
     canvas = to_image(data, nslice, dim)
     return plt.imshow(canvas, **kwargs)
 
+def background(*color):
+    """
+    Set a background color by RGB or a gray scale, conflict with imshow. 
+    """
+    global canvas
+    canvas = to_RGB(*color)
+
 @params
 def maskshow(*masks, alpha=0.5, nslice=None, dim=-1, **kwargs):
+    if len(masks) == 0: return
     new_masks = []
     for m in masks:
         img = to_image(m, nslice, dim)
         if img.ndim == 3: new_masks.extend(x.squeeze(-1) for x in img.split(1, dim=-1))
         else: new_masks.append(img)
     colors = ['red', 'green', 'blue', 'gold', 'purple', 'gray', 'pink', 'darkgreen', 'dodgerblue']
-    colormap = {'R': 'red', 'G': 'green', 'B': 'blue', 'C': 'cyan', 'M': 'magenta', 'Y': 'yellow', 'K': 'black'}
-    kwargs = {colormap[k]: v for k, v in kwargs.items()}
-    kwargs.update(dict(zip(colors*(len(new_masks) // len(colors) + 1), new_masks)))
+    assert all(c in mc.CSS4_COLORS for c in colors)
+    color_mask_map = {to_RGB(k): v for k, v in kwargs.items()}
+    color_mask_map.update({to_RGB(k): v for k, v in zip(colors*(len(new_masks) // len(colors) + 1), new_masks))})
+    if len({m.ishape for m in color_mask_map.values()}) > 1: raise TypeError('Please')
+
 
 @overload
 def maskshow(*masks: Array, on=None: [null, Array], **kwargs):

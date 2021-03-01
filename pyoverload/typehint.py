@@ -46,7 +46,7 @@ __all__ = """
 """.split()
 
 import re, sys
-from pyoverload.utils import decorator, get_environ_vars
+from pyoverload.utils import decorator, get_environ_vars, raw_function, _get_wrapped
 
 try:
     import inspect
@@ -692,7 +692,7 @@ def params(*types, run=True, **kwtypes):
     if len(types) == 1 and len(kwtypes) == 0 and Functional(types[0]): return params()(types[0])
     @decorator
     def induced_decorator(func):
-        declaration = _getDeclaration(func)
+        declaration = _getDeclaration(_get_wrapped(raw_function(func)))
         eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", declaration))
         ekwargs = ''.join(re.findall(r"[^*]\*{2} *(\w+)\b", declaration))
         depth = []

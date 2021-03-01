@@ -56,6 +56,8 @@ class Parameter(torchplus.Tensor):
             (self.data, self.requires_grad, OrderedDict())
         )
 
+    def __hash__(self): return id(self)
+
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         ret = super().__torch_function__(func, types, args, kwargs)

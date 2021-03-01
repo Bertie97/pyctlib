@@ -24,7 +24,7 @@ def _restore_type_wrapper(func: Callable, special_attr: List[str]):
             constructor = np.array
         elif "torch.Tensor" in str(totype):
             import torch
-            constructor = lambda x: x if isinstance(x, torch.Tensor) else torch.tensor(x)
+            constructor = lambda x: x.as_subclass(torch.Tensor) if isinstance(x, torch.Tensor) else torch.tensor(x)
         if not isinstance(ret, tuple): ret = (ret,)
         output = tuple()
         for r in ret:
