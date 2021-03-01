@@ -107,9 +107,15 @@ class vector(list):
                     error_information = "Exception raised in map function at location {} for element {}".format(index, "<unknown>")
                 raise RuntimeError(error_information)
 
-    def apply(self, func) -> None:
+    @overload
+    def apply(self, func: Functional) -> None:
         for x in self:
             func(x)
+
+    @overload
+    def apply(self, command: str) -> None:
+        for x in self:
+            exec(command.format(x))
 
     def check_type(self, instance):
         return all(self.map(lambda x: isinstance(x, instance)))
@@ -188,7 +194,6 @@ class vector(list):
     def _(self, other: list):
         return vector(zip(self, other)).map(lambda x: x[0] >= x[1])
 
-    # @override
     def __getitem__(self, index):
         if isinstance(index, slice):
             return vector(super().__getitem__(index))
@@ -196,11 +201,6 @@ class vector(list):
             assert len(self) == len(index)
             return vector(zip(self, index)).filter(lambda x: x[1]).map(lambda x: x[0])
         return super().__getitem__(index)
-
-    # @__getitem__
-    # def _(self, index_list: list):
-    #     assert len(self) == len(index_list)
-    #     return vector(zip(self, index_list)).filter(lambda x: x[1]).map(lambda x: x[0])
 
     @overload
     def __sub__(self, other: Iterable):
