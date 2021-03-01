@@ -58,7 +58,11 @@ def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
 
 @params
 def maskshow(*masks, alpha=0.5, **kwargs):
-    pass
+    colors = ['red', 'green', 'blue', 'gold', 'purple', 'gray', 'pink', 'darkgreen', 'dodgerblue']
+    colormap = {'R': 'red', 'G': 'green', 'B': 'blue', 'C': 'cyan', 'M': 'magenta', 'Y': 'yellow', 'K': 'black'}
+    kwargs = {colormap[k]: v for k, v in kwargs.items()}
+    kwargs.update(dict(zip(colors*(len(masks) // len(colors) + 1), masks)))
+    
 
 @overload
 def maskshow(*masks: Array, on=None: [null, Array], **kwargs):

@@ -1102,23 +1102,23 @@ def eye(size: SizeRep | Size, **kwargs):
     out[tuple(s)] = 1
     return out
 
-def cat(*list_of_tensors, dim=None):
+def cat(*list_of_tensors, dim=None, **kwargs):
     if dim is None:
         dims = [t for t in list_of_tensors if isinstance(t, builtins.int)]
         if len(dims) > 0: dim = dims[0]
         else: dim = 0
     if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
         list_of_tensors = list_of_tensors[0]
-    return torch.cat(list_of_tensors, dim)
+    return torch.cat(list_of_tensors, dim, **kwargs)
 
-def stack(*list_of_tensors, dim=None):
+def stack(*list_of_tensors, dim=None, **kwargs):
     if dim is None:
         dims = [t for t in list_of_tensors if isinstance(t, builtins.int)]
         if len(dims) > 0: dim = dims[0]
         else: dim = 0
     if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
         list_of_tensors = list_of_tensors[0]
-    return torch.stack(list_of_tensors, dim)
+    return torch.stack(list_of_tensors, dim, **kwargs)
 
 @params
 def t(tensor: Array.Torch):
