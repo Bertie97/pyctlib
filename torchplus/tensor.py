@@ -1163,8 +1163,8 @@ def t(tensor: Array.Torch):
     return Tensor(tensor).T
 
 @params
-def unsqueeze(tensor: Array.Torch, *dim: int):
-    return Tensor(tensor).unsqueeze(*dim)
+def unsqueeze(tensor: Array.Torch, *dims: int, dim=None):
+    return Tensor(tensor).unsqueeze(*dim, dim=dim)
 
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:
