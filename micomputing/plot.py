@@ -6,9 +6,6 @@
 ## Package micomputing
 ##############################
 
-__all__ = """
-""".split()
-
 try: from matplotlib import pyplot as plt
 except ImportError:
     raise ImportError("'pyctlib.mic.plot' cannot be used without dependency 'matplotlib'. ")
@@ -87,7 +84,7 @@ def background(*color):
     canvas = to_RGB(*color)
 
 @params
-def maskshow(*masks, alpha=0.5, nslice=None, dim=-1, **kwargs):
+def maskshow(*masks, alpha=0.5, nslice=None, dim=-1, stretch=False, **kwargs):
     if len(masks) == 0: return
     new_masks = []
     for m in masks:
@@ -98,7 +95,22 @@ def maskshow(*masks, alpha=0.5, nslice=None, dim=-1, **kwargs):
     assert all(c in mc.CSS4_COLORS for c in colors)
     color_mask_map = {to_RGB(k): v for k, v in kwargs.items()}
     color_mask_map.update({to_RGB(k): v for k, v in zip(colors*(len(new_masks) // len(colors) + 1), new_masks))})
-    if len({m.ishape for m in color_mask_map.values()}) > 1: raise TypeError('Please')
+
+    if not stretch:
+        shapes = [m.ishape for m in color_mask_map.values()]
+        if len(set(shapes)) > 1 or not isinstance(canvas, tuple) and shapes[0] != canvas.shape:
+            raise TypeError("Please use masks of the same size as the background image, "
+                            "or use 'stretch=True' in 'maskshow' to automatically adjust the image sizes. ")
+    else:
+        def adjust(m, to):
+            ms = tuple(m.shape)
+            scaling = tuple((a // b, b // a) for a, b in zip(to, ms))
+            return tp.crop_as(tp.up_scale(tp.down_scale(m, [max(v, 1) for u, v in scaling]), [max(u, 1) for u, v in scaling]), to)
+        target_shape = canvas.shape if not isinstance(canvas, tuple) else next(color_mask_map.values()
+        color_mask_map = {k: adjust(v, to=target_shape) for k, v in color_mask_map.items()}
+
+    alpha = totuple(alpha, len(color_mask_map))
+
 
 
 @overload
