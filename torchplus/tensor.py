@@ -1160,6 +1160,20 @@ def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=Fal
         return data.as_subclass(Tensor)
     return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory).as_subclass(Tensor)
 
+# print(torch_type_list - (torch_type_list - globals()))
+# print(torch_dtype_list - (torch_dtype_list - globals()))
+# print(torch_func_list - (torch_func_list - globals()))
+
+for key in torch_dtype_list:
+    if not (key in __all__ or key in globals()):
+        exec(f"{key} = torch.{key}")
+        __all__.append(key)
+
+for key in torch_type_list:
+    if not (key in __all__ or key in globals()):
+        exec(f"{key} = torch.{key}")
+        __all__.append(key)
+
 for key in dir(torch):
     if key.startswith("_"):
         continue
@@ -1167,14 +1181,7 @@ for key in dir(torch):
         continue
     if (key in __all__ or key in globals()) and key not in {"typename"}:
         continue
-    if key in torch_dtype_list:
-        # dtypes
-        exec(f"{key} = torch.{key}")
-        __all__.append(key)
     if key in torch_func_list:
         # functions
-        exec(f"{key} = torch.{key}")
-        __all__.append(key)
-    if key in torch_type_list:
         exec(f"{key} = torch.{key}")
         __all__.append(key)
