@@ -24,6 +24,12 @@ Usage:
 from pyctlib.vector import *
 """
 
+def totuple(x, l=None):
+    if not isinstance(x, tuple): x = (x,)
+    if l is None: l = len(x)
+    if l % len(x) == 0: return x * (l // len(x))
+    raise TypeError(f"{x} can not be converted into a tuple of length {l}. ")
+
 def raw_function(func):
     if "__func__" in dir(func):
         return func.__func__
