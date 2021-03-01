@@ -8,6 +8,7 @@
 __all__ = """
     get_environ_vars
     touch
+    crash
 """.split()
 
 import sys
@@ -100,3 +101,10 @@ def touch(v: [callable, str], default=None):
     else:
         try: return v()
         except: return default
+
+def crash(func):
+    try:
+        func()
+    except:
+        return True
+    return False

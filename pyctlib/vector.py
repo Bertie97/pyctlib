@@ -17,15 +17,12 @@ from types import GeneratorType
 from collections import Counter
 from pyoverload import *
 from functools import wraps
+from .touch import touch, crash
 
 """
 Usage:
 from pyctlib.vector import *
 """
-
-def touch(f: Callable):
-    try: return f()
-    except: return None
 
 def raw_function(func):
     if "__func__" in dir(func):
@@ -282,31 +279,36 @@ class vector(list):
             return len(self)
         return super().count(args[0])
 
-    # @overload
-    # def index(self, element: int):
-    #     return super().index(element)
-
-    # @overload
     def index(self, element):
-        if isinstance(element, int):
-            return super().index(element)
-        elif callable(element):
+        # if isinstance(element, int):
+        #     return super().index(element)
+        if callable(element):
             for index in range(len(self)):
-                if element(self[index]):
+                if touch(lambda: element(self[index])):
                     return index
             return -1
         else:
-            raise RuntimeError("error input for index")
+            return super().index(element)
+
+    def findall(self, element):
+        if callable(element):
+            return vector([index for index in range(len(self)) if touch(lambda: element(self[index]))])
+        else:
+            return vector([index for index in range(len(self)) if self[index] == element])
+
+    def findall_crash(self, func):
+        assert callable(func)
+        return vector([index for index in range(len(self)) if crash(lambda: func(self[index]))])
 
     def all(self, func=lambda x: x):
         for t in self:
-            if not func(t):
+            if not touch(lambda: func(t)):
                 return False
         return True
 
     def any(self, func=lambda x: x):
         for t in self:
-            if func(t):
+            if touch(lambda: func(t)):
                 return True
         return False
 

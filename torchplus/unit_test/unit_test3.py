@@ -15,6 +15,7 @@ sys.path = ["../.."] + sys.path
 
 import torchplus as tp
 from pyctlib import scope
+from pyctlib import vector
 
 ##############################
 ## Test CPU
