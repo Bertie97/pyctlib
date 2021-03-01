@@ -550,7 +550,8 @@ class Tensor(torch.Tensor):
         ]:
             dims = args[1:]
             if len(dims) == 1: dims = dims[0]
-            args = args[:1] + Size(dims)
+            dims = Size(dims)
+            args = args[:1] + (dims,)
         elif func in [torch.Tensor.view_as, torch.Tensor.reshape_as]:
             dims = args[1].shape
         elif func == torch.randint:
