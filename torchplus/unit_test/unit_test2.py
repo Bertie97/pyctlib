@@ -34,6 +34,10 @@ with scope("test torch, cpu"):
     a_.sum().backward()
 
 assert a.is_cuda is False
+assert isinstance(t, tp.Tensor)
+assert isinstance(a, tp.Tensor)
+assert isinstance(LP.weight, tp.nn.Parameter)
+assert isinstance(LP.bias, tp.nn.Parameter)
 # assert t.allclose(t_)
 # assert t._grad.allclose(t_._grad)
 
@@ -55,6 +59,15 @@ with scope("test torch, gpu"):
     a_.sum().backward()
 
 assert t.allclose(t_.to(tp.Device))
-assert a.is_cuda
+assert isinstance(t, tp.Tensor)
+assert isinstance(a, tp.Tensor)
+assert isinstance(LP.weight, tp.nn.Parameter)
+assert isinstance(LP.bias, tp.nn.Parameter)
+if torch.cuda.is_available():
+    assert a.is_cuda
+    assert t.is_cuda
+
+tp.nn.ParameterList([tp.nn.Parameter(tp.zeros(30)), tp.nn.Parameter(tp.zeros(30))])
+tp.nn.ParameterList([LP.weight, LP.bias])
 # assert a.allclose(a_)
 # assert t._grad.allclose(t_._grad.to(tp.Device))

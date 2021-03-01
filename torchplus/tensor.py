@@ -24,6 +24,7 @@ import typing
 import inspect
 import builtins
 import torchplus as tp
+# from pyoverload import overload, override, Tuple, List, Set, params, null, Array, isarray, isoftype, isofsubclass, isint, isdtype, isitertype, isclassmethod
 from pyoverload import *
 from pyctlib import raw_function, return_type_wrapper, touch
 from functools import wraps
@@ -1148,7 +1149,7 @@ for key in dir(torch):
         continue
     if inspect.isclass(eval(f"torch.{key}")):
         continue
-    if key in __all__ or key in globals():
+    if (key in __all__ or key in globals()) and key not in {"typename"}:
         continue
     if key in torch_dtype_list:
         # dtypes
@@ -1161,8 +1162,3 @@ for key in dir(torch):
     if key in torch_type_list:
         exec(f"{key} = torch.{key}")
         __all__.append(key)
-
-# for key in '''
-# no_grad
-# '''.split():
-#     exec(f"{key} = torch.{key}")
