@@ -7,7 +7,7 @@
 
 import os, sys
 # sys.path.append("/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib")
-# sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 import copy
 import torch
 import numpy as np
@@ -18,8 +18,6 @@ import torchplus as tp
 from pyctlib import scope, jump
 
 t = tp.randn(3000, 400, requires_grad=True)
-print(t.reshape(-1, 20, 20))
-print(t.view((-1, 20, 20)))
 print(tp.nn.functional.normalize(t, p=2, dim=1))
 
 tp.set_autodevice(True)
