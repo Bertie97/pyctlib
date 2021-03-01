@@ -18,6 +18,28 @@ from pyoverload import *
 
 canvas = None
 
+def to_image(data: Array, nslice: [int, null]=None, dim: int=-1):
+    data = tp.Tensor(data).squeeze()
+    if data.ndim <= 1: raise TypeError("Please don't use 'plot.imshow' to demonstrate an array or a scalar. ")
+    if data.nspace > 3: raise TypeError("'plot.imshow' takes 2 or 3D-data as input, please reduce the dimension manually or specify special dimensions to reduce. ")
+    if data.nspace == 3:
+        if data.has_batch: data = data.sample(random=False, dim=[])
+        if data.has_channel: data = data.sample(random=False, dim={})
+        if nslice is None:
+            if data.space[-1] <= 3: ret = data.normalize().numpy()
+            elif data.space[0] <= 3: ret = data.mvdim(0, 2).normalize().numpy()
+            else: nslice = data.space[-1] // 2
+        else: ret = data.pick(dim, nslice).normalize().numpy()
+    elif data.nspace == 2:
+        if data.has_batch: data = data.sample(random=False, dim=[])
+        if data.has_channel:
+            if has_cmap: data = data.sample(random=False, dim={})
+            else: data = data.sample(number=min(data.channel_size, 3), random=False, dim={}).mvdim(data.channel_dimension, -1)
+        ret = data.normalize().numpy()
+    elif data.ndim == 3: ret = data.sample(random=False, dim=[]).normalize().numpy()
+    else: ret = data.normalize().numpy()
+    return ret
+
 @params
 def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
     """
@@ -35,34 +57,20 @@ def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
     if 'cmap' not in kwargs:
         has_cmap = False
         kwargs['cmap'] = plt.cm.gray
-    data = tp.Tensor(data).squeeze()
-    if data.ndim <= 1: raise TypeError("Please don't use 'plot.imshow' to demonstrate an array or a scalar. ")
-    if data.nspace > 3: raise TypeError("'plot.imshow' takes 2 or 3D-data as input, please reduce the dimension manually or specify special dimensions to reduce. ")
-    if data.nspace == 3:
-        if data.has_batch: data = data.sample(random=False, dim=[])
-        if data.has_channel: data = data.sample(random=False, dim={})
-        if nslice is None:
-            if data.space[-1] <= 3: canvas = data.numpy()
-            elif data.space[0] <= 3: canvas = data.mvdim(0, 2).numpy()
-            else: nslice = data.space[-1] // 2
-        else: canvas = data.pick(dim, nslice).numpy()
-    elif data.nspace == 2:
-        if data.has_batch: data = data.sample(random=False, dim=[])
-        if data.has_channel:
-            if has_cmap: data = data.sample(random=False, dim={})
-            else: data = data.sample(number=min(data.channel_size, 3), random=False, dim={}).mvdim(data.channel_dimension, -1)
-        canvas = data.numpy()
-    elif data.ndim == 3: canvas = data.sample(random=False, dim=[]).numpy()
-    else: canvas = data.numpy()
+    canvas = to_image(data, nslice, dim)
     return plt.imshow(canvas, **kwargs)
 
 @params
-def maskshow(*masks, alpha=0.5, **kwargs):
+def maskshow(*masks, alpha=0.5, nslice=None, dim=-1, **kwargs):
+    new_masks = []
+    for m in masks:
+        img = to_image(m, nslice, dim)
+        if img.ndim == 3: new_masks.extend(x.squeeze(-1) for x in img.split(1, dim=-1))
+        else: new_masks.append(img)
     colors = ['red', 'green', 'blue', 'gold', 'purple', 'gray', 'pink', 'darkgreen', 'dodgerblue']
     colormap = {'R': 'red', 'G': 'green', 'B': 'blue', 'C': 'cyan', 'M': 'magenta', 'Y': 'yellow', 'K': 'black'}
     kwargs = {colormap[k]: v for k, v in kwargs.items()}
-    kwargs.update(dict(zip(colors*(len(masks) // len(colors) + 1), masks)))
-    
+    kwargs.update(dict(zip(colors*(len(new_masks) // len(colors) + 1), new_masks)))
 
 @overload
 def maskshow(*masks: Array, on=None: [null, Array], **kwargs):

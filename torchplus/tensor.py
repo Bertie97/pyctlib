@@ -492,10 +492,8 @@ class Tensor(torch.Tensor):
         to_device = cpu
         if device is None and auto_device: to_device = Device
         if device is not None: to_device = device
-        if to_device == cpu:
-            self = torch.Tensor._make_subclass(cls, data, requires_grad)
-        else:
-            self = torch.cuda.Tensor._make_subclass(cls, data, requires_grad)
+        if to_device != data.device: data = data.to(to_device)
+        self = torch.Tensor._make_subclass(cls, data, requires_grad)
         if isinstance(data, cls):
             self.special_from_(data)
         return self
@@ -781,12 +779,33 @@ class Tensor(torch.Tensor):
     @property
     def has_special(self): return self.has_batch or self.has_channel
 
-    def remove_special(self):
+    def remove_special_(self):
         self._batch_dimension = None
         self._channel_dimension = None
+        return self
+
+    def normalize_(self):
+        m, M = self.min(), self.max()
+        if m == M:
+            if M >= 1: return self.one_()
+            if m <= 0: return self.zero_()
+            return self
+        self.sub_(m)
+        self.div_(M-m)
+        return self
+
+    def normalize(self):
+        m, M = self.min(), self.max()
+        if m == M:
+            if M >= 1: return ones_like(self)
+            if m <= 0: return zeros_like(self)
+            return self
+        return (self - m) / (M - m)
 
     def tensor(self): return super()._make_subclass(torch.Tensor, self, self.requires_grad)
     def numpy(self): return super(torch.Tensor, self.cpu().detach()).numpy()
+
+    def one_(self): return self.zero_().add_(1)
 
     @params
     def size(self, *k: [builtins.int, str]):
@@ -1133,15 +1152,15 @@ def t(tensor: Array.Torch):
 def unsqueeze(tensor: Array.Torch, *dim: int):
     return Tensor(tensor).unsqueeze(*dim)
 
-def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
-    if device is None and _auto_device is True:
-        device = Device
-    if isinstance(data, torch.Tensor) and type(data) is not torch.Tensor:
-        if device == torch.device('cpu'):
-            return torch.Tensor._make_subclass(torch.Tensor, data, data.requires_grad)
-        else:
-            return torch.cuda.Tensor._make_subclass(torch.cuda.Tensor, data, data.requires_grad).to(Device)
-    return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory)
+# def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
+#     if device is None and _auto_device is True:
+#         device = Device
+#     if isinstance(data, torch.Tensor) and type(data) is not torch.Tensor:
+#         if device == torch.device('cpu'):
+#             return torch.Tensor._make_subclass(torch.Tensor, data, data.requires_grad)
+#         else:
+#             return torch.cuda.Tensor._make_subclass(torch.cuda.Tensor, data, data.requires_grad).to(Device)
+#     return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory)
 
 for key in dir(torch):
     if key.startswith("_"):
