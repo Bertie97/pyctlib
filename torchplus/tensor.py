@@ -1164,7 +1164,7 @@ def t(tensor: Array.Torch):
 
 @params
 def unsqueeze(tensor: Array.Torch, *dims: int, dim=None):
-    return Tensor(tensor).unsqueeze(*dim, dim=dim)
+    return Tensor(tensor).unsqueeze(*dims, dim=dim)
 
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:
