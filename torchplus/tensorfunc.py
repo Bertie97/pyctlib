@@ -7,14 +7,17 @@
 ##############################
 __all__ = """
     crop_as
+    up_scale
+    down_scale
+    image_grid
 """.split()
 
 from pyoverload import *
-from .tensor import Tensor, Size, ones
 from pyctlib import restore_type_wrapper
 from pyctlib import vector
 import torch
 import numpy as np
+import torchplus as tp
 
 def add_special(size, special, fill=1):
     s = special
@@ -26,11 +29,11 @@ def add_special(size, special, fill=1):
 @overload
 @restore_type_wrapper("roi")
 def crop_as(x: Array, y: tuple, center: tuple, fill: Scalar=0) -> Array:
-    x = Tensor(x)
+    x = tp.Tensor(x)
     size_x = x.shape
     size_y = y
 
-    if isinstance(size_y, Size) and size_x.nspace == size_y.nspace:
+    if isinstance(size_y, tp.Size) and size_x.nspace == size_y.nspace:
         size_y = tuple(size_y.space)
     size_y = tuple(size_y)
     if len(size_y) == len(size_x): pass
@@ -47,7 +50,7 @@ def crop_as(x: Array, y: tuple, center: tuple, fill: Scalar=0) -> Array:
     assert len(center) == len(size_x)
     center = tuple(a / 2 if b == -1 else b for a, b in zip(size_x, center))
 
-    z = fill * ones(*size_y).type_as(x)
+    z = fill * tp.ones(*size_y).type_as(x)
     def intersect(u, v):
         return max(u[0], v[0]), min(u[1], v[1])
     z_box = [intersect((0, ly), (- round(float(m - float(ly) / 2)), - round(float(m - float(ly) / 2)) + lx)) for m, lx, ly in zip(center, size_x, size_y)]
@@ -72,12 +75,16 @@ def crop_as(x: Array, y: [tuple, Array], fill: Scalar=0) -> Array:
 
 @restore_type_wrapper
 def up_scale(image, *scaling:int):
-    image = Tensor(image)
+    image = tp.Tensor(image)
     if len(scaling) == 0:
         scaling = (1,)
-    elif len(scaling) == 1:
-        scaling *= image.nspace
-        scaling = add_special(scaling, image.special, 1)
+    elif len(scaling) == 1 and iterable(scaling[0]):
+        scaling = scaling[0]
+    if len(scaling) == 1:
+        if isinstance(scaling[0], int):
+            scaling *= image.nspace
+            scaling = add_special(scaling, image.special, 1)
+        else: raise TypeError("Unknown scaling type for 'up_scale'. ")
     elif len(scaling) < image.ndim and len(scaling) == image.nspace:
         scaling = add_special(scaling, image.special, 1)
     for i, s in enumerate(scaling):
@@ -92,16 +99,33 @@ def up_scale(image, *scaling:int):
     return image
 
 @restore_type_wrapper
-def down_scale(image, *scaling:int=1):
-    image = Tensor(image)
+def down_scale(image, *scaling:int):
+    image = tp.Tensor(image)
     if len(scaling) == 0:
         scaling = (1,)
-    elif len(scaling) == 1:
-        scaling *= image.nspace
-        scaling = add_special(scaling, image.special, 1)
+    elif len(scaling) == 1 and iterable(scaling[0]):
+        scaling = scaling[0]
+    if len(scaling) == 1:
+        if isinstance(scaling[0], int):
+            scaling *= image.nspace
+            scaling = add_special(scaling, image.special, 1)
+        else: raise TypeError("Unknown scaling type for 'down_scale'. ")
     elif len(scaling) < image.ndim and len(scaling) == image.nspace:
         scaling = add_special(scaling, image.special, 1)
     return image[tuple(slice(None, None, s) for s in scaling)]
+
+@overload
+@restore_type_wrapper
+def image_grid(x: Array):
+    return image_grid(x.space)
+
+@overload
+def image_grid__default__(*shape):
+    if len(shape) == 1 and isinstance(shape, (list, tuple)):
+        shape = shape[0]
+    ret = tp.stack(tp.meshgrid(*[tp.arange(x) for x in shape]))
+    return ret.channel_dimension_(0)
+
 
 def linear(input, weight, bias):
     result = input @ weight.T

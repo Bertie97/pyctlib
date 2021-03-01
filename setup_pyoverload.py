@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "pyoverload",
-    version = "1.0.24",
+    version = "1.0.26",
     keywords = ("pip", "pyctlib", "overload"),
     description = "'pyoverload' overloads the functions by simply using typehints and adding decorator '@overload'.",
     long_description = open("./pyoverload/README.md").read(),
