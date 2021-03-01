@@ -488,9 +488,14 @@ class Tensor(torch.Tensor):
 
     @staticmethod
     def _make_subclass(cls, data, auto_device=_auto_device, requires_grad=False, device=None):
-        self = super()._make_subclass(cls, data, requires_grad)
-        if device is None and auto_device: return self.to(Device)
-        if device is not None: return self.to(device)
+        cpu = torch.device('cpu')
+        to_device = cpu
+        if device is None and auto_device: to_device = Device
+        if device is not None: to_device = device
+        if to_device == cpu:
+            self = torch.Tensor._make_subclass(cls, data, requires_grad)
+        else:
+            self = torch.cuda.Tensor._make_subclass(cls, data, requires_grad)
         if isinstance(data, cls):
             self.special_from_(data)
         return self

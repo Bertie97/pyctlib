@@ -29,14 +29,6 @@ class Parameter(torchplus.Tensor):
         requires_grad (bool, optional): if the parameter requires gradient. See
             :ref:`excluding-subgraphs` for more details. Default: `True`
     """
-    
-    @staticmethod
-    def _make_subclass(cls, data, auto_device=torchplus.is_autodevice(), requires_grad=False, device=None):
-        print('hi')
-        self = super()._make_subclass(cls, data, requires_grad)
-        if device is None and auto_device: return self.to(Device)
-        if device is not None: return self.to(device)
-        return self
 
     def __new__(cls, data=None, requires_grad=True):
         if data is None:
