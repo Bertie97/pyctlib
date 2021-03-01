@@ -1153,15 +1153,12 @@ def t(tensor: Array.Torch):
 def unsqueeze(tensor: Array.Torch, *dim: int):
     return Tensor(tensor).unsqueeze(*dim)
 
-# def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
-#     if device is None and _auto_device is True:
-#         device = Device
-#     if isinstance(data, torch.Tensor) and type(data) is not torch.Tensor:
-#         if device == torch.device('cpu'):
-#             return torch.Tensor._make_subclass(torch.Tensor, data, data.requires_grad)
-#         else:
-#             return torch.cuda.Tensor._make_subclass(torch.cuda.Tensor, data, data.requires_grad).to(Device)
-#     return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory)
+def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
+    if device is None and _auto_device is True:
+        device = Device
+    if isinstance(data, torch.Tensor):
+        return data.as_subclass(Tensor)
+    return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory).as_subclass(Tensor)
 
 for key in dir(torch):
     if key.startswith("_"):
