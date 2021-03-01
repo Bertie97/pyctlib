@@ -550,7 +550,8 @@ class Tensor(torch.Tensor):
         ]:
             dims = args[1:]
             if len(dims) == 1: dims = dims[0]
-            args = args[:1] + Size(dims)
+            dims = Size(dims)
+            args = args[:1] + (dims,)
         elif func in [torch.Tensor.view_as, torch.Tensor.reshape_as]:
             dims = args[1].shape
         elif func == torch.randint:
@@ -820,14 +821,26 @@ class Tensor(torch.Tensor):
         return tuple(self.shape[x] for x in i)
 
     @params
-    def unsqueeze(self, *dim:int):
+    def unsqueeze(self, *dims: int, dim=None):
+        if len(dims) > 0 and dim is not None:
+            raise TypeError("unsqueeze function only accept either argument or positional argument. But both are given")
+        if dim is None:
+            dim = dims
+        if isinstance(dim, builtins.int):
+            dim = (dim, )
         if len(dim) == 0: dim = (0,)
         for d in dim:
             self = super(torch.Tensor, self).unsqueeze(d)
         return self
 
     @params
-    def unsqueeze_(self, *dim:int):
+    def unsqueeze_(self, *dims:int, dim=None):
+        if len(dims) > 0 and dim is not None:
+            raise TypeError("unsqueeze function only accept either argument or positional argument. But both are given")
+        if dim is None:
+            dim = dims
+        if isinstance(dim, builtins.int):
+            dim = (dim, )
         if len(dim) == 0: dim = (0,)
         for d in dim: super(torch.Tensor, self).unsqueeze_(d)
         return self
@@ -970,13 +983,6 @@ class Tensor(torch.Tensor):
             for i in builtins.range((self.ndim - s[1] - 1) // 2):
                 self.transpose_(s[1] + i + 1, self.ndim - i - 1)
         return self
-
-    # def __dir__(self, *args, **kwargs):
-    #     result = dir(torch.Tensor)
-    #     result.remove("volatile")
-    #     result.remove("__cuda_array_interface__")
-    #     result = result + ['get_default_tensor_type', 'batch_dimension', '__grad_fn', 'batch_size']
-    #     return result
 
     def __matmul__(self, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], torch.Tensor):
@@ -1150,8 +1156,8 @@ def t(tensor: Array.Torch):
     return Tensor(tensor).T
 
 @params
-def unsqueeze(tensor: Array.Torch, *dim: int):
-    return Tensor(tensor).unsqueeze(*dim)
+def unsqueeze(tensor: Array.Torch, *dims: int, dim=None):
+    return Tensor(tensor).unsqueeze(*dims, dim=dim)
 
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:
