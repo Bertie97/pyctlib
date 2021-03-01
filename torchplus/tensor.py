@@ -984,13 +984,6 @@ class Tensor(torch.Tensor):
                 self.transpose_(s[1] + i + 1, self.ndim - i - 1)
         return self
 
-    # def __dir__(self, *args, **kwargs):
-    #     result = dir(torch.Tensor)
-    #     result.remove("volatile")
-    #     result.remove("__cuda_array_interface__")
-    #     result = result + ['get_default_tensor_type', 'batch_dimension', '__grad_fn', 'batch_size']
-    #     return result
-
     def __matmul__(self, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], torch.Tensor):
             if not isinstance(args[0], Tensor): other = Tensor(args[0])
