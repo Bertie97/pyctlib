@@ -827,7 +827,7 @@ class Tensor(torch.Tensor):
         if dim is None:
             dim = dims
         if isinstance(dim, builtins.int):
-            dim = (dim, )
+            dim = (dim,)
         if len(dim) == 0: dim = (0,)
         for d in dim:
             self = super(torch.Tensor, self).unsqueeze(d)
@@ -840,7 +840,7 @@ class Tensor(torch.Tensor):
         if dim is None:
             dim = dims
         if isinstance(dim, builtins.int):
-            dim = (dim, )
+            dim = (dim,)
         if len(dim) == 0: dim = (0,)
         for d in dim: super(torch.Tensor, self).unsqueeze_(d)
         return self
@@ -1142,18 +1142,24 @@ def eye(size: SizeRep | Size, **kwargs):
 
 def cat(*list_of_tensors, dim=None, **kwargs):
     if dim is None:
-        dims = [t for t in list_of_tensors if isinstance(t, builtins.int)]
-        if len(dims) > 0: dim = dims[0]
+        dims = [isinstance(t, builtins.int) for t in list_of_tensors]
+        if any(dims):
+            idim = dims.index(True)
+            dim = dims[idim]
         else: dim = 0
+        list_of_tensors = list_of_tensors[:idim]
     if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
         list_of_tensors = list_of_tensors[0]
     return torch.cat(list_of_tensors, dim, **kwargs)
 
 def stack(*list_of_tensors, dim=None, **kwargs):
     if dim is None:
-        dims = [t for t in list_of_tensors if isinstance(t, builtins.int)]
-        if len(dims) > 0: dim = dims[0]
+        dims = [isinstance(t, builtins.int) for t in list_of_tensors]
+        if any(dims):
+            idim = dims.index(True)
+            dim = dims[idim]
         else: dim = 0
+        list_of_tensors = list_of_tensors[:idim]
     if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
         list_of_tensors = list_of_tensors[0]
     return torch.stack(list_of_tensors, dim, **kwargs)
@@ -1162,9 +1168,8 @@ def stack(*list_of_tensors, dim=None, **kwargs):
 def t(tensor: Array.Torch):
     return Tensor(tensor).T
 
-@params
-def unsqueeze(tensor: Array.Torch, *dim: int):
-    return Tensor(tensor).unsqueeze(*dim)
+def unsqueeze(tensor, *args, **kwargs):
+    return Tensor(tensor).unsqueeze(*args, **kwargs)
 
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:

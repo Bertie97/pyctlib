@@ -719,7 +719,7 @@ def params(*types, run=True, **kwtypes):
             annotations = fetch(*types, **kwtypes)
         def wrapper_func(*args, **kwargs):
             try: values = fetch(*args, **kwargs)
-            except Exception as e: raise TypeHintError(str(e))
+            except Exception as e: raise TypeHintError(str(e).replace('tmp()', f'{_get_func_names(func)}()'))
             for arg in values:
                 if equals(values[arg], "__default__") or arg not in annotations: continue
                 if arg == eargs:
