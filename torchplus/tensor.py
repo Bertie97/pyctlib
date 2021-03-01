@@ -821,14 +821,26 @@ class Tensor(torch.Tensor):
         return tuple(self.shape[x] for x in i)
 
     @params
-    def unsqueeze(self, *dim:int):
+    def unsqueeze(self, *dims: int, dim=None):
+        if len(dims) > 0 and dim is not None:
+            raise TypeError("unsqueeze function only accept either argument or positional argument. But both are given")
+        if dim is None:
+            dim = dims
+        if isinstance(dim, builtins.int):
+            dim = (dim, )
         if len(dim) == 0: dim = (0,)
         for d in dim:
             self = super(torch.Tensor, self).unsqueeze(d)
         return self
 
     @params
-    def unsqueeze_(self, *dim:int):
+    def unsqueeze_(self, *dims:int, dim=None):
+        if len(dims) > 0 and dim is not None:
+            raise TypeError("unsqueeze function only accept either argument or positional argument. But both are given")
+        if dim is None:
+            dim = dims
+        if isinstance(dim, builtins.int):
+            dim = (dim, )
         if len(dim) == 0: dim = (0,)
         for d in dim: super(torch.Tensor, self).unsqueeze_(d)
         return self

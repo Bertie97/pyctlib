@@ -7,11 +7,11 @@
 
 import os, sys
 # sys.path.append("/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib")
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+# sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 import copy
 import torch
 import numpy as np
-# sys.path = ["../.."] + sys.path
+sys.path = ["../.."] + sys.path
 
 
 import torchplus as tp
