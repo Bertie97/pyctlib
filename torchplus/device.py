@@ -32,7 +32,7 @@ if torch.cuda.is_available():
         if tag.lower() not in ["yes", "y"]:
             raise RuntimeError("There are no enough free memory left.")
 
-    igpu = available_gpus_memory.index(max(available_gpus_memory)))
+    igpu = available_gpus_memory.index(max(available_gpus_memory))
     os.environ['CUDA_VISIBLE_DEVICES'] = str(igpu)
     AutoDevice = torch.device(f"cuda:{igpu}")
 
