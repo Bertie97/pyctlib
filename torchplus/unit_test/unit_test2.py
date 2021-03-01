@@ -10,6 +10,7 @@ import sys
 # sys.path.append("../..")
 import copy
 import torch
+import numpy as np
 sys.path = ["../.."] + sys.path
 
 
@@ -38,6 +39,7 @@ assert isinstance(t, tp.Tensor)
 assert isinstance(a, tp.Tensor)
 assert isinstance(LP.weight, tp.nn.Parameter)
 assert isinstance(LP.bias, tp.nn.Parameter)
+assert isinstance(tp.tensor(np.array([1., 2.])), tp.Tensor)
 # assert t.allclose(t_)
 # assert t._grad.allclose(t_._grad)
 
@@ -63,9 +65,11 @@ assert isinstance(t, tp.Tensor)
 assert isinstance(a, tp.Tensor)
 assert isinstance(LP.weight, tp.nn.Parameter)
 assert isinstance(LP.bias, tp.nn.Parameter)
+assert isinstance(tp.tensor(np.array([1., 2.])), tp.Tensor)
 if torch.cuda.is_available():
     assert a.is_cuda
     assert t.is_cuda
+    assert tp.tensor(np.array([1., 2.])).is_cuda
 
 tp.nn.ParameterList([tp.nn.Parameter(tp.zeros(30)), tp.nn.Parameter(tp.zeros(30))])
 tp.nn.ParameterList([LP.weight, LP.bias])
