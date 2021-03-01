@@ -523,12 +523,17 @@ class Tensor(torch.Tensor):
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         self = args[0]
-        assert isinstance(self, torch.Tensor)
         if type(self) != Tensor:
             isTensor = [type(x) == Tensor for x in args]
             isofTensor = [isinstance(x, Tensor) for x in args]
             if builtins.any(isTensor): self = args[isTensor.index(True)]
             elif builtins.any(isofTensor): self = args[isofTensor.index(True)]
+            elif isinstance(args[0], tuple):
+                isTensor = [type(x) == Tensor for x in args[0]]
+                isofTensor = [isinstance(x, Tensor) for x in args[0]]
+                if builtins.any(isTensor): self = args[0][isTensor.index(True)]
+                elif builtins.any(isofTensor): self = args[0][isofTensor.index(True)]
+                else: return super().__torch_function__(func, types, args, kwargs)
             else: return super().__torch_function__(func, types, args, kwargs)
         if func == torch.Tensor.dim:
             return super().__torch_function__(func, types, args, kwargs)
@@ -902,6 +907,12 @@ class Tensor(torch.Tensor):
         elif dim1 < dim2: return self.unsqueeze_(dim2+1).transpose_(dim1, dim2+1).squeeze_(dim1)
         else: return self.unsqueeze_(dim2).transpose_(dim1+1, dim2).squeeze_(dim1+1)
 
+    def cat(self, other, dim=0):
+        return torch.cat((self, other), dim=dim)
+
+    def stack(self, other, dim=0):
+        return torch.cat((self, other), dim=dim)
+
     @property
     def T(self: 'Tensor') -> 'Tensor':
         if not self.has_special: return Tensor(super().T)
@@ -1070,7 +1081,7 @@ randint = _Randint()
 randint_like = _Randint_like()
 __all__.extend(["randint", "randint_like"])
 
-__all__.extend(["eye", "t", "unsqueeze", "tensor"])
+__all__.extend(["eye", "cat", "stack", "t", "unsqueeze", "tensor"])
 
 @overload
 def eye(*size: SizeRep.itemtypes, **kwargs):
@@ -1090,6 +1101,24 @@ def eye(size: SizeRep | Size, **kwargs):
     out = zeros(size, **kwargs)
     out[tuple(s)] = 1
     return out
+
+def cat(*list_of_tensors, dim=None):
+    if dim is None:
+        dims = [t for t in list_of_tensors if isinstance(t, builtins.int)]
+        if len(dims) > 0: dim = dims[0]
+        else: dim = 0
+    if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
+        list_of_tensors = list_of_tensors[0]
+    return torch.cat(list_of_tensors, dim)
+
+def stack(*list_of_tensors, dim=None):
+    if dim is None:
+        dims = [t for t in list_of_tensors if isinstance(t, builtins.int)]
+        if len(dims) > 0: dim = dims[0]
+        else: dim = 0
+    if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
+        list_of_tensors = list_of_tensors[0]
+    return torch.stack(list_of_tensors, dim)
 
 @params
 def t(tensor: Array.Torch):
