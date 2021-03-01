@@ -16,6 +16,13 @@ from pyctlib import vector
 import torch
 import numpy as np
 
+def add_special(size, special, fill=1):
+    s = special
+    if len(s) == 0: pass
+    elif len(s) == 1: size = size[:s[0]] + (fill,) + size[s[0]:]
+    else: size = size[:s[0]] + (fill,) + size[s[0]:s[1]] + (fill,) + size[s[1]:]
+    return size
+
 @overload
 @restore_type_wrapper("roi")
 def crop_as(x: Array, y: tuple, center: tuple, fill: Scalar=0) -> Array:
@@ -27,21 +34,13 @@ def crop_as(x: Array, y: tuple, center: tuple, fill: Scalar=0) -> Array:
         size_y = tuple(size_y.space)
     size_y = tuple(size_y)
     if len(size_y) == len(size_x): pass
-    elif len(size_y) == size_x.nspace:
-        s = size_x.special
-        if len(s) == 0: pass
-        elif len(s) == 1: size_y = size_y[:s[0]] + (-1,) + size_y[s[0]:]
-        else: size_y = size_y[:s[0]] + (-1,) + size_y[s[0]:s[1]] + (-1,) + size_y[s[1]:]
+    elif len(size_y) == size_x.nspace: size_y = add_special(size_y, size_x.special, -1)
     else: raise TypeError("Mismatch dimensions in 'crop_as', please use -1 if the dimension doesn't need to be cropped. ")
     assert len(size_y) == len(size_x)
     size_y = tuple(a if b == -1 else b for a, b in zip(size_x, size_y))
 
     if len(center) == len(size_x): pass
-    elif len(center) == size_x.nspace:
-        s = size_x.special
-        if len(s) == 0: pass
-        elif len(s) == 1: center = center[:s[0]] + (-1,) + center[s[0]+1:]
-        else: center = center[:s[0]] + (-1,) + center[s[0]+1:s[1]] + (-1,) + center[s[1]+1:]
+    elif len(center) == size_x.nspace: center = add_special(center, size_x.special, -1)
     elif len(x for x in center if x >= 0) == len(x for x in size_y if x >= 0):
         center = tuple(a if b >= 0 else -1 for a, b in zip(center, size_y))
     else: raise TypeError("Mismatch dimensions for the center in 'crop_as', please use -1 if the dimension that is centered or doesn't need cropping. ")
@@ -70,6 +69,39 @@ def crop_as(x: Array, y: Array, center: tuple, fill: Scalar=0) -> Array:
 def crop_as(x: Array, y: [tuple, Array], fill: Scalar=0) -> Array:
     center = tuple(m/2 for m in x.shape)
     return crop_as(x, y, center, fill)
+
+@restore_type_wrapper
+def up_scale(image, *scaling:int):
+    image = Tensor(image)
+    if len(scaling) == 0:
+        scaling = (1,)
+    elif len(scaling) == 1:
+        scaling *= image.nspace
+        scaling = add_special(scaling, image.special, 1)
+    elif len(scaling) < image.ndim and len(scaling) == image.nspace:
+        scaling = add_special(scaling, image.special, 1)
+    for i, s in enumerate(scaling):
+        image = (
+            image
+            .transpose(i, -1)
+            .unsqueeze(-1)
+            .repeat((1,) * image.ndim + (int(s),))
+            .flatten(-2)
+            .transpose(i, -1)
+        )
+    return image
+
+@restore_type_wrapper
+def down_scale(image, *scaling:int=1):
+    image = Tensor(image)
+    if len(scaling) == 0:
+        scaling = (1,)
+    elif len(scaling) == 1:
+        scaling *= image.nspace
+        scaling = add_special(scaling, image.special, 1)
+    elif len(scaling) < image.ndim and len(scaling) == image.nspace:
+        scaling = add_special(scaling, image.special, 1)
+    return image[tuple(slice(None, None, s) for s in scaling)]
 
 def linear(input, weight, bias):
     result = input @ weight.T
