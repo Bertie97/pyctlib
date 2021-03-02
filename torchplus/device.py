@@ -1,5 +1,5 @@
 import torch
-from pyctlib import vector
+from pyctlib import vector, recursive_apply
 from pynvml import *
 
 
@@ -38,4 +38,9 @@ if torch.cuda.is_available():
 else:
     AutoDevice = torch.device("cpu")
 
-__all__ = ["available_gpus", "AutoDevice", "warning_free_memory_threshold", "available_gpus_memory", "all_gpus_memory"]
+DeviceCPU = torch.device("cpu")
+
+def recursive_autodevice(container):
+    return recursive_apply(container, lambda x: x.to(AutoDevice))
+
+__all__ = ["available_gpus", "AutoDevice", "warning_free_memory_threshold", "available_gpus_memory", "all_gpus_memory", "DeviceCPU", "recursive_autodevice"]
