@@ -27,6 +27,7 @@ import torchplus as tp
 # from pyoverload import overload, override, Tuple, List, Set, params, null, Array, isarray, isoftype, isofsubclass, isint, isdtype, isitertype, isclassmethod
 from pyoverload import *
 from pyctlib import raw_function, return_type_wrapper, touch
+from pyctlib.visual.debugger import profile
 from functools import wraps
 from types import GeneratorType, MethodWrapperType
 from collections import OrderedDict

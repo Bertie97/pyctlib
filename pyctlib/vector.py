@@ -47,7 +47,7 @@ def recursive_apply(container, func):
     if isinstance(container, set):
         return set([recursive_apply(x, func) for x in container])
     if isinstance(container, dict):
-        return {key: recursive_apply(value, func) for key, value in enumerate(container)}
+        return {key: recursive_apply(value, func) for key, value in container.items()}
     try:
         return func(container)
     except:
