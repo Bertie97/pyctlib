@@ -6,11 +6,11 @@
 ## Package <main>
 ##############################
 __all__ = """
+    totuple
     recursive_apply
     vector
     generator_wrapper
     ctgenerator
-    recursive_apply
 """.split()
 
 from types import GeneratorType
@@ -23,6 +23,12 @@ from .touch import touch, crash
 Usage:
 from pyctlib.vector import *
 """
+
+def totuple(x, l=None):
+    if not isinstance(x, tuple): x = (x,)
+    if l is None: l = len(x)
+    if l % len(x) == 0: return x * (l // len(x))
+    raise TypeError(f"{x} can not be converted into a tuple of length {l}. ")
 
 def raw_function(func):
     if "__func__" in dir(func):
@@ -343,6 +349,9 @@ class vector(list):
 
     def sum(self):
         return self.reduce(lambda x, y: x + y)
+
+    def prod(self):
+        return self.reduce(lambda x, y: x * y)
 
     def group_by(self, key=lambda x: x[0]):
         result = _Vector_Dict()

@@ -6,9 +6,6 @@
 ## Package micomputing
 ##############################
 
-__all__ = """
-""".split()
-
 try: from matplotlib import pyplot as plt
 except ImportError:
     raise ImportError("'pyctlib.mic.plot' cannot be used without dependency 'matplotlib'. ")
@@ -16,6 +13,7 @@ import torchplus as tp
 from matplotlib.pyplot import *
 from pyoverload import *
 from matplotlib import colors as mc
+from pyctlib import totuple, vector
 
 canvas = None
 
@@ -27,21 +25,22 @@ def to_image(data: Array, nslice: [int, null]=None, dim: int=-1):
         if data.has_batch: data = data.sample(random=False, dim=[])
         if data.has_channel: data = data.sample(random=False, dim={})
         if nslice is None:
-            if data.space[-1] <= 3: return data.normalize().numpy()
-            elif data.space[0] <= 3: return data.mvdim(0, 2).normalize().numpy()
-            else: nslice = data.space[-1] // 2
-        return data.pick(dim, nslice).normalize().numpy()
+            if data.space[-1] <= 3: pass
+            elif data.space[0] <= 3: data = data.mvdim(0, 2)
+            else:
+                nslice = data.space[-1] // 2
+                data = data.pick(dim, nslice)
+        else: data = data.pick(dim, nslice)
     elif data.nspace == 2:
         if data.has_batch: data = data.sample(random=False, dim=[])
         if data.has_channel:
             if has_cmap: data = data.sample(random=False, dim={})
             else: data = data.sample(number=min(data.channel_size, 3), random=False, dim={}).mvdim(data.channel_dimension, -1)
-        return data.normalize().numpy()
-    elif data.ndim == 3: return data.sample(random=False, dim=[]).normalize().numpy()
-    return data.normalize().numpy()
+    elif data.ndim == 3: data = data.sample(random=False, dim=[])
+    return data.float().normalize()
 
 def to_RGB(*color):
-    if len(color) = 0: return (1.,) * 3
+    if len(color) == 0: return (1.,) * 3
     elif len(color) == 1:
         c = color[0]
         if isinstance(c, float) and 0 <= c <= 1: return (c,) * 3
@@ -77,7 +76,7 @@ def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
         has_cmap = False
         kwargs['cmap'] = plt.cm.gray
     canvas = to_image(data, nslice, dim)
-    return plt.imshow(canvas, **kwargs)
+    return plt.imshow(canvas.numpy(), **kwargs)
 
 def background(*color):
     """
@@ -87,45 +86,131 @@ def background(*color):
     canvas = to_RGB(*color)
 
 @params
-def maskshow(*masks, alpha=0.5, nslice=None, dim=-1, **kwargs):
+def maskshow(*masks, on=None, alpha=0.5, nslice=None, dim=-1, stretch=False, **kwargs):
+    global canvas
+    if on is not None:
+        if isinstance(on, (int, tuple)): background(*on)
+        elif isarray(on): canvas = to_image(on, nslice, dim)
+        elif isinstance(on, list): canvas = to_image(Tensor(on), nslice, dim)
+        else: raise TypeError("Unrecognized argument 'on' for 'maskshow'. ")
+    elif canvas is None:
+        canvas = (1.,) * 3
     if len(masks) == 0: return
+    alpha = totuple(alpha, len(masks))
     new_masks = []
-    for m in masks:
+    new_alpha = []
+    for m, a in zip(masks, alpha):
         img = to_image(m, nslice, dim)
-        if img.ndim == 3: new_masks.extend(x.squeeze(-1) for x in img.split(1, dim=-1))
-        else: new_masks.append(img)
+        if img.ndim == 3:
+            new_masks.extend(x.squeeze(-1) for x in img.split(1, dim=dim))
+            new_alpha.extend([a] * img.size(dim))
+        else:
+            new_masks.append(img)
+            new_alpha.append(a)
     colors = ['red', 'green', 'blue', 'gold', 'purple', 'gray', 'pink', 'darkgreen', 'dodgerblue']
     assert all(c in mc.CSS4_COLORS for c in colors)
-    color_mask_map = {to_RGB(k): v for k, v in kwargs.items()}
-    color_mask_map.update({to_RGB(k): v for k, v in zip(colors*(len(new_masks) // len(colors) + 1), new_masks))})
-    if len({m.ishape for m in color_mask_map.values()}) > 1: raise TypeError('Please')
+    color_mask_map = [(to_RGB(c), m, a) for c, m, a in zip(colors*(len(new_masks) // len(colors) + 1), new_masks, new_alpha)]
+    color_mask_map.extend((to_RGB(c), m, alpha[0]) for c, m in kwargs.items())
 
+    if not stretch:
+        shapes = [m.ishape for _, m, _ in color_mask_map]
+        target_shape = shapes[0]
+        if len(set(shapes)) > 1 or not isinstance(canvas, tuple) and target_shape != canvas.shape:
+            raise TypeError("Please use masks of the same size as the background image, "
+                            "or use 'stretch=True' in 'maskshow' to automatically adjust the image sizes. ")
+    else:
+        def adjust(m, to):
+            ms = tuple(m.shape)
+            scaling = tuple((a // b, b // a) for a, b in zip(to, ms))
+            return m.down_scale([max(v, 1) for u, v in scaling]).up_scale([max(u, 1) for u, v in scaling]).crop_as(to)
+        shapes = [m.ishape for _, m, _ in color_mask_map]
+        if not isinstance(canvas, tuple): shapes.append(canvas.shape[:2])
+        areas = [u * v for u, v in shapes]
+        target_shape = shapes[areas.index(max(areas))]
+        color_mask_map = [(c, adjust(m, to=target_shape), a) for c, m, a in color_mask_map]
+        canvas = adjust(canvas, to=target_shape)
 
-@overload
-def maskshow(*masks: Array, on=None: [null, Array], **kwargs):
-    masks = tuple(tp.Tensor(m) for m in masks)
-    if on is None: on = tp.ones_like(tp.Tensor(args[0]))
-    on = tp.Tensor(on)
-    if on.shape[0] == 3 and on.dim() > 2 and on.batch_dimension != 0:
-        masks = tuple(m.expand(on.shape[1:]) for m in masks)
-    else: masks = tuple(m.expand_as(on) for m in masks)
+    target_shape = target_shape + (3,)
+    if isinstance(canvas, tuple): canvas = tp.Tensor(list(canvas)).expand_to(target_shape)
+    elif canvas.ndim == 2: canvas = canvas.expand_to(target_shape)
+    coeff = vector(1 - a * m for _, m, a in color_mask_map).prod()
+    canvas *= coeff
+    for i, (c, m, a) in enumerate(color_mask_map):
+        coeff = vector(a * m if j == i else 1 - a * m for j, (_, m, a) in enumerate(color_mask_map)).prod()
+        canvas += coeff.unsqueeze(-1) * m.unsqueeze(-1) * tp.Tensor(list(c)).unsqueeze(0, 1)
 
-    colormap = kwargs.get("cmap", plt.cm.hsv)
-    colors = []; step = 1/3
-    for i in range(len(masks)):
-        if i == 0: colors.append(0); continue
-        new_color = colors[-1]
-        while new_color in colors:
-            new_color += step
-            if new_color >= 1: step /= 2; new_color -= 1
-        colors.append(new_color)
+    return plt.imshow(canvas.numpy(), **kwargs)
+
+def smooth(curve):
+    """
+    curve: 2xn
+    """
+    middle = (curve[:, :-2] + curve[:, 1:-1] + curve[:, 2:]) / 3
+    if all(curve[:, 0] == curve[:, -1]):
+        head = (curve[:, :1] + curve[:, 1:2] + curve[:, -2:-1]) / 3
+        return tp.cat(head, middle, head, dim=1)
+    return tp.cat(curve[:, :1], middle, curve[:, -1:], dim=1)
+
+def sharpen(curve, old_curve):
+    """
+    sharpen towards old_curve
+    curve, old_curve: 2xn
+    """
+    a = tp.cat(curve[:, -2:-1] - curve[:, -1:], curve[:, :-1] - curve[:, 1:], dim=1)
+    b = tp.cat(curve[:, 1:] - curve[:, :-1], curve[:, 1:2] - curve[:, :1], dim=1)
+    costheta = (a*b).sum(0) / tp.sqrt((a*a).sum(0)) / tp.sqrt((b*b).sum(0))
+    new_curve = curve.clone()
+    new_curve[:, costheta > -0.9] = old_curve[:, costheta > -0.9]
+    return new_curve
+
+def constraint(new_curve, old_curve, constraint_curve):
+    """
+    constraint new_curve towards constraint_curve
+    curve, old_curve: 2xn
+    """
+    dis_sqs = tp.sum((new_curve - constraint_curve) ** 2, 0)
+    percentile = 2 #min(np.sort(dis_sqs)[98 * len(dis_sqs) // 100], 1)
+    return tp.where(dis_sqs <= percentile, new_curve, old_curve)
+
+def border(mask, min_length = 10):
+    # [TODO: reformation using tp]
+    grid = tp.image_grid(*mask.shape)
+    mask = mask > 0.5
+    idx = mask[1:, :] ^ mask[:-1, :]
+    idx = idx.reshape((1, -1, mask.shape[1])).repeat(2, 0)
+    locs1 = (grid[:, 1:, :] + grid[:, :-1, :])[idx] / 2
+    idx = mask[:, 1:] ^ mask[:, :-1]
+    idx = idx.reshape((1, mask.shape[0], -1)).repeat(2, 0)
+    locs2 = (grid[:, :, 1:] + grid[:, :, :-1])[idx] / 2
+    locs = np.concatenate((locs1.reshape((2, -1)), locs2.reshape((2, -1))), 1)
+    if locs.size == 0: return []
+    curves = []
+    unvisited = np.ones((locs.shape[-1],))
+    while True:
+        if np.max(unvisited) == 0: break
+        first = np.min(np.argmax(unvisited))
+        cloc = locs[:, first:first + 1]
+        unvisited[first] = 0
+        curve = cloc
+        while True:
+            dissq = np.sum((locs - cloc) ** 2, 0)
+            inloc = np.argmax(np.where(unvisited * (dissq > 0), 1/dissq.clip(min=0.1), 0))
+            if dissq[inloc] > 2: break
+            cloc = locs[:, inloc:inloc + 1]
+            curve = np.concatenate((curve, cloc), 1)
+            unvisited[inloc] = 0
+            if np.max(unvisited) == 0: break
+        sloc = locs[:, first:first + 1]
+        if np.sum((cloc - sloc) ** 2) <= 2:
+            curve = np.concatenate((curve, sloc), 1)
+        if curve.shape[1] <= min_length: continue
+        scurve = curve
+        for _ in range(100): scurve = constraint(smooth(scurve), scurve, curve)
+        ccurve = scurve
+        for _ in range(100):
+            scurve = constraint(sharpen(scurve, curve), scurve, ccurve)
+            scurve = constraint(smooth(scurve), scurve, curve)
+        curves.append(scurve)
+    return curves
     
-    
-    
-    return imshow(, **kwargs)
 
-@overload
-def maskshow(*args: Array, **kwargs):
-    ci = plt.gci()
-    if ci is None: return maskshow(*args, on=tp.ones_like(tp.Tensor(args[0])), **kwargs)
-    return maskshow(*args, on=ci.get_array().data, **kwargs)

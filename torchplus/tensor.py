@@ -24,6 +24,7 @@ import typing
 import inspect
 import builtins
 import torchplus as tp
+from .tensorfunc import __all__ as tf_list
 # from pyoverload import overload, override, Tuple, List, Set, params, null, Array, isarray, isoftype, isofsubclass, isint, isdtype, isitertype, isclassmethod
 from pyoverload import *
 from pyctlib import raw_function, return_type_wrapper, touch
@@ -781,6 +782,8 @@ class Tensor(torch.Tensor):
     def has_channel(self): return getattr(self, '_channel_dimension', None) is not None
     @property
     def has_special(self): return self.has_batch or self.has_channel
+    @property
+    def special(self): return sorted([x for x in [self.batch_dimension, self.channel_dimension] if x is not None])
 
     def remove_special_(self):
         self._batch_dimension = None
@@ -805,6 +808,9 @@ class Tensor(torch.Tensor):
             return self
         return (self - m) / (M - m)
 
+    for func in tf_list:
+        exec(f"def {func}(*args, **kwargs): return tp.{func}(*args, **kwargs)")
+
     def tensor(self): return super()._make_subclass(torch.Tensor, self, self.requires_grad)
     def numpy(self): return super(torch.Tensor, self.cpu().detach()).numpy()
 
@@ -818,8 +824,8 @@ class Tensor(torch.Tensor):
         if None in i:
             return super().size(k[i.index(None)])
         if len(i) == 1:
-            return self.shape[i[0]]
-        return tuple(self.shape[x] for x in i)
+            return self.ishape[i[0]]
+        return tuple(self.ishape[x] for x in i)
 
     @params
     def unsqueeze(self, *dims: int, dim=None):
@@ -828,7 +834,7 @@ class Tensor(torch.Tensor):
         if dim is None:
             dim = dims
         if isinstance(dim, builtins.int):
-            dim = (dim, )
+            dim = (dim,)
         if len(dim) == 0: dim = (0,)
         for d in dim:
             self = super(torch.Tensor, self).unsqueeze(d)
@@ -841,52 +847,52 @@ class Tensor(torch.Tensor):
         if dim is None:
             dim = dims
         if isinstance(dim, builtins.int):
-            dim = (dim, )
+            dim = (dim,)
         if len(dim) == 0: dim = (0,)
         for d in dim: super(torch.Tensor, self).unsqueeze_(d)
         return self
 
-    # def expand_to(self, target):
-    #     target = Size(target)
-    #     if target.special == target.bc and self.shape.special != self.shape.bc or target.special != target.bc and self.shape.special == self.shape.bc:
-    #         if self.nspace == 0 and self.ndim == 2: self = self[::-1]
-    #         else: raise TypeError(f"Batch and channel order not matched for {self.shape} and {target}")
-    #     axis_map = list(builtins.range(self.ndim))
-    #     p = 0
-    #     for i, s in enumerate(self.shape):
-    #         if i == self.batch_dimension:
-    #             axis_map[i] = target.batch_dimension
-    #             p = target.batch_dimension + 1
-    #         elif i == self.channel_dimension:
-    #             axis_map[i] = target.channel_dimension
-    #             p = target.channel_dimension + 1
-    #         elif s in (1, -1):
-    #             axis_map[i] = p
-    #             p += 1
-    #         else:
-    #             while p < target.ndim and target[p] != s: p += 1
-    #             axis_map[i] = p
-    #             p += 1
-    #         if p >= target.ndim  + 1: raise TypeError(f"Unable to expand sizes {self.shape} to {target}. ")
-    #     return self.unsqueeze_to(target, axis_map)
+    def expand_to(self, target):
+        if isinstance(target, torch.Tensor): target = target.shape
+        if not isinstance(target, Size): target = Size(target)
+        if target.special == target.bc and self.shape.special != self.shape.bc or target.special != target.bc and self.shape.special == self.shape.bc:
+            if self.nspace == 0 and self.ndim == 2: self = self[::-1]
+            else: raise TypeError(f"Batch and channel order not matched for {self.shape} and {target}")
+        axis_map = list(builtins.range(self.ndim))
+        p = 0
+        for i, s in enumerate(self.shape):
+            if i == self.batch_dimension:
+                axis_map[i] = target.batch_dimension
+                p = target.batch_dimension + 1
+            elif i == self.channel_dimension:
+                axis_map[i] = target.channel_dimension
+                p = target.channel_dimension + 1
+            elif s in (1, -1):
+                axis_map[i] = p
+                p += 1
+            else:
+                while p < target.ndim and target[p] != s: p += 1
+                axis_map[i] = p
+                p += 1
+            if p >= target.ndim  + 1: raise TypeError(f"Unable to expand sizes {self.shape} to {target}. ")
+        return self.unsqueeze_to(target, axis_map).repeat(tuple(1 if i in axis_map else (x if x >= 0 else 1) for i, x in enumerate(target)))
 
+    @overload
+    def unsqueeze_to(self, target: Array | 'Tensor', axis_place: List):
+        return self.expand_to(target.shape, axis_place)
 
-    # @overload
-    # def unsqueeze_to(self, target: Array | 'Tensor', axis_place: List):
-    #     return self.expand_to(target.shape, axis_place)
-
-    # @overload
-    # def unsqueeze_to(self, target: Tuple[IntScalar] | 'Size', axis_place: List):
-    #     target = Size(target)
-    #     if target.has_batch and self.has_batch and axis_place[self.batch_dimension] != target.batch_dimension:
-    #         raise TypeError("Conflict of batch dimension in 'unsqueeze_to'. ")
-    #     if target.has_channel and self.has_channel and axis_place[self.channel_dimension] != target.channel_dimension:
-    #         raise TypeError("Conflict of channel dimension in 'unsqueeze_to'. ")
-    #     new_size = list(target)
-    #     for i in builtins.range(len(new_size)):
-    #         if i not in axis_place or self.shape[axis_place.index(i)] in (1, -1):
-    #             new_size[i] = 1
-    #     return self.view(*new_size)
+    @overload
+    def unsqueeze_to(self, target: Tuple[IntScalar] | 'Size', axis_place: List):
+        target = Size(target)
+        if target.has_batch and self.has_batch and axis_place[self.batch_dimension] != target.batch_dimension:
+            raise TypeError("Conflict of batch dimension in 'unsqueeze_to'. ")
+        if target.has_channel and self.has_channel and axis_place[self.channel_dimension] != target.channel_dimension:
+            raise TypeError("Conflict of channel dimension in 'unsqueeze_to'. ")
+        new_size = list(target)
+        for i in builtins.range(len(new_size)):
+            if i not in axis_place or self.shape[axis_place.index(i)] in (1, -1):
+                new_size[i] = 1
+        return self.view(*new_size)
 
     def sample(self, dim: builtins.int = None, number: builtins.int = 1, random: bool = True) -> 'Tensor':
         """
@@ -1079,6 +1085,15 @@ def {func}_like(tensor: Array.Torch, **kwargs):
     return {func}(tensor, **kwargs)
 """)
 
+for func in '''
+range arange
+'''.split():
+    __all__.append(func)
+    exec(f"""
+def {func}(*args, **kwargs):
+    return Tensor(torch.{func}(*args, **kwargs))
+""")
+
 class _Randint:
 
     def __init__(self):
@@ -1136,8 +1151,11 @@ def eye(size: SizeRep | Size, **kwargs):
 
 def cat(*list_of_tensors, dim=None, **kwargs):
     if dim is None:
-        dims = [t for t in list_of_tensors if isinstance(t, builtins.int)]
-        if len(dims) > 0: dim = dims[0]
+        dims = [isinstance(t, builtins.int) for t in list_of_tensors]
+        if builtins.any(dims):
+            idim = dims.index(True)
+            dim = dims[idim]
+            list_of_tensors = list_of_tensors[:idim]
         else: dim = 0
     if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
         list_of_tensors = list_of_tensors[0]
@@ -1145,8 +1163,11 @@ def cat(*list_of_tensors, dim=None, **kwargs):
 
 def stack(*list_of_tensors, dim=None, **kwargs):
     if dim is None:
-        dims = [t for t in list_of_tensors if isinstance(t, builtins.int)]
-        if len(dims) > 0: dim = dims[0]
+        dims = [isinstance(t, builtins.int) for t in list_of_tensors]
+        if builtins.any(dims):
+            idim = dims.index(True)
+            dim = dims[idim]
+            list_of_tensors = list_of_tensors[:idim]
         else: dim = 0
     if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
         list_of_tensors = list_of_tensors[0]
@@ -1156,9 +1177,8 @@ def stack(*list_of_tensors, dim=None, **kwargs):
 def t(tensor: Array.Torch):
     return Tensor(tensor).T
 
-@params
-def unsqueeze(tensor: Array.Torch, *dims: int, dim=None):
-    return Tensor(tensor).unsqueeze(*dims, dim=dim)
+def unsqueeze(tensor, *args, **kwargs):
+    return Tensor(tensor).unsqueeze(*args, **kwargs)
 
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:
