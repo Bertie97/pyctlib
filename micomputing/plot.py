@@ -16,6 +16,8 @@ from matplotlib import colors as mc
 from pyctlib import totuple, vector
 
 canvas = None
+colors = ['red', 'green', 'blue', 'gold', 'purple', 'gray', 'pink', 'darkgreen', 'dodgerblue']
+assert all(c in mc.CSS4_COLORS for c in colors)
 
 def to_image(data: Array, nslice: [int, null]=None, dim: int=-1):
     data = tp.Tensor(data).squeeze()
@@ -59,7 +61,7 @@ def to_RGB(*color):
 
 
 @params
-def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
+def imshow(data: [Array, null]=None, nslice: [int, null]=None, dim: int=-1, **kwargs):
     """
     An automatic image display function for all kinds of tensors. 
     The first image in batched images will be selected to be showed. 
@@ -75,7 +77,9 @@ def imshow(data: Array, nslice: [int, null]=None, dim: int=-1, **kwargs):
     if 'cmap' not in kwargs:
         has_cmap = False
         kwargs['cmap'] = plt.cm.gray
-    canvas = to_image(data, nslice, dim)
+    if data is not None: canvas = to_image(data, nslice, dim)
+    if canvas is None or isinstance(canvas, tuple):
+        raise TypeError("Please input data in 'imshow' or 'background' to show. ")
     return plt.imshow(canvas.numpy(), **kwargs)
 
 def background(*color):
@@ -95,7 +99,7 @@ def maskshow(*masks, on=None, alpha=0.5, nslice=None, dim=-1, stretch=False, **k
         else: raise TypeError("Unrecognized argument 'on' for 'maskshow'. ")
     elif canvas is None:
         canvas = (1.,) * 3
-    if len(masks) == 0: return
+    if len(masks) == 0: return imshow
     alpha = totuple(alpha, len(masks))
     new_masks = []
     new_alpha = []
@@ -107,8 +111,6 @@ def maskshow(*masks, on=None, alpha=0.5, nslice=None, dim=-1, stretch=False, **k
         else:
             new_masks.append(img)
             new_alpha.append(a)
-    colors = ['red', 'green', 'blue', 'gold', 'purple', 'gray', 'pink', 'darkgreen', 'dodgerblue']
-    assert all(c in mc.CSS4_COLORS for c in colors)
     color_mask_map = [(to_RGB(c), m, a) for c, m, a in zip(colors*(len(new_masks) // len(colors) + 1), new_masks, new_alpha)]
     color_mask_map.extend((to_RGB(c), m, alpha[0]) for c, m in kwargs.items())
 
@@ -173,36 +175,35 @@ def constraint(new_curve, old_curve, constraint_curve):
     return tp.where(dis_sqs <= percentile, new_curve, old_curve)
 
 def border(mask, min_length = 10):
-    # [TODO: reformation using tp]
     grid = tp.image_grid(*mask.shape)
     mask = mask > 0.5
     idx = mask[1:, :] ^ mask[:-1, :]
-    idx = idx.reshape((1, -1, mask.shape[1])).repeat(2, 0)
+    idx = idx.expand_to(2, -1, mask.size(1))
     locs1 = (grid[:, 1:, :] + grid[:, :-1, :])[idx] / 2
     idx = mask[:, 1:] ^ mask[:, :-1]
-    idx = idx.reshape((1, mask.shape[0], -1)).repeat(2, 0)
+    idx = idx.expand_to(2, mask.size(0), -1)
     locs2 = (grid[:, :, 1:] + grid[:, :, :-1])[idx] / 2
-    locs = np.concatenate((locs1.reshape((2, -1)), locs2.reshape((2, -1))), 1)
+    locs = tp.cat(locs1.reshape(2, -1), locs2.reshape(2, -1), dim=1)
     if locs.size == 0: return []
     curves = []
-    unvisited = np.ones((locs.shape[-1],))
+    unvisited = tp.ones(locs.shape[-1])
     while True:
-        if np.max(unvisited) == 0: break
-        first = np.min(np.argmax(unvisited))
+        if not any(unvisited): break
+        first = tp.argmax(unvisited).item()
         cloc = locs[:, first:first + 1]
         unvisited[first] = 0
         curve = cloc
         while True:
-            dissq = np.sum((locs - cloc) ** 2, 0)
-            inloc = np.argmax(np.where(unvisited * (dissq > 0), 1/dissq.clip(min=0.1), 0))
+            dissq = tp.sum((locs - cloc) ** 2, 0)
+            inloc = tp.argmax(tp.where((unvisited > 0) & (dissq > 0), 1/dissq.clamp(min=0.1), tp.tensor(0).float()))
             if dissq[inloc] > 2: break
             cloc = locs[:, inloc:inloc + 1]
-            curve = np.concatenate((curve, cloc), 1)
+            curve = tp.cat(curve, cloc, dim=1)
             unvisited[inloc] = 0
-            if np.max(unvisited) == 0: break
+            if not any(unvisited): break
         sloc = locs[:, first:first + 1]
-        if np.sum((cloc - sloc) ** 2) <= 2:
-            curve = np.concatenate((curve, sloc), 1)
+        if tp.sum((cloc - sloc) ** 2) <= 2:
+            curve = tp.cat(curve, sloc, dim=1)
         if curve.shape[1] <= min_length: continue
         scurve = curve
         for _ in range(100): scurve = constraint(smooth(scurve), scurve, curve)
@@ -212,5 +213,51 @@ def border(mask, min_length = 10):
             scurve = constraint(smooth(scurve), scurve, curve)
         curves.append(scurve)
     return curves
-    
+
+def bordershow(*masks, on=None, mask_alpha=0., nslice=None, dim=-1, stretch=False, min_length = 10, **kwargs):
+    global canvas
+    if on is not None:
+        if isinstance(on, (int, tuple)): background(*on)
+        elif isarray(on): canvas = to_image(on, nslice, dim)
+        elif isinstance(on, list): canvas = to_image(Tensor(on), nslice, dim)
+        else: raise TypeError("Unrecognized argument 'on' for 'maskshow'. ")
+    elif canvas is None:
+        canvas = (1.,) * 3
+    if len(masks) == 0: return
+    new_masks = []
+    for m in masks:
+        img = to_image(m, nslice, dim)
+        if img.ndim == 3:
+            new_masks.extend(x.squeeze(-1) for x in img.split(1, dim=dim))
+        else:
+            new_masks.append(img)
+    color_mask_map = [(to_RGB(c), m) for c, m in zip(colors*(len(new_masks) // len(colors) + 1), new_masks)]
+    color_mask_map.extend((to_RGB(c), m) for c, m in kwargs.items())
+
+    new_masks = [m for _, m in color_mask_map]
+    shapes = [m.ishape for _, m in color_mask_map]
+    if not stretch:
+        target_shape = shapes[0]
+        if len(set(shapes)) > 1 or not isinstance(canvas, tuple) and target_shape != canvas.shape:
+            raise TypeError("Please use masks of the same size as the background image, "
+                            "or use 'stretch=True' in 'maskshow' to automatically adjust the image sizes. ")
+    else:
+        def adjust(m, to):
+            ms = tuple(m.shape)
+            scaling = tuple((a // b, b // a) for a, b in zip(to, ms))
+            return m.down_scale([max(v, 1) for u, v in scaling]).up_scale([max(u, 1) for u, v in scaling]).crop_as(to)
+        if not isinstance(canvas, tuple): shapes.append(canvas.shape[:2])
+        areas = [u * v for u, v in shapes]
+        target_shape = shapes[areas.index(max(areas))]
+        color_mask_map = [(c, adjust(m, to=target_shape)) for c, m in color_mask_map]
+        canvas = adjust(canvas, to=target_shape)
+
+    if mask_alpha > 0: maskshow(*new_masks, alpha=mask_alpha, **kwargs)
+    else: imshow(**kwargs)
+    plots = []
+    for color, mask in color_mask_map:
+        curves = border(mask, min_length)
+        for c in curves:
+            plots.append(plt.plot(c[1], c[0], color = color, **kwargs))
+    return plots
 

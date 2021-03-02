@@ -661,27 +661,49 @@ class Tensor(torch.Tensor):
                 elif func == torch.Tensor.__getitem__:
                     dims = args[1]
                     if not isinstance(dims, tuple): dims = (dims,)
-                    if ... in dims:
-                        lp = dims[:dims.index(...)]
-                        rp = dims[dims.index(...)+1:]
+                    types = [type(x) for x in dims]
+                    if type(...) in types:
+                        if types.count(type(...)) > 1:
+                            raise TypeError("")
+                        lp = dims[:types.index(type(...))]
+                        rp = dims[types.index(type(...))+1:]
                     else:
                         lp = dims
                         rp = tuple()
                     offset = ndim - len(rp)
-                    if ibatch is not None:
-                        if ibatch < len(lp) and isinstance(lp[ibatch], builtins.int): ibatch = None
-                        elif ibatch >= offset and isinstance(rp[ibatch - offset], builtins.int): ibatch = None
-                    if ichannel is not None:
-                        if ichannel < len(lp) and isinstance(lp[ichannel], builtins.int): ichannel = None
-                        elif ichannel >= offset and isinstance(rp[ichannel - offset], builtins.int): ichannel = None
-                    if ibatch is not None:
-                        r._batch_dimension = ibatch - \
-                            len([d for d in builtins.range(len(lp)) if (0 <= d < ibatch or d + ndim < ibatch) and isinstance(lp[d], builtins.int)]) - \
-                            len([d for d in builtins.range(offset, ndim) if (0 <= d < ibatch or d + ndim < ibatch) and isinstance(rp[d-offset], builtins.int)])
-                    if ichannel is not None:
-                        r._channel_dimension = ichannel - \
-                            len([d for d in builtins.range(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(lp[d], builtins.int)]) - \
-                            len([d for d in builtins.range(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and isinstance(rp[d-offset], builtins.int)])
+                    offset2 = r.ndim - ndim + len(lp) + len(rp) - len([d for d in lp + rp if isinstance(d, builtins.slice)])
+                    isnormal = ''.join('1' if issubclass(t, (builtins.int, builtins.slice, type(...))) else '0' for t in types)
+                    if '1' in isnormal.strip('1'):
+                        if ibatch is not None:
+                            if ibatch < len(lp) and not isinstance(lp[ibatch], builtins.slice): ibatch = None
+                            elif ibatch >= offset and not isinstance(rp[ibatch - offset], builtins.slice): ibatch = None
+                        if ichannel is not None:
+                            if ichannel < len(lp) and not isinstance(lp[ichannel], builtins.slice): ichannel = None
+                            elif ichannel >= offset and not isinstance(rp[ichannel - offset], builtins.slice): ichannel = None
+                        if ibatch is not None:
+                            r._batch_dimension = ibatch + offset2 - \
+                                len([d for d in builtins.range(len(lp)) if (0 <= d < ibatch or d + ndim < ibatch) and not isinstance(lp[d], builtins.slice)]) - \
+                                len([d for d in builtins.range(offset, ndim) if (0 <= d < ibatch or d + ndim < ibatch) and not isinstance(rp[d-offset], builtins.slice)])
+                        if ichannel is not None:
+                            r._channel_dimension = ichannel + offset2 - \
+                                len([d for d in builtins.range(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and not isinstance(lp[d], builtins.slice)]) - \
+                                len([d for d in builtins.range(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and not isinstance(rp[d-offset], builtins.slice)])
+                    else:
+                        index = isnormal.index('0')
+                        if ibatch is not None:
+                            if ibatch < len(lp) and not isinstance(lp[ibatch], builtins.slice): ibatch = None
+                            elif ibatch >= offset and not isinstance(rp[ibatch - offset], builtins.slice): ibatch = None
+                        if ichannel is not None:
+                            if ichannel < len(lp) and not isinstance(lp[ichannel], builtins.slice): ichannel = None
+                            elif ichannel >= offset and not isinstance(rp[ichannel - offset], builtins.slice): ichannel = None
+                        if ibatch is not None:
+                            r._batch_dimension = ibatch + (offset2 if ibatch > index else 0) - \
+                                len([d for d in builtins.range(len(lp)) if (0 <= d < ibatch or d + ndim < ibatch) and not isinstance(lp[d], builtins.slice)]) - \
+                                len([d for d in builtins.range(offset, ndim) if (0 <= d < ibatch or d + ndim < ibatch) and not isinstance(rp[d-offset], builtins.slice)])
+                        if ichannel is not None:
+                            r._channel_dimension = ichannel + (offset2 if ichannel > index else 0) - \
+                                len([d for d in builtins.range(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and not isinstance(lp[d], builtins.slice)]) - \
+                                len([d for d in builtins.range(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and not isinstance(rp[d-offset], builtins.slice)])
                 else: raise RuntimeError(f"{func} needs to be override. ")
         return ret
 
@@ -852,7 +874,8 @@ class Tensor(torch.Tensor):
         for d in dim: super(torch.Tensor, self).unsqueeze_(d)
         return self
 
-    def expand_to(self, target):
+    def expand_to(self, *target):
+        if len(target) == 1 and not isinstance(target[0], builtins.int): target = target[0]
         if isinstance(target, torch.Tensor): target = target.shape
         if not isinstance(target, Size): target = Size(target)
         if target.special == target.bc and self.shape.special != self.shape.bc or target.special != target.bc and self.shape.special == self.shape.bc:
@@ -871,7 +894,7 @@ class Tensor(torch.Tensor):
                 axis_map[i] = p
                 p += 1
             else:
-                while p < target.ndim and target[p] != s: p += 1
+                while p < target.ndim and target[p] not in (1, -1) and target[p] != s: p += 1
                 axis_map[i] = p
                 p += 1
             if p >= target.ndim  + 1: raise TypeError(f"Unable to expand sizes {self.shape} to {target}. ")
