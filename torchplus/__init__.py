@@ -18,3 +18,4 @@ from . import _jit_internal
 distributed = basic_torch.distributed
 autograd = basic_torch.autograd
 optim = basic_torch.optim
+utils = basic_torch.utils
