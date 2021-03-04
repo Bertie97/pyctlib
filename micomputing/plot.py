@@ -13,7 +13,13 @@ import torchplus as tp
 from matplotlib.pyplot import *
 from pyoverload import *
 from matplotlib import colors as mc
-from pyctlib import totuple, vector
+from pyctlib import vector
+
+def totuple(x, l=None):
+    if not isinstance(x, tuple): x = (x,)
+    if l is None: l = len(x)
+    if l % len(x) == 0: return x * (l // len(x))
+    raise TypeError(f"{x} can not be converted into a tuple of length {l}. ")
 
 canvas = None
 colors = ['red', 'green', 'blue', 'gold', 'purple', 'gray', 'pink', 'darkgreen', 'dodgerblue']
