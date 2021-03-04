@@ -138,7 +138,7 @@ def maskshow(*masks, on=None, alpha=0.5, nslice=None, dim=-1, stretch=False, **k
         color_mask_map = [(c, adjust(m, to=target_shape), a) for c, m, a in color_mask_map]
         canvas = adjust(canvas, to=target_shape)
 
-    target_shape = target_shape + (3,)
+    target_shape = tp.Size(*target_shape, {3})
     if isinstance(canvas, tuple): canvas = tp.Tensor(list(canvas)).expand_to(target_shape)
     elif canvas.ndim == 2: canvas = canvas.expand_to(target_shape)
     coeff = vector(1 - a * m for _, m, a in color_mask_map).prod()
