@@ -534,7 +534,7 @@ class Type(type):
                     for x, xt in zip(arg, self.itemtypes):
                         if not isoftype(x, xt): return false
                 elif isarray(arg):
-                    dname = lambda dt: re.findall(r'\b\w+\b', repr(dt))[-1]
+                    dname = lambda dt: str(dt).split("'")[1] if len(str(dt).split("'")) > 1 else str(dt).split('.')[-1]
                     if not iterable(self.itemtypes): itypes = [self.itemtypes]
                     else: itypes = self.itemtypes
                     for dt in Type.extractType(itypes):
@@ -693,18 +693,42 @@ def params(*types, run=True, **kwtypes):
     @decorator
     def induced_decorator(func):
         declaration = _getDeclaration(_get_wrapped(raw_function(func)))
-        eargs = ''.join(re.findall(r"[^*]\*{1} *(\w+)\b", declaration))
-        ekwargs = ''.join(re.findall(r"[^*]\*{2} *(\w+)\b", declaration))
+        eargs = ''
+        ekwargs = ''
         depth = []
         d = 0;
+        is_comma = False
+        is_star = False
+        args_rec = False
+        kwargs_rec = False
         for c in declaration:
-            if c in '([{': d += 1; depth.append(d)
-            elif c in '}])': depth.append(d); d -= 1
-            else: depth.append(d)
+            if c in '([{': d += 1
+            depth.append(d)
+            if c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789":
+                kwargs_rec = args_rec = False
+            elif kwargs_rec: ekwargs += c
+            elif args_rec: eargs += c
+            if c  == '*' and d == 1:
+                if is_star:
+                    # **
+                    kwargs_rec = True
+                    ekwargs += c
+                elif is_comma:
+                    is_star = True
+            elif is_star:
+                # *
+                args_rec = True
+                eargs += c
+                is_star = False
+            if c  == ',' and d == 1: is_comma = True
+            elif c in ' \t': pass
+            elif c == '(': is_comma = True
+            else: is_comma = False
+            if c in '}])': d -= 1
             if d == 0: break
         declaration = ''.join(c for x, c in zip(depth, declaration) if x == 1)
         declaration = declaration.strip('()')
-        declaration = ','.join(p.split(':')[0].split('=')[0].strip() + ("='__default__'" if re.search('[^=]=[^=]', p) else '') for p in declaration.split(','))
+        declaration = ','.join(p.split(':')[0].split('=')[0].strip() + ("='__default__'" if '=' in p else '') for p in declaration.split(','))
         exec(f"def tmp({declaration}): return locals()")
         fetch = eval('tmp')
         if len(types) == len(kwtypes) == 0:

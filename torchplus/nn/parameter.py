@@ -63,6 +63,7 @@ class Parameter(torchplus.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         with _C.DisableTorchFunction():
             return _convert(ret, torchplus.Tensor)
+    __torch_function__ = torch._C._disabled_torch_function_impl
 
 def _convert(ret, cls):
 
