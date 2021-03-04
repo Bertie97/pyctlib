@@ -988,12 +988,13 @@ class Tensor(torch.Tensor):
 
     @staticmethod
     def __torch_function_convert__(ret, cls):
-        if isinstance(ret, torch.Tensor):
-            ret = ret.as_subclass(cls)
-        if isinstance(ret, (tuple, list)):
-            # Also handles things like namedtuples
-            ret = type(ret)(Tensor.__torch_function_convert__(r, cls) for r in ret)
-        return ret
+        with torch._C.DisableTorchFunction():
+            if isinstance(ret, torch.Tensor):
+                ret = ret.as_subclass(cls)
+            if isinstance(ret, (tuple, list)):
+                # Also handles things like namedtuples
+                ret = type(ret)(Tensor.__torch_function_convert__(r, cls) for r in ret)
+            return ret
 
     @staticmethod
     def __torch_function_collect__(r, c):
@@ -1009,11 +1010,13 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection: r.special_from_(self)
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection: r.special_from_(self)
+            return ret
 
     @classmethod
     def __torch_function_resizing_func__(cls, func, types, args=(), kwargs=None):
@@ -1024,11 +1027,13 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection: r.special_from_(dims)
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection: r.special_from_(dims)
+            return ret
 
     @classmethod
     def __torch_function_resizing_as_func__(cls, func, types, args=(), kwargs=None):
@@ -1038,11 +1043,13 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection: r.special_from_(dims)
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection: r.special_from_(dims)
+            return ret
 
     @classmethod
     def __torch_function_randint_func__(cls, func, types, args=(), kwargs=None):
@@ -1053,11 +1060,13 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection: r.special_from_(dims)
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection: r.special_from_(dims)
+            return ret
 
     @classmethod
     def __torch_function_transpose_func__(cls, func, types, args=(), kwargs=None):
@@ -1066,18 +1075,20 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection:
-            dim1, dim2 = args[1:]
-            a, b = r._special
-            if a == dim1: a = dim2
-            if a == dim2: a = dim1
-            if b == dim1: b = dim2
-            if b == dim2: b = dim1
-            r.set_special_(special=[a, b])
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection:
+                dim1, dim2 = args[1:]
+                a, b = r._special
+                if a == dim1: a = dim2
+                if a == dim2: a = dim1
+                if b == dim1: b = dim2
+                if b == dim2: b = dim1
+                r.set_special_(special=[a, b])
+            return ret
 
     @classmethod
     def __torch_function_permute_func__(cls, func, types, args=(), kwargs=None):
@@ -1088,11 +1099,13 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection: r.set_special_(dims[self.batch_dimension], dims[self.channel_dimension])
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection: r.set_special_(special=[dims[self._special[0]], dims[self._special[1]]])
+            return ret
 
     @classmethod
     def __torch_function_matmul_func__(cls, func, types, args=(), kwargs=None):
@@ -1102,11 +1115,13 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection: r.special_from_(self.shape[:-1] + other.shape[-1:])
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection: r.special_from_(self.shape[:-1] + other.shape[-1:])
+            return ret
 
     @classmethod
     def __torch_function_addmm_func__(cls, func, types, args=(), kwargs=None):
@@ -1116,11 +1131,13 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection: r.special_from_(self.shape[:-1] + other.shape[-1:])
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection: r.special_from_(self.shape[:-1] + other.shape[-1:])
+            return ret
 
     @classmethod
     def __torch_function_reducing_func__(cls, func, types, args=(), kwargs=None):
@@ -1130,17 +1147,19 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        if len(args) > 1:
-            dims = args[1:]
-            if len(dims) == 1 and isinstance(dims[0], (list, tuple)): dims = dims[0]
-            if func_name.startswith('squeeze') and len(dims) == 0:
-                dims = tuple(i for i, x in enumerate(self.ishape) if x == 1)
-            for r in collection:
-                r.set_special_(special=[x - len([d for d in dims if 0 <= d < x or d + ndim < x]) if x not in dims else r.ndim for x in self._special])
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            if len(args) > 1:
+                dims = args[1:]
+                if len(dims) == 1 and isinstance(dims[0], (list, tuple)): dims = dims[0]
+                if func_name.startswith('squeeze') and len(dims) == 0:
+                    dims = tuple(i for i, x in enumerate(self.ishape) if x == 1)
+                for r in collection:
+                    r.set_special_(special=[x - len([d for d in dims if 0 <= d < x or d + ndim < x]) if x not in dims else r.ndim for x in self._special])
+            return ret
 
     @classmethod
     def __torch_function_expanding_func__(cls, func, types, args=(), kwargs=None):
@@ -1151,18 +1170,20 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection:
-            a, b = self._special
-            ndim = self.ndim
-            for d in dims:
-                if 0 <= d <= a or d + ndim <= a: a += 1
-                if 0 <= d <= b or d + ndim <= b: b += 1
-                ndim += 1
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection:
+                a, b = self._special
+                ndim = self.ndim
+                for d in dims:
+                    if 0 <= d <= a or d + ndim <= a: a += 1
+                    if 0 <= d <= b or d + ndim <= b: b += 1
+                    ndim += 1
                 r.set_special_(special=[a, b])
-        return ret
+            return ret
 
     @classmethod
     def __torch_function_flatten_func__(cls, func, types, args=(), kwargs=None):
@@ -1172,27 +1193,29 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        for r in collection:
-            if len(dims) == 1:
-                dim = dims[0]
-                if dim < 0: dim += self.ndim
-                r.set_special_(special=[r.ndim if x >= dim else x for x in self._special])
-            else:
-                dim1, dim2 = dims
-                if dim1 < 0: dim1 += self.ndim
-                if dim2 < 0: dim2 += self.ndim
-                r.set_special_(special=[r.ndim if dim1 <= x <= dim2 or x > r.ndim else x for x in self._special])
-            a, b = self._special
-            ndim = self.ndim
-            for d in dims:
-                if 0 <= d <= a or d + ndim <= a: a += 1
-                if 0 <= d <= b or d + ndim <= b: b += 1
-                ndim += 1
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
+
+            for r in collection:
+                if len(dims) == 1:
+                    dim = dims[0]
+                    if dim < 0: dim += self.ndim
+                    r.set_special_(special=[r.ndim if x >= dim else x for x in self._special])
+                else:
+                    dim1, dim2 = dims
+                    if dim1 < 0: dim1 += self.ndim
+                    if dim2 < 0: dim2 += self.ndim
+                    r.set_special_(special=[r.ndim if dim1 <= x <= dim2 or x > r.ndim else x for x in self._special])
+                a, b = self._special
+                ndim = self.ndim
+                for d in dims:
+                    if 0 <= d <= a or d + ndim <= a: a += 1
+                    if 0 <= d <= b or d + ndim <= b: b += 1
+                    ndim += 1
                 r.set_special_(special=[a, b])
-        return ret
+            return ret
 
     @classmethod
     def __torch_function_getitem_func__(cls, func, types, args=(), kwargs=None):
@@ -1202,74 +1225,46 @@ class Tensor(torch.Tensor):
         ret = super().__torch_function__(func, types, args, kwargs)
         if isinstance(ret, type(NotImplemented)):
             raise NotImplementedError(f"{func} for {args} is not implemented. ")
-        collection = []
-        Tensor.__torch_function_collect__(ret, collection)
 
-        # for r in collection:
-        #     if len(dims) == 1:
-        #         dim = dims[0]
-        #         if dim < 0: dim += self.ndim
-        #         r.set_special_(special=[r.ndim if x >= dim else x for x in self._special])
-        #     else:
-        #         dim1, dim2 = dims
-        #         if dim1 < 0: dim1 += self.ndim
-        #         if dim2 < 0: dim2 += self.ndim
-        #         r.set_special_(special=[r.ndim if dim1 <= x <= dim2 or x > r.ndim else x for x in self._special])
-        #     a, b = self._special
-        #     ndim = self.ndim
-        #     for d in dims:
-        #         if 0 <= d <= a or d + ndim <= a: a += 1
-        #         if 0 <= d <= b or d + ndim <= b: b += 1
-        #         ndim += 1
-        #         r.set_special_(special=[a, b])
-        return ret
+        with torch._C.DisableTorchFunction():
+            collection = []
+            Tensor.__torch_function_collect__(ret, collection)
 
-    # elif func == torch.Tensor.__getitem__:
-    #     dims = args[1]
-    #     if not isinstance(dims, tuple): dims = (dims,)
-    #     types = [type(x) for x in dims]
-    #     if type(...) in types:
-    #         if types.count(type(...)) > 1:
-    #             raise TypeError("")
-    #         lp = dims[:types.index(type(...))]
-    #         rp = dims[types.index(type(...))+1:]
-    #     else:
-    #         lp = dims
-    #         rp = tuple()
-    #     offset = ndim - len(rp)
-    #     offset2 = r.ndim - ndim + len(lp) + len(rp) - len([d for d in lp + rp if isinstance(d, slice)])
-    #     isnormal = ''.join('1' if issubclass(t, (INT, slice, type(...))) else '0' for t in types)
-    #     if '1' in isnormal.strip('1'):
-    #         if ibatch is not None:
-    #             if ibatch < len(lp) and not isinstance(lp[ibatch], slice): ibatch = None
-    #             elif ibatch >= offset and not isinstance(rp[ibatch - offset], slice): ibatch = None
-    #         if ichannel is not None:
-    #             if ichannel < len(lp) and not isinstance(lp[ichannel], slice): ichannel = None
-    #             elif ichannel >= offset and not isinstance(rp[ichannel - offset], slice): ichannel = None
-    #         if ibatch is not None:
-    #             r._batch_dimension = ibatch + offset2 - \
-    #                 len([d for d in RANGE(len(lp)) if (0 <= d < ibatch or d + ndim < ibatch) and not isinstance(lp[d], slice)]) - \
-    #                 len([d for d in RANGE(offset, ndim) if (0 <= d < ibatch or d + ndim < ibatch) and not isinstance(rp[d-offset], slice)])
-    #         if ichannel is not None:
-    #             r._channel_dimension = ichannel + offset2 - \
-    #                 len([d for d in RANGE(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and not isinstance(lp[d], slice)]) - \
-    #                 len([d for d in RANGE(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and not isinstance(rp[d-offset], slice)])
-    #     else:
-    #         index = isnormal.index('0')
-    #         if ibatch is not None:
-    #             if ibatch < len(lp) and not isinstance(lp[ibatch], slice): ibatch = None
-    #             elif ibatch >= offset and not isinstance(rp[ibatch - offset], slice): ibatch = None
-    #         if ichannel is not None:
-    #             if ichannel < len(lp) and not isinstance(lp[ichannel], slice): ichannel = None
-    #             elif ichannel >= offset and not isinstance(rp[ichannel - offset], slice): ichannel = None
-    #         if ibatch is not None:
-    #             r._batch_dimension = ibatch + (offset2 if ibatch > index else 0) - \
-    #                 len([d for d in RANGE(len(lp)) if (0 <= d < ibatch or d + ndim < ibatch) and not isinstance(lp[d], slice)]) - \
-    #                 len([d for d in RANGE(offset, ndim) if (0 <= d < ibatch or d + ndim < ibatch) and not isinstance(rp[d-offset], slice)])
-    #         if ichannel is not None:
-    #             r._channel_dimension = ichannel + (offset2 if ichannel > index else 0) - \
-    #                 len([d for d in RANGE(len(lp)) if (0 <= d < ichannel or d + ndim < ichannel) and not isinstance(lp[d], slice)]) - \
-    #                 len([d for d in RANGE(offset, ndim) if (0 <= d < ichannel or d + ndim < ichannel) and not isinstance(rp[d-offset], slice)])
+            ndim = self.ndim
+
+            if not isinstance(dims, tuple): dims = (dims,)
+            types = [type(x) for x in dims]
+            if type(...) in types:
+                if types.count(type(...)) > 1:
+                    raise TypeError("")
+                lp = dims[:types.index(type(...))]
+                rp = dims[types.index(type(...))+1:]
+            else:
+                lp = dims
+                rp = tuple()
+            offset = ndim - len(rp)
+            isnormal = ''.join('1' if issubclass(t, (INT, slice, type(...))) else '0' for t in types)
+            if '1' in isnormal.strip('1'): index = -1
+            else: index = isnormal.index('0')
+
+            for r in collection:
+                a, b = self._special
+                rdim = r.ndim
+                offset2 = rdim - ndim + len(lp) + len(rp) - len([d for d in lp + rp if isinstance(d, slice)])
+                if a < len(lp) and not isinstance(lp[a], slice): a = None
+                elif offset <= a < ndim and not isinstance(rp[a - offset], slice): a = None
+                if b < len(lp) and not isinstance(lp[b], slice): b = None
+                elif offset <= b < ndim and not isinstance(rp[b - offset], slice): b = None
+                if a is not None and a < ndim:
+                    a += offset2 if a > index else 0
+                    a -= len([d for d in RANGE(len(lp)) if (0 <= d < a or d + ndim < a) and not isinstance(lp[d], slice)])
+                    a -= len([d for d in RANGE(offset, ndim) if (0 <= d < a or d + ndim < a) and not isinstance(rp[d-offset], slice)])
+                if b is not None and b < ndim:
+                    b += offset2 if b > index else 0
+                    b -= len([d for d in RANGE(len(lp)) if (0 <= d < b or d + ndim < b) and not isinstance(lp[d], slice)])
+                    b -= len([d for d in RANGE(offset, ndim) if (0 <= d < b or d + ndim < b) and not isinstance(rp[d-offset], slice)])
+                r.set_special_(special=[a, b])
+            return ret
 
     @classmethod
     def __torch_function_default_func__(cls, func, types, args=(), kwargs=None):
