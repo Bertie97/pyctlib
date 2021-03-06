@@ -12,6 +12,7 @@ from ...tensor import Tensor
 import torchplus
 from .. import functional as F
 import torch.nn.init as init
+from ...setting import get_setting
 
 class Linear(Module):
 
@@ -35,13 +36,20 @@ class Linear(Module):
         self.activation = activation
 
     def reset_parameters(self) -> None:
-        # init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-        init.kaiming_normal_(self.weight, a=0, mode='fan_in', nonlinearity='relu')
-        # if self.bias is not None:
-        #     fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
-        #     bound = 1 / math.sqrt(fan_in)
-        #     init.uniform_(self.bias, -bound, bound)
-        # TODO: different initialization method based on different activation function
+        if get_setting("basic_torch"):
+            init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+            if self.bias is not None:
+                fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+                bound = 1 / math.sqrt(fan_in)
+                init.uniform_(self.bias, -bound, bound)
+        else:
+            # init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+            init.kaiming_normal_(self.weight, a=0, mode='fan_in', nonlinearity='relu')
+            # if self.bias is not None:
+            #     fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+            #     bound = 1 / math.sqrt(fan_in)
+            #     init.uniform_(self.bias, -bound, bound)
+            # TODO: different initialization method based on different activation function
 
     def forward(self, input: Tensor) -> Tensor:
         if self.activation is None:
