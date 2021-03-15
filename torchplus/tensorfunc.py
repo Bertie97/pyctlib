@@ -7,9 +7,13 @@
 ##############################
 __all__ = """
     crop_as
-    up_scale
+    decimal
+    dot
     down_scale
+    gaussian_kernel
+    grad_image
     image_grid
+    up_scale
 """.split()
 
 from pyoverload import *
@@ -19,12 +23,44 @@ import torch
 import numpy as np
 import torchplus as tp
 
+def decimal(tensor):
+    return tensor - tp.floor(tensor)
+
 def add_special(size, special, fill=1):
     s = special
     if len(s) == 0: pass
     elif len(s) == 1: size = size[:s[0]] + (fill,) + size[s[0]:]
     else: size = size[:s[0]] + (fill,) + size[s[0]:s[1]] + (fill,) + size[s[1]:]
     return size
+
+def gaussian_kernel(n_dims = 2, kernel_size = 3, sigma = 0, normalize = True):
+    radius = (kernel_size - 1) / 2
+    if sigma == 0: sigma = radius * 0.6
+    grid = tp.image_grid(*(kernel_size,) * n_dims).float()
+    kernel = tp.exp(- ((grid - radius) ** 2).sum(0) / (2 * sigma ** 2))
+    return (kernel / kernel.sum()) if normalize else kernel
+
+def dot(g1, g2):
+    assert g1.shape == g2.shape
+    return (g1 * g2).sum(g1.channel_dimension)
+
+@restore_type_wrapper
+def grad_image(array):
+    '''
+        Gradient image of array
+        array: (n_batch, n_feature, n_1, ..., n_{n_dim})
+        output: (n_batch, n_dim, n_feature, n_1, ..., n_{n_dim})
+    '''
+    array = tp.Tensor(array)
+    output = tp.zeros_like(array)
+    grad_dim = int(array.has_batch)
+    output = []
+    for d in range(array.ndim):
+        if d in array.special: continue
+        b = (slice(None, None),) * d + (slice(2, None),) + (slice(None, None),) * (array.ndim - d - 1)
+        a = (slice(None, None),) * d + (slice(None, -2),) + (slice(None, None),) * (array.ndim - d - 1)
+        output.append(tp.crop_as((array[b] - array[a]) / 2, array))
+    return tp.stack(output, {grad_dim})
 
 @overload
 @restore_type_wrapper("roi")

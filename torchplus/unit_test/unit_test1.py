@@ -6,9 +6,7 @@
 ##############################
 
 import sys
-# sys.path.append("/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib")
-# sys.path = ["/Users/zhangyiteng/Software/Python_Lib/new_pyctlib/pyctlib"] + sys.path
-
+sys.path.append("../..")
 
 # import torchplus as tp
 import torch
@@ -17,25 +15,27 @@ print(tp.__file__)
 from pyctlib import scope
 import copy
 
-tp.set_autodevice(False)
-tp.manual_seed(0)
-with scope("test tp, cpu"):
-    t = tp.randn([3000, 400], requires_grad=True)
-    a = t
-    LP = tp.nn.Linear(400, 400)
-    for _ in range(10): a = LP(a)
-    a.sum().backward()
+print(tp.stack(tp.zeros(3, 4), tp.ones(3, 4), dim={1}))
 
-torch.manual_seed(0)
-with scope("test torch, cpu"):
-    t_ = torch.randn([3000, 400], requires_grad=True)
-    a_ = t_
-    LP_ = torch.nn.Linear(400, 400)
-    for _ in range(10): a_ = LP(a_)
-    a_.sum().backward()
-
-assert t.allclose(t_)
-assert t._grad.allclose(t_._grad)
+#tp.set_autodevice(False)
+#tp.manual_seed(0)
+#with scope("test tp, cpu"):
+#    t = tp.randn([3000, 400], requires_grad=True)
+#    a = t
+#    LP = tp.nn.Linear(400, 400)
+#    for _ in range(10): a = LP(a)
+#    a.sum().backward()
+#
+#torch.manual_seed(0)
+#with scope("test torch, cpu"):
+#    t_ = torch.randn([3000, 400], requires_grad=True)
+#    a_ = t_
+#    LP_ = torch.nn.Linear(400, 400)
+#    for _ in range(10): a_ = LP(a_)
+#    a_.sum().backward()
+#
+#assert t.allclose(t_)
+#assert t._grad.allclose(t_._grad)
 
 
 

@@ -12,5 +12,6 @@ try:
 except ImportError:
     raise ImportError("'pyctlib.mic' cannot be used without dependency 'torch' and 'torchplus'.")
 
-from stdio import *
+from .stdio import *
+from .sim import *
 
