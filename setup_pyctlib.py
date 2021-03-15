@@ -3,7 +3,7 @@
 @Author     :   Yuncheng Zhou & Yiteng Zhang
 @Time       :   2020-10
 @Version    :   1.0
-@Contact    :   2247501256@qq.com
+@Contact    :   bertiezhou@163.com
 @Dect       :   None
 '''
  
@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "pyctlib",
-    version = "0.1.42",
+    version = "0.1.45",
     keywords = ("pip", "pyctlib"),
     description = "This is A foundamental package containing some basic self-designed functions and types for Project PyCTLib. ",
     long_description = open("./pyctlib/README.md").read(),

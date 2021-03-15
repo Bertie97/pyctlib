@@ -8,7 +8,9 @@
 
 try:
     import torch
-    import numpy as np
+    import torchplus
 except ImportError:
-    raise ImportError("'pyctlib.mic' cannot be used without dependency 'torch' and 'numpy'.")
+    raise ImportError("'pyctlib.mic' cannot be used without dependency 'torch' and 'torchplus'.")
+
+from stdio import *
 

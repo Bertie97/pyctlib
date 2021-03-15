@@ -35,6 +35,7 @@ if torch.cuda.is_available():
     igpu = available_gpus_memory.index(max(available_gpus_memory))
     os.environ['CUDA_VISIBLE_DEVICES'] = str(igpu)
     AutoDevice = torch.device(f"cuda:{igpu}")
+    print(f"Using GPU device {igpu}...")
 else:
     AutoDevice = torch.device("cpu")
 

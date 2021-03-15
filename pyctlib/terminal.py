@@ -11,7 +11,7 @@ __all__ = """
     shell
 """.split()
 
-import os, sys
+import re, os, sys
 from pyoverload import overload, params
 
 class executor:

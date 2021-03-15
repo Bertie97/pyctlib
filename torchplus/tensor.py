@@ -486,8 +486,7 @@ class Tensor(torch.Tensor):
         if device is not None: to_device = device
         if to_device is not None and to_device != data.device: data = data.to(to_device)
         self = torch.Tensor._make_subclass(cls, data, requires_grad)
-        if isinstance(data, cls):
-            self.special_from_(data)
+        if isinstance(data, Tensor): return self.special_from_(data)
         return self
 
     def __new__(cls, *args, **kwargs):
@@ -919,6 +918,8 @@ class Tensor(torch.Tensor):
             x if x > dim2 and x > dim1 or x < dim1 and x < dim2 
             else (x + 1 if dim1 > dim2 else x - 1)) for x in self._special])
 
+    def tobytes(self): return self.numpy().tobytes()
+
     def cat(self, other, dim=0):
         return torch.cat((self, other), dim=dim)
 
@@ -955,13 +956,19 @@ class Tensor(torch.Tensor):
                 self.transpose_(s[1] + i + 1, self.ndim - i - 1)
         return self
 
+    def __getattr__(self, key):
+        if not self.init:
+            if key == '_special': return [self.ndim, self.ndim]
+            elif key == '_batch_first': return True
+        else: return super().__getattr__(key)
+
     def __matmul__(self, other, **kwargs):
         if isinstance(other, torch.Tensor) and self.has_special or isinstance(other, Tensor) and other.has_special:
             a, b = self.shape[:-2] ^ other.shape[:-2]
             with torch._C.DisableTorchFunction():
                 res = super(torch.Tensor, self.view(a + tuple(self.shape[-2:]))).__matmul__(other.view(b + tuple(other.shape[-2:])))
             return res.as_subclass(Tensor).special_from_(self.shape[:-2])
-        return super().__matmul__(other, **kwargs).as_subclass(Tensor)
+        return super().__matmul__(other, **kwargs).as_subclass(Tensor).special_from_()
 
     def __op__(self, opname, other, **kwargs):
         if isinstance(other, torch.Tensor) and self.has_special or isinstance(other, Tensor) and other.has_special:
@@ -969,7 +976,7 @@ class Tensor(torch.Tensor):
             with torch._C.DisableTorchFunction():
                 res = getattr(super(torch.Tensor, self.view(a)), opname)(other.view(b))
             return res.as_subclass(Tensor).special_from_(self)
-        return getattr(super(), opname)(other, **kwargs).as_subclass(Tensor)
+        return getattr(super(), opname)(other, **kwargs).as_subclass(Tensor).special_from_()
 
     for op in '''
     add iadd radd
@@ -1030,21 +1037,22 @@ class Tensor(torch.Tensor):
         if isinstance(r, Tensor) and not r.init: c.append(r)
 
     @staticmethod
-    def __torch_function_convert_collect__(ret, col):
+    def __torch_function_convert_collect__(ret, col, cls):
 
         with torch._C.DisableTorchFunction():
 
             if isinstance(ret, Tensor) and not ret.init:
                 col.append(ret)
+                if cls != Tensor: ret = ret.as_subclass(cls)
                 return ret
 
             if isinstance(ret, torch.Tensor):
-                ret = ret.as_subclass(Tensor)
+                ret = ret.as_subclass(cls)
                 return ret
 
             if isinstance(ret, (tuple, list)):
                 # Also handles things like namedtuples
-                return type(ret)(Tensor.__torch_function_convert__(r, col) for r in ret)
+                return type(ret)(Tensor.__torch_function_convert_collect__(r, col, cls) for r in ret)
 
             return ret
 
@@ -1073,7 +1081,7 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection: r.special_from_(self)
             return ret
@@ -1082,14 +1090,14 @@ class Tensor(torch.Tensor):
     def __torch_function_resizing_func__(cls, func, types, args=(), kwargs=None):
         "FOR: reshape view zeros ones rand randn"
         dims = Size(args[1:])
-        args = args[:1] + (dims,)
+        args = args[:1] + tuple(dims)
 
         with torch._C.DisableTorchFunction():
             ret = super().__torch_function__(func, types, args, kwargs)
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection: r.special_from_(dims)
             return ret
@@ -1104,7 +1112,7 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection: r.special_from_(dims)
             return ret
@@ -1120,7 +1128,7 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection: r.special_from_(dims)
             return ret
@@ -1134,10 +1142,11 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection:
-                dim1, dim2 = args[1:]
+                dim1 = kwargs.get('dim0', args[1])
+                dim2 = kwargs.get('dim1', args[2])
                 a, b = r._special
                 if a == dim1: a = dim2
                 if a == dim2: a = dim1
@@ -1157,7 +1166,7 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection: r.set_special_(special=[dims[self._special[0]], dims[self._special[1]]])
             return ret
@@ -1172,7 +1181,7 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection: r.special_from_(self.shape[:-1] + other.shape[-1:])
             return ret
@@ -1187,7 +1196,7 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection: r.special_from_(self.shape[:-1] + other.shape[-1:])
             return ret
@@ -1197,16 +1206,15 @@ class Tensor(torch.Tensor):
         "FOR: cummin cummax cumsum cumprod sum prod min max mean argmin argmax squeeze squeeze_"
         func_name = str(func).split(' of ')[0].split()[-1].strip("'")
 
-
         with torch._C.DisableTorchFunction():
             ret = super().__torch_function__(func, types, args, kwargs)
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             if len(args) > 1:
-                dims = args[1:]
+                dims = kwargs.get('dim', args[1:])
                 if len(dims) == 1 and isinstance(dims[0], (list, tuple)): dims = dims[0]
                 if func_name.startswith('squeeze') and len(dims) == 0:
                     dims = tuple(i for i, x in enumerate(self.ishape) if x == 1)
@@ -1217,15 +1225,23 @@ class Tensor(torch.Tensor):
     @classmethod
     def __torch_function_expanding_func__(cls, func, types, args=(), kwargs=None):
         "FOR: unsqueeze unsqueeze_"
-        dims = args[1:]
-        if len(dims) == 1 and isinstance(dims[0], (list, tuple)): dims = dims[0]
+        dims = kwargs.get('dim', args[1:])
+        if len(dims) == 1 and isinstance(dims[0], tuple): dims = dims[0]
+        new_dims = []
+        ibatch = ichannel = None
+        for d in dims:
+            if isinstance(d, list): d = d[0]; ibatch = d
+            if isinstance(d, set): d = d.pop(); ichannel = d
+            new_dims.append(d)
+        args = args + tuple(new_dims)
+        if 'dim' in kwargs: kwargs.pop('dim')
 
         with torch._C.DisableTorchFunction():
             ret = super().__torch_function__(func, types, args, kwargs)
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection:
                 a, b = self._special
@@ -1234,20 +1250,22 @@ class Tensor(torch.Tensor):
                     if 0 <= d <= a or d + ndim <= a: a += 1
                     if 0 <= d <= b or d + ndim <= b: b += 1
                     ndim += 1
-                r.set_special_(special=[a, b])
+                r.set_special_(special=[a, b]).set_special_(batch_dim=ibatch, channel_dim=ichannel)
             return ret
 
     @classmethod
     def __torch_function_flatten_func__(cls, func, types, args=(), kwargs=None):
         "FOR: flatten flatten_"
-        dims = args[1:]
+        dims = kwargs.get('dim', args[1:])
+        if isinstance(dims, tuple) and len(dims) <= 0:
+            dims = kwargs.get('start_dim', 0), kwargs.get('end_dim', -1)
 
         with torch._C.DisableTorchFunction():
             ret = super().__torch_function__(func, types, args, kwargs)
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             for r in collection:
                 if len(dims) == 1:
@@ -1278,7 +1296,7 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
             ndim = self.ndim
 
@@ -1317,6 +1335,39 @@ class Tensor(torch.Tensor):
             return ret
 
     @classmethod
+    def __torch_function_concatenate_func__(cls, func, types, args=(), kwargs=None):
+        "FOR: cat concatenate"
+        self = args[0]
+        if isinstance(self, tuple): self = self[0]
+
+        with torch._C.DisableTorchFunction():
+            ret = super().__torch_function__(func, types, args, kwargs)
+            if isinstance(ret, type(NotImplemented)):
+                raise NotImplementedError(f"{func} for {args} is not implemented. ")
+            collection = []
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
+
+        for r in collection: r.special_from_(self)
+        return ret
+
+    @classmethod
+    def __torch_function_stack_func__(cls, func, types, args=(), kwargs=None):
+        "FOR: stack"
+        self = args[0]
+        if isinstance(self, tuple): self = self[0]
+        dim = kwargs.get('dim', args[-1] if isinstance(args[-1], INT) else 0)
+
+        with torch._C.DisableTorchFunction():
+            ret = super().__torch_function__(func, types, args, kwargs)
+            if isinstance(ret, type(NotImplemented)):
+                raise NotImplementedError(f"{func} for {args} is not implemented. ")
+            collection = []
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
+
+        for r in collection: r.special_from_(special=[x + 1 if x >= dim else x for x in self._special])
+        return ret
+
+    @classmethod
     def __torch_function_default_func__(cls, func, types, args=(), kwargs=None):
         "FOR: all the remainings"
         self = args[0]
@@ -1326,7 +1377,7 @@ class Tensor(torch.Tensor):
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
             collection = []
-            ret = Tensor.__torch_function_convert_collect__(ret, collection)
+            ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
 
         for r in collection: r.special_from_(self)
         return ret
@@ -1346,6 +1397,8 @@ class Tensor(torch.Tensor):
     __torch_function_map__.update({k: '__torch_function_expanding_func__' for k in __torch_function_keys__(__torch_function_expanding_func__)})
     __torch_function_map__.update({k: '__torch_function_flatten_func__' for k in __torch_function_keys__(__torch_function_flatten_func__)})
     __torch_function_map__.update({k: '__torch_function_getitem_func__' for k in __torch_function_keys__(__torch_function_getitem_func__)})
+    __torch_function_map__.update({k: '__torch_function_concatenate_func__' for k in __torch_function_keys__(__torch_function_concatenate_func__)})
+    __torch_function_map__.update({k: '__torch_function_stack_func__' for k in __torch_function_keys__(__torch_function_stack_func__)})
 
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
@@ -1369,9 +1422,9 @@ class Tensor(torch.Tensor):
             with torch._C.DisableTorchFunction():
                 ret = super().__torch_function__(func, types, args, kwargs)
                 collection = []
-                ret = Tensor.__torch_function_convert_collect__(ret, collection)
+                ret = Tensor.__torch_function_convert_collect__(ret, collection, cls)
                 for r in collection: r.special_from_()
-                return ret
+            return ret
 
         if torch_func_name is None: return Tensor.__torch_function_default_func__(func, types, args, kwargs)
         else: return eval(f"Tensor.{torch_func_name}")(func, types, args, kwargs)
@@ -1466,7 +1519,7 @@ def eye(*size: tuple, **kwargs):
 
 def cat(*list_of_tensors, dim=None, **kwargs):
     if dim is None:
-        dims = [isinstance(t, INT) for t in list_of_tensors]
+        dims = [not isinstance(t, Tensor) for t in list_of_tensors]
         if ANY(dims):
             idim = dims.index(True)
             dim = dims[idim]
@@ -1474,11 +1527,16 @@ def cat(*list_of_tensors, dim=None, **kwargs):
         else: dim = 0
     if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
         list_of_tensors = list_of_tensors[0]
-    return torch.cat(list_of_tensors, dim, **kwargs)
+    ibatch = ichannel = None
+    if isinstance(dim, list): dim = dim[0]; ibatch = dim
+    if isinstance(dim, set): dim = dim.pop(); ichannel = dim
+    self = [t for t in list_of_tensors if isinstance(t, Tensor)]
+    if len(self) == 0: return torch.cat(list_of_tensors, dim, **kwargs).as_subclass(Tensor).special_from_().set_special_(batch_dim=ibatch, channel_dim=ichannel)
+    return torch.cat(list_of_tensors, dim, **kwargs).as_subclass(Tensor).special_from_(self[0]).set_special_(batch_dim=ibatch, channel_dim=ichannel)
 
 def stack(*list_of_tensors, dim=None, **kwargs):
     if dim is None:
-        dims = [isinstance(t, INT) for t in list_of_tensors]
+        dims = [not isinstance(t, Tensor) for t in list_of_tensors]
         if ANY(dims):
             idim = dims.index(True)
             dim = dims[idim]
@@ -1486,20 +1544,27 @@ def stack(*list_of_tensors, dim=None, **kwargs):
         else: dim = 0
     if len(list_of_tensors) == 1 and isinstance(list_of_tensors[0], (tuple, list)):
         list_of_tensors = list_of_tensors[0]
-    return torch.stack(list_of_tensors, dim, **kwargs)
+    ibatch = ichannel = None
+    if isinstance(dim, list): dim = dim[0]; ibatch = dim
+    if isinstance(dim, set): dim = dim.pop(); ichannel = dim
+    self = [t for t in list_of_tensors if isinstance(t, Tensor)]
+    if len(self) == 0: return torch.stack(list_of_tensors, dim, **kwargs).as_subclass(Tensor).special_from_().set_special_(batch_dim=ibatch, channel_dim=ichannel)
+    return torch.stack(list_of_tensors, dim, **kwargs).as_subclass(Tensor).set_special_(special=[x + 1 if x >= dim else x for x in self[0]._special]).set_special_(batch_dim=ibatch, channel_dim=ichannel)
 
 @params
 def t(tensor: Array.Torch):
     if isinstance(tensor, Tensor): return tensor.T
-    else: return torch.t(tensor)
+    else: return torch.t(tensor).as_subclass(Tensor).special_from_(tensor)
 
 def unsqueeze(tensor, *args, **kwargs):
     if isinstance(tensor, Tensor): return tensor.unsqueeze(*args, **kwargs)
-    else: return torch.unsqueeze(tensor, *args, **kwargs)
+    else: return torch.unsqueeze(tensor, *args, **kwargs).as_subclass(Tensor).special_from_(tensor)
 
 def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=False):
     if device is None and _auto_device is True:
         device = Device
+    if isinstance(data, Tensor):
+        return data.clone().special_from_()
     if isinstance(data, torch.Tensor):
         return data.as_subclass(Tensor).special_from_()
     return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory).as_subclass(Tensor).special_from_()

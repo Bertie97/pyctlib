@@ -17,7 +17,7 @@ All following packages can be **installed** by command `pip install *`.
 ### Developers
 
 - Yuncheng Zhou: [bertiezhou@163.com](mailto:bertiezhou@163.com)
-- Yiteng Zhang: [zhangytfudan@gmail.com](mailto:zhangytfudan@gmail.com)
+- Yiteng Zhang: [zytfdu@icloud.com](mailto:zytfdu@icloud.com)
 
 ### Contributors
 

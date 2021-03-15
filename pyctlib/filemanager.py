@@ -60,24 +60,24 @@ class path(str):
     @staticmethod
     def rlistdir(folder, tofolder=False, relative=False, ext='', filter=lambda x: True):
         folder = path(folder)
-        # file_list = []
+        file_list = []
         for f in os.listdir(str(folder)):
             if f == '.DS_Store': continue
             p = folder / f
             if p.isdir():
-                # file_list.extend(path.rlistdir(p, tofolder))
+                file_list.extend(path.rlistdir(p, tofolder))
                 for cp in path.rlistdir(p, tofolder, relative=relative, ext=ext, filter=filter):
                     if filter(cp) and (cp | ext):
                         yield cp
             if p.isfile() and not tofolder and filter(p) and (p | ext):
                 yield p
         if tofolder and not file_list and filter(folder) and (folder | ext):
-            # file_list.append(folder)
+            file_list.append(folder)
             yield folder
-        # file_list = path.pathList(file_list, main_folder=folder)
-        # if relative: file_list = -file_list
-        # if ext: file_list = file_list[file_list|ext]
-        # return file_list[filter]
+        file_list = path.pathList(file_list, main_folder=folder)
+        if relative: file_list = -file_list
+        if ext: file_list = file_list[file_list|ext]
+        return file_list[filter]
 
     def __new__(cls, *init_texts):
         if len(init_texts) <= 0 or len(init_texts[0]) <= 0:
@@ -150,6 +150,7 @@ class path(str):
         res = self.split()[i]
         return res if isinstance(res, str) else path(path.sep.join(res))
     def __len__(self): return len(self.split())
+    def __hash__(self): return super().__hash__()
 
     @generator_wrapper
     def __iter__(self):
@@ -195,6 +196,11 @@ class path(str):
             raise NotADirectoryError("%s doesn't exist, all available folder is: %s" % (new_folder, (new_folder @ path.Folder).ls().filter(lambda x: x.isdir()).map(lambda x: x.name)))
         else:
             raise NotADirectoryError("%s doesn't exist" % new_folder)
+    def rm(self):
+        if self.isdir():
+            self.parent.cmd(f"rm -r {self[-1]}")
+        elif self.isfile():
+            self.parent.cmd(f"rm {self[-1]}")
     def cmd(self, command):
         try:
             if self.isdir():
