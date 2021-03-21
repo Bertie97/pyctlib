@@ -285,6 +285,8 @@ class vector(list):
     def count(self, *args):
         if len(args) == 0:
             return len(self)
+        if callable(args[0]):
+            return len(self.filter(args[0]))
         return super().count(args[0])
 
     def index(self, element):
@@ -349,11 +351,11 @@ class vector(list):
             return self[m_index], m_index
         return self[m_index]
 
-    def sum(self):
-        return self.reduce(lambda x, y: x + y)
+    def sum(self, default=None):
+        return self.reduce(lambda x, y: x + y, default)
 
-    def prod(self):
-        return self.reduce(lambda x, y: x * y)
+    def prod(self, default=None):
+        return self.reduce(lambda x, y: x * y, default)
 
     def group_by(self, key=lambda x: x[0]):
         result = _Vector_Dict()
@@ -365,9 +367,9 @@ class vector(list):
                 result[k_x].append(x)
         return result
 
-    def reduce(self, func):
+    def reduce(self, func, default=None):
         if len(self) == 0:
-            return None
+            return default
         temp = self[0]
         for x in self[1:]:
             temp = func(temp, x)
@@ -378,6 +380,10 @@ class vector(list):
 
     def generator(self):
         return ctgenerator(self)
+
+    @property
+    def length(self):
+        return len(self)
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
