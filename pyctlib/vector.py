@@ -18,6 +18,8 @@ from collections import Counter
 from pyoverload import *
 from functools import wraps
 from .touch import touch, crash
+import copy
+import numpy as np
 
 """
 Usage:
@@ -61,6 +63,11 @@ def recursive_apply(container, func):
     except:
         return container
 
+class EmptyClass:
+    pass
+
+NoDefault = EmptyClass()
+
 class vector(list):
 
     def __init__(self, *args):
@@ -94,12 +101,14 @@ class vector(list):
     def testnot(self, func):
         return vector([a for a in self if not touch(lambda: func(a))])
 
-    def map(self, func=None):
+    def map(self, func=None, default=NoDefault):
         """
         generate a new vector with each element x are replaced with func(x)
         """
         if func is None:
             return self
+        if default is not NoDefault:
+            return vector([touch(lambda: func(a), default=default) for a in self])
         try:
             return vector([func(a) for a in self])
         except:
@@ -151,21 +160,17 @@ class vector(list):
             return element
         return func(element)
 
-    @override
-    def __eq__(self, element):
-        return self.map(lambda x: x == element)
+    def __eq__(self, other):
+        if isinstance(other, list):
+            return vector(zip(self, other)).map(lambda x: x[0] == x[1])
+        else:
+            return self.map(lambda x: x == other)
 
-    @__eq__
-    def _(self, other: list):
-        return vector(zip(self, other)).map(lambda x: x[0] == x[1])
-
-    @override
-    def __neq__(self, element):
-        return self.map(lambda x: x != element)
-
-    @__neq__
-    def _(self, other: list):
-        return vector(zip(self, other)).map(lambda x: x[0] != x[1])
+    def __neq__(self, other):
+        if isinstance(self, list):
+            return vector(zip(self, other)).map(lambda x: x[0] != x[1])
+        else:
+            return self.map(lambda x: x != other)
 
     @override
     def __lt__(self, element):
@@ -384,6 +389,36 @@ class vector(list):
     @property
     def length(self):
         return len(self)
+
+    def onehot(self, max_length=-1, default_dict={}):
+        assert isinstance(default_dict, dict)
+        assert isinstance(max_length, int)
+        assert len(default_dict) <= max_length or max_length == -1
+        value = self.count_all().keys()
+        index_dict = copy.copy(default_dict)
+        if max_length == -1:
+            max_length = len(set(value).union(set(default_dict.keys())))
+        index_table = [EmptyClass() for _ in range(max_length)]
+        for key, v in enumerate(default_dict):
+            index_table[v] = key
+        current_index = 0
+        for v in value:
+            if v in default_dict:
+                continue
+            while current_index < max_length and not isinstance(index_table[current_index], EmptyClass):
+                current_index += 1
+            if current_index == max_length:
+                index_dict[v] = max_length - 1
+            else:
+                index_table[current_index] = v
+                index_dict[v] = current_index
+                current_index += 1
+        temp_list = self.map(lambda x: index_dict[x])
+        def create_onehot_vector(index, length):
+            ret = np.zeros(length)
+            ret[index] = 1.
+            return ret
+        return temp_list.map(lambda x: create_onehot_vector(x, max_length))
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
