@@ -64,9 +64,18 @@ def recursive_apply(container, func):
         return container
 
 class EmptyClass:
-    pass
 
-NoDefault = EmptyClass()
+    def __init__(self, name="EmptyClass"):
+        self.name = name
+        pass
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+NoDefault = EmptyClass("No Default Value")
 
 class vector(list):
 
@@ -131,9 +140,9 @@ class vector(list):
         for index, a in enumerate(self):
             if touch(lambda: func(a)) is None:
                 try:
-                    error_information = "Exception raised in map function at location {} for element {}".format(index, a)
+                    error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
                 except:
-                    error_information = "Exception raised in map function at location {} for element {}".format(index, "<unknown>")
+                    error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
                 raise RuntimeError(error_information)
 
     def rmap(self, func=None, default=NoDefault):
@@ -319,8 +328,6 @@ class vector(list):
         return super().count(args[0])
 
     def index(self, element):
-        # if isinstance(element, int):
-        #     return super().index(element)
         if callable(element):
             for index in range(len(self)):
                 if touch(lambda: element(self[index])):
