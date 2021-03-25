@@ -74,7 +74,11 @@ class vector(list):
         if len(args) == 0:
             list.__init__(self)
         elif len(args) == 1:
-            list.__init__(self, args[0])
+            if isinstance(args[0], np.ndarray):
+                temp = vector.from_numpy(args[0])
+                list.__init__(self, temp)
+            else:
+                list.__init__(self, args[0])
         else:
             list.__init__(self, args)
 
@@ -121,21 +125,20 @@ class vector(list):
                     error_information = "Exception raised in map function at location {} for element {}".format(index, "<unknown>")
                 raise RuntimeError(error_information)
 
-    @overload
-    def apply(self, func: Functional) -> None:
-        for x in self:
-            func(x)
-
-    @overload
-    def apply(self, command: str) -> None:
-        for x in self:
-            exec(command.format(x))
+    def apply(self, command) -> None:
+        if isinstance(command, str):
+            for x in self:
+                exec(command.format(x))
+        else:
+            for x in self:
+                command(x)
 
     def check_type(self, instance):
         return all(self.map(lambda x: isinstance(x, instance)))
 
-    @override
     def __mul__(self, other):
+        if isinstance(other, int):
+            return vector(super().__mul__(times))
         if touch(lambda: self.check_type(tuple) and other.check_type(tuple)):
             return vector(zip(self, other)).map(lambda x: (*x[0], *x[1]))
         elif touch(lambda: self.check_type(tuple)):
@@ -144,10 +147,6 @@ class vector(list):
             return vector(zip(self, other)).map(lambda x: (x[0], *x[1]))
         else:
             return vector(zip(self, other))
-
-    @__mul__
-    def _(self, times: int):
-        return vector(super().__mul__(times))
 
     def __pow__(self, other):
         return vector([(i, j) for i in self for j in other])
@@ -172,37 +171,29 @@ class vector(list):
         else:
             return self.map(lambda x: x != other)
 
-    @override
     def __lt__(self, element):
-        return self.map(lambda x: x < element)
+        if isinstance(element, list):
+            return vector(zip(self, element)).map(lambda x: x[0] < x[1])
+        else:
+            return self.map(lambda x: x < element)
 
-    @__lt__
-    def _(self, other: list):
-        return vector(zip(self, other)).map(lambda x: x[0] < x[1])
-
-    @override
     def __gt__(self, element):
-        return self.map(lambda x: x > element)
+        if isin(element, list):
+            return vector(zip(self, element)).map(lambda x: x[0] > x[1])
+        else:
+            return self.map(lambda x: x > element)
 
-    @__gt__
-    def _(self, other: list):
-        return vector(zip(self, other)).map(lambda x: x[0] > x[1])
-
-    @override
     def __le__(self, element):
-        return self.map(lambda x: x < element)
+        if isin(element, list):
+            return vector(zip(self, element)).map(lambda x: x[0] <= x[1])
+        else:
+            return self.map(lambda x: x < element)
 
-    @__le__
-    def _(self, other: list):
-        return vector(zip(self, other)).map(lambda x: x[0] <= x[1])
-
-    @override
     def __ge__(self, element):
-        return self.map(lambda x: x >= element)
-
-    @__ge__
-    def _(self, other: list):
-        return vector(zip(self, other)).map(lambda x: x[0] >= x[1])
+        if isin(element, list):
+            return vector(zip(self, element)).map(lambda x: x[0] >= x[1])
+        else:
+            return self.map(lambda x: x >= element)
 
     def __getitem__(self, index):
         if isinstance(index, slice):
@@ -212,18 +203,16 @@ class vector(list):
             return vector(zip(self, index)).filter(lambda x: x[1]).map(lambda x: x[0])
         return super().__getitem__(index)
 
-    @overload
-    def __sub__(self, other: Iterable):
-        try:
-            other = set(other)
-        except:
-            other = list(other)
-        finally:
-            return self.filter(lambda x: x not in other)
-
-    @overload
     def __sub__(self, other):
-        return self.filter(lambda x: x != other)
+        if isinstance(other, (list, set, vector, tuple)):
+            try:
+                other = set(other)
+            except:
+                other = list(other)
+            finally:
+                return self.filter(lambda x: x not in other)
+        else:
+            return self.filter(lambda x: x != other)
 
     def __setitem__(self, i, t):
         if isinstance(i, int):
@@ -419,6 +408,52 @@ class vector(list):
             ret[index] = 1.
             return ret
         return temp_list.map(lambda x: create_onehot_vector(x, max_length))
+
+    def sort_by_index(self, key=lambda index: index):
+        afflicated_vector = vector(key(index) for index in range(self.length))
+        temp = sorted(zip(self, afflicated_vector), key=lambda x: x[1])
+        return vector(temp).map(lambda x: x[0])
+
+    def sort_by_vector(self, other):
+        assert isinstance(other, list)
+        assert self.length == len(other)
+        return self.sort_by_index(lambda index: other[index])
+
+    @staticmethod
+    def from_numpy(array):
+        try:
+            assert isinstance(array, np.ndarray)
+            if len(array.shape) == 1:
+                return vector(list(array))
+            else:
+                return vector(list(array)).map(lambda x: vector.from_numpy(x))
+        except Exception as e:
+            print("warning: input isn't pure np.ndarray")
+            return vector(list(array))
+
+    @staticmethod
+    def zeros(*args):
+        args = totuple(args)
+        return vector.from_numpy(np.zeros(args))
+
+    @staticmethod
+    def ones(*args):
+        args = totuple(args)
+        return vector.from_numpy(np.ones(args))
+
+    @staticmethod
+    def rand(*args):
+        args = totuple(args)
+        return vector.from_numpy(np.random.rand(*args))
+
+    @staticmethod
+    def randn(*args):
+        args = totuple(args)
+        return vector.from_numpy(np.random.randn(*args))
+
+    @staticmethod
+    def range(*args):
+        return vector(range(*args))
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
