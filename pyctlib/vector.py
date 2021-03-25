@@ -16,7 +16,7 @@ __all__ = """
 from types import GeneratorType
 from collections import Counter
 from pyoverload import *
-from functools import wraps
+from functools import wraps, reduce
 from .touch import touch, crash
 import copy
 import numpy as np
@@ -32,7 +32,7 @@ def totuple(x, depth=1):
     if depth == 0:
         return tuple(x)
     temp = vector(x).map(lambda t: totuple(t, depth=depth-1))
-    return temp.flatten()
+    return temp.reduce(lambda x, y: x + y)
 
 def raw_function(func):
     if "__func__" in dir(func):
@@ -74,11 +74,22 @@ class vector(list):
         if len(args) == 0:
             list.__init__(self)
         elif len(args) == 1:
-            if isinstance(args[0], np.ndarray):
+            if args[0] is None:
+                return vector()
+            elif isinstance(args[0], np.ndarray):
                 temp = vector.from_numpy(args[0])
                 list.__init__(self, temp)
+            elif isinstance(args[0], list):
+                def to_vector(array):
+                    if isinstance(array, list):
+                        return [vector.from_list(x) for x in array]
+                temp = to_vector(args[0])
+                list.__init__(self, temp)
             else:
-                list.__init__(self, args[0])
+                try:
+                    list.__init__(self, args[0])
+                except:
+                    list.__init__(self, args)
         else:
             list.__init__(self, args)
 
@@ -124,6 +135,28 @@ class vector(list):
                 except:
                     error_information = "Exception raised in map function at location {} for element {}".format(index, "<unknown>")
                 raise RuntimeError(error_information)
+
+    def rmap(self, func=None, default=NoDefault):
+        if func is None:
+            return self
+        return self.map(lambda x: x.rmap(func, default) if isinstance(x, vector) else func(x), default)
+
+    def replace(self, element, toelement=NoDefault):
+        if toelement is NoDefault:
+            if callable(element):
+                for index in range(self.length):
+                    self[index] = element(self[index])
+            else:
+                for index in range(self.length):
+                    self[index] = element
+        else:
+            replace_indexs = self.findall(element)
+            for index in replace_indexs:
+                if callable(toelement):
+                    self[index] = toelement(self[index])
+                else:
+                    self[index] = toelement
+        return self
 
     def apply(self, command) -> None:
         if isinstance(command, str):
@@ -201,6 +234,8 @@ class vector(list):
         if isinstance(index, list):
             assert len(self) == len(index)
             return vector(zip(self, index)).filter(lambda x: x[1]).map(lambda x: x[0])
+        if isinstance(index, tuple):
+            return super().__getitem__(index[0])[index[1:]]
         return super().__getitem__(index)
 
     def __sub__(self, other):
@@ -369,8 +404,40 @@ class vector(list):
             temp = func(temp, x)
         return temp
 
-    def flatten(self):
-        return self.reduce(lambda x, y: x + y)
+    def flatten(self, depth=-1):
+        def temp_flatten(array, depth=-1):
+            if depth == 0:
+                return array
+            if not isinstance(array, list):
+                return array
+            if not isinstance(array, vector):
+                array = vector(array)
+            if all(not isinstance(x, list) for x in array):
+                return array
+            return array.map(vector).map(lambda x: temp_flatten(x, depth - 1)).reduce(lambda x, y: x + y)
+        return temp_flatten(self, depth)
+
+    def reshape(self, *args):
+        size = reduce(lambda x, y: x*y, self.shape)
+        args = totuple(args)
+        assert args.count(-1) <= 1
+        if args.count(-1) == 1:
+            if len(args) == 1:
+                return self.flatten()
+            args = vector(args)
+            assert size % abs(reduce(lambda x, y: x*y, args)) == 0
+            args.replace(-1, size // abs(reduce(lambda x, y: x*y, args)))
+            args = tuple(args)
+        assert reduce(lambda x, y: x * y, args) == reduce(lambda x, y: x * y, self.shape)
+        if args == self.shape:
+            return self
+        def _reshape(value, target_shape):
+            if len(target_shape) == 1:
+                return value
+            piece_length = len(value) // target_shape[0]
+            ret = vector(_reshape(value[piece_length * index: piece_length * (index + 1)], target_shape[1:]) for index in range(target_shape[0]))
+            return ret
+        return _reshape(self.flatten(), args)
 
     def generator(self):
         return ctgenerator(self)
@@ -432,6 +499,12 @@ class vector(list):
             return vector(list(array))
 
     @staticmethod
+    def from_list(array):
+        if not isinstance(array, list):
+            return array
+        return vector(vector.from_list(x) for x in array)
+
+    @staticmethod
     def zeros(*args):
         args = totuple(args)
         return vector.from_numpy(np.zeros(args))
@@ -439,21 +512,75 @@ class vector(list):
     @staticmethod
     def ones(*args):
         args = totuple(args)
-        return vector.from_numpy(np.ones(args))
+        ret = vector.from_numpy(np.ones(args))
+        ret._shape = args
+        return ret
 
     @staticmethod
     def rand(*args):
         args = totuple(args)
-        return vector.from_numpy(np.random.rand(*args))
+        ret = vector.from_numpy(np.random.rand(*args))
+        ret._shape = args
+        return ret
 
     @staticmethod
     def randn(*args):
         args = totuple(args)
-        return vector.from_numpy(np.random.randn(*args))
+        ret = vector.from_numpy(np.random.randn(*args))
+        ret._shape = args
+        return ret
 
     @staticmethod
     def range(*args):
         return vector(range(*args))
+
+    @property
+    def shape(self):
+        if touch(lambda: self._shape) is not None:
+            return self._shape
+        if all(not isinstance(x, vector) for x in self):
+            self._shape = (self.length, )
+            return self._shape
+        if any(not isinstance(x, vector) for x in self):
+            self._shape = "undefined"
+            return self._shape
+        if not self.map(lambda x: x.shape).all_equal():
+            self._shape = "undefined"
+            return self._shape
+        if self[0].shape is None:
+            self._shape = "undefined"
+            return self._shape
+        self._shape = (self.length, *(self[0].shape))
+        return self._shape
+
+    def append(self, *args):
+        self._shape = None
+        super().append(*args)
+
+    def extend(self, *args):
+        self._shape = None
+        super().extend(*args)
+
+    def pop(self, *args):
+        self._shape = None
+        return super().pop(*args)
+
+    def insert(self, *args):
+        self._shape = None
+        super().insert(*args)
+
+    def clear(self):
+        self._shape = None
+        super().clear()
+
+    def remove(self, *args):
+        self._shape = None
+        super().remove(*args)
+
+    def all_equal(self):
+        if self.length <= 1:
+            return True
+        return self.all(lambda x: x == self[0])
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
