@@ -404,6 +404,9 @@ class vector(list):
             temp = func(temp, x)
         return temp
 
+    def enumerate(self):
+        return enumerate(self)
+
     def flatten(self, depth=-1):
         def temp_flatten(array, depth=-1):
             if depth == 0:
@@ -556,10 +559,12 @@ class vector(list):
     def append(self, *args):
         self._shape = None
         super().append(*args)
+        return self
 
     def extend(self, *args):
         self._shape = None
         super().extend(*args)
+        return self
 
     def pop(self, *args):
         self._shape = None
@@ -568,14 +573,17 @@ class vector(list):
     def insert(self, *args):
         self._shape = None
         super().insert(*args)
+        return self
 
     def clear(self):
         self._shape = None
         super().clear()
+        return self
 
     def remove(self, *args):
         self._shape = None
         super().remove(*args)
+        return self
 
     def all_equal(self):
         if self.length <= 1:
