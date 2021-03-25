@@ -259,6 +259,7 @@ class vector(list):
             return self.filter(lambda x: x != other)
 
     def __setitem__(self, i, t):
+        self._shape = None
         if isinstance(i, int):
             super().__setitem__(i, t)
         elif isinstance(i, slice):
@@ -491,10 +492,10 @@ class vector(list):
         temp = sorted(zip(self, afflicated_vector), key=lambda x: x[1])
         return vector(temp).map(lambda x: x[0])
 
-    def sort_by_vector(self, other):
+    def sort_by_vector(self, other, func=lambda x: x):
         assert isinstance(other, list)
         assert self.length == len(other)
-        return self.sort_by_index(lambda index: other[index])
+        return self.sort_by_index(lambda index: func(other[index]))
 
     @staticmethod
     def from_numpy(array):
