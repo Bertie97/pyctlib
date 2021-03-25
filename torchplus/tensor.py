@@ -8,6 +8,7 @@
 
 __all__ = """
     Device
+    DeviceCPU
     Tensor
     Size
     set_autodevice
@@ -32,7 +33,7 @@ from functools import wraps
 from types import GeneratorType, MethodWrapperType
 from collections import OrderedDict
 from .torch_namespace import *
-from .device import AutoDevice as Device
+from .device import AutoDevice as Device, DeviceCPU
 
 """
 from torchplus import Tensor
@@ -164,7 +165,7 @@ class Size(tuple):
         return self[channel_dim]
 
     @property
-    def special(self): return self._special
+    def special(self): return [x for x in self._special if x < self.ndim]
 
     def special_from_(self, other=None):
 
@@ -311,11 +312,11 @@ class Size(tuple):
         if self.has_batch: batch_dim = self.batch_dimension
         if other.has_batch:
             if batch_dim < ndim: raise TypeError("Batch dimension conflict in addition. ")
-            batch_dim = other.batch_dimension
+            batch_dim = self.ndim + other.batch_dimension
         if self.has_channel: channel_dim = self.channel_dimension
         if other.has_channel:
             if channel_dim < ndim: raise TypeError("Channel dimension conflict in addition. ")
-            channel_dim = other.channel_dimension
+            channel_dim = self.ndim + other.channel_dimension
 
         return Size(tuple(self) + tuple(other), batch_dim=batch_dim, channel_dim=channel_dim)
 
@@ -343,7 +344,7 @@ class Size(tuple):
             if y == -2: return x
             if x == -1 or y == -1: return -1
             if r: z = op(y, x)
-            else: x = op(x, y)
+            else: z = op(x, y)
             if z < 0: raise Size.NegSizeError
             return INT(z)
 
@@ -453,8 +454,8 @@ class Size(tuple):
             lp_self, lp_other = self[:self.channel_dimension] ^ other[:other.channel_dimension]
             rp_self, rp_other = self[self.channel_dimension+1:] ^ other[other.channel_dimension+1:]
             return (
-                lp_self + Size([self.channel_size]) + rp_self,
-                lp_other + Size([other.channel_size]) + rp_other
+                lp_self + Size({self.channel_size}) + rp_self,
+                lp_other + Size({other.channel_size}) + rp_other
             )
 
         raise RuntimeError("Unexpected error occurs in sizes expanding, please contact developers for more information. ")
@@ -503,7 +504,6 @@ class Tensor(torch.Tensor):
             elif isinstance(arg, torch.Tensor) and (to_device is None or arg.device == to_device):
                 self = arg.as_subclass(Tensor)
                 self.requires_grad = kwargs.get('requires_grad', arg.requires_grad)
-                self.init = True
                 return self.set_special_(kwargs.get('batch_dim', None), kwargs.get('channel_dim', None))
             elif hasattr(arg, 'shape') or isinstance(arg, list):
                 if not isinstance(arg, torch.Tensor):
@@ -514,7 +514,6 @@ class Tensor(torch.Tensor):
                     self = super()._make_subclass(cls, arg, rg)
                 else:
                     self = super()._make_subclass(cls, arg.to(to_device), rg)
-                self.init = True
                 self.special_from_(arg)
                 return self.set_special_(kwargs.get('batch_dim', None), kwargs.get('channel_dim', None))
             elif isinstance(arg, tuple): args = arg
@@ -523,7 +522,6 @@ class Tensor(torch.Tensor):
         # args is a tuple of integers (or a Size)
         if to_device is None: self = super().__new__(cls, *args, **kwargs)
         else: self = super().__new__(cls, *args, device=to_device, **kwargs)
-        self.init = True
         self.special_from_(args)
         return self.set_special_(kwargs.get('batch_dim', None), kwargs.get('channel_dim', None))
 
@@ -609,7 +607,7 @@ class Tensor(torch.Tensor):
         return self
 
     @property
-    def channel_size(self): return self.shape.batch_size
+    def channel_size(self): return self.shape.channel_size
 
     @property
     def space(self):
@@ -646,7 +644,7 @@ class Tensor(torch.Tensor):
     def has_special(self): return self.init and self._special != [self.ndim, self.ndim]
 
     @property
-    def special(self): return None if not self.init else self._special
+    def special(self): return None if not self.init else [x for x in self._special if x < self.ndim]
 
     def special_from_(self, other=None):
 
@@ -684,7 +682,9 @@ class Tensor(torch.Tensor):
     def set_special_(self, batch_dim=None, channel_dim=None, *, special=[], bf=True):
 
         if batch_dim is None and channel_dim is None:
-            if not special: return self.special_from_()
+            if not special:
+                if not self.init: return self.special_from_()
+                else: return self
             a, b = special
             if not isinstance(a, INT): a = self.ndim
             if not isinstance(b, INT): b = self.ndim
@@ -706,14 +706,20 @@ class Tensor(torch.Tensor):
             if batch_dim < 0: batch_dim = batch_dim + self.ndim
             if not 0 <= batch_dim <= self.ndim:
                 raise TypeError(f"batch_dimension should be a dimension index which is smaller than {self.ndim}. ")
-        else: batch_dim = self.ndim
+        elif self.init:
+            batch_dim = MIN(self.batch_dimension, self.ndim)
+        else:
+            batch_dim = self.ndim
 
         if channel_dim is not None:
             if not isinstance(channel_dim, INT): channel_dim = self.ndim
             if channel_dim < 0: channel_dim = channel_dim + self.ndim
             if not 0 <= channel_dim <= self.ndim:
                 raise TypeError(f"channel_dimension should be a dimension index which is smaller than {self.ndim}. ")
-        else: channel_dim = self.ndim
+        elif self.init:
+            channel_dim = MIN(self.channel_dimension, self.ndim)
+        else:
+            channel_dim = self.ndim
 
         if batch_dim < channel_dim:
             self._batch_first = True
@@ -785,35 +791,100 @@ class Tensor(torch.Tensor):
             return self.ishape[i[0]]
         return tuple(self.ishape[x] for x in i)
 
+    def squeeze(self, *dims: int, dim=None):
+        if len(dims) > 0 and dim is not None:
+            raise TypeError("squeeze function only accept either argument or positional argument. But both are given")
+        if len(dims) == 1 and isinstance(dims[0], tuple):
+            dims = dims[0]
+        if dim is None:
+            dim = dims
+        if not isinstance(dim, tuple):
+            dim = (dim,)
+        if len(dim) == 0: dim = tuple(i for i, x in enumerate(self.ishape) if x == 1)
+        a, b = self._special
+        ndim = self.ndim
+        bf = self._batch_first
+        for d in dim:
+            if isinstance(d, list): d = d[0]
+            if isinstance(d, set): d = d.pop()
+            self = super(Tensor, self).squeeze(d)
+            if a == d: a = ndim
+            if 0 <= d <= a or d + ndim <= a: a -= 1
+            if b == d: b = ndim
+            if 0 <= d <= b or d + ndim <= b: b -= 1
+            ndim -= 1
+        return self.as_subclass(Tensor).set_special_(special=[a, b], bf=bf)
+
+    def squeeze_(self, *dims:int, dim=None):
+        if len(dims) > 0 and dim is not None:
+            raise TypeError("squeeze_ function only accept either argument or positional argument. But both are given")
+        if len(dims) == 1 and isinstance(dims[0], tuple):
+            dims = dims[0]
+        if dim is None:
+            dim = dims
+        if not isinstance(dim, tuple):
+            dim = (dim,)
+        if len(dim) == 0: dim = tuple(i for i, x in enumerate(self.ishape) if x == 1)
+        a, b = self._special
+        ndim = self.ndim
+        bf = self._batch_first
+        for d in dim:
+            if isinstance(d, list): d = d[0]
+            if isinstance(d, set): d = d.pop()
+            self = super(Tensor, self).squeeze_(d)
+            if a == d: a = ndim
+            if 0 <= d <= a or d + ndim <= a: a -= 1
+            if b == d: b = ndim
+            if 0 <= d <= b or d + ndim <= b: b -= 1
+            ndim -= 1
+        return self.as_subclass(Tensor).set_special_(special=[a, b], bf=bf)
+
     def unsqueeze(self, *dims: int, dim=None):
         if len(dims) > 0 and dim is not None:
             raise TypeError("unsqueeze function only accept either argument or positional argument. But both are given")
+        if len(dims) == 1 and isinstance(dims[0], tuple):
+            dims = dims[0]
         if dim is None:
             dim = dims
         if not isinstance(dim, tuple):
             dim = (dim,)
         if len(dim) == 0: dim = (0,)
+        a, b = self._special
+        ndim = self.ndim
+        bf = self._batch_first
         ibatch = ichannel = None
         for d in dim:
             if isinstance(d, list): d = d[0]; ibatch = d
             if isinstance(d, set): d = d.pop(); ichannel = d
-            self = super().unsqueeze(d)
-        return self.as_subclass(Tensor).set_special_(batch_dim=ibatch, channel_dim=ichannel)
+            self = super(Tensor, self).unsqueeze(d)
+            if 0 <= d <= a or d + ndim <= a: a += 1
+            if 0 <= d <= b or d + ndim <= b: b += 1
+            ndim += 1
+
+        return self.as_subclass(Tensor).set_special_(special=[a, b], bf=bf).set_special_(batch_dim=ibatch, channel_dim=ichannel)
 
     def unsqueeze_(self, *dims:int, dim=None):
         if len(dims) > 0 and dim is not None:
-            raise TypeError("unsqueeze function only accept either argument or positional argument. But both are given")
+            raise TypeError("unsqueeze_ function only accept either argument or positional argument. But both are given")
+        if len(dims) == 1 and isinstance(dims[0], tuple):
+            dims = dims[0]
         if dim is None:
             dim = dims
         if not isinstance(dim, tuple):
             dim = (dim,)
         if len(dim) == 0: dim = (0,)
+        a, b = self._special
+        ndim = self.ndim
+        bf = self._batch_first
         ibatch = ichannel = None
         for d in dim:
             if isinstance(d, list): d = d[0]; ibatch = d
             if isinstance(d, set): d = d.pop(); ichannel = d
-            self = super().unsqueeze_(d)
-        return self.as_subclass(Tensor).set_special_(batch_dim=ibatch, channel_dim=ichannel)
+            self = super(Tensor, self).unsqueeze_(d)
+            if 0 <= d <= a or d + ndim <= a: a += 1
+            if 0 <= d <= b or d + ndim <= b: b += 1
+            ndim += 1
+        return self.as_subclass(Tensor).set_special_(special=[a, b], bf=bf).set_special_(batch_dim=ibatch, channel_dim=ichannel)
 
     def expand_to(self, *target):
         with torch._C.DisableTorchFunction():
@@ -861,6 +932,12 @@ class Tensor(torch.Tensor):
 
         return res.as_subclass(Tensor).special_from_(target)
 
+    def multiple(self, num, dim=0):
+        if isinstance(dim, list): d = dim[0]
+        elif isinstance(dim, set): d = dim.pop(); dim = {d}
+        else: d = dim
+        return self.unsqueeze(dim).repeat((1,) * d + (num,) + (1,) * (self.ndim - d))
+
     def sample(self, dim: INT = None, number: INT = 1, random: bool = True) -> 'Tensor':
         """
         sample(self, dim: int = self.batch_dimension, numbder: int = 1, random: bool = True) -> Tensor
@@ -869,7 +946,7 @@ class Tensor(torch.Tensor):
         data.sample(2, 1, random=False) is equivalant to data[:, :, 0, ...].
         """
         if dim is None or isinstance(dim, list) and dim == []: dim = self.batch_dimension
-        if dim is None or isinstance(dim, set) and dim == {}: dim = self.channel_dimension
+        if dim is None or isinstance(dim, dict) and dim == {}: dim = self.channel_dimension
         if dim < 0: dim += self.ndim
         if dim is None: raise TypeError("Argument 'dim' needed for sampling Tensors with no special dimensions. ")
         if number < 1: raise TypeError("Argument 'number' for sampling Tensors can not be smaller than 1. ")
@@ -886,19 +963,31 @@ class Tensor(torch.Tensor):
             return output_tensor
         else:
             sample_indices[dim] = samples[0]
-            output_tensor = self[tuple(sample_indices)].as_subclass(Tensor).special_from_(special=[x - 1 if x > dim else (self.ndim if x == dim else x) for x in self._special])
+            output_tensor = self[tuple(sample_indices)].as_subclass(Tensor).set_special_(special=[x - 1 if x > dim else (self.ndim-1 if x == dim else x) for x in self._special], bf=self._batch_first)
             output_tensor.indices = samples
             return output_tensor
 
-    def pick(self, dim: INT, index: INT):
+    def pick(self, index: INT, dim: INT):
         """
         pick(self, dim, index) -> Tensor
 
         pick one of the item on dimension `dim` for big tensors. 
-        data.pick(2, 4) is equivalent to data[:, :, 4]
+        data.pick(4, 2) is equivalent to data[:, :, 4]
         """
         if dim < 0: dim += self.ndim
         return self[(slice(None),) * dim + (index,)]
+
+    def split(self, sec=1, dim=None, squeeze=False):
+        """
+        pick(self, dim, index) -> Tensor
+
+        pick one of the item on dimension `dim` for big tensors. 
+        data.pick(4, 2) is equivalent to data[:, :, 4]
+        """
+        if dim is None: dim = self.channel_dimension
+        if sec == 1 or isinstance(sec, (tuple, list)) and all(x == 1 for x in sec):
+            if squeeze: return tuple(x.as_subclass(Tensor).special_from_(self).squeeze(dim) for x in super().split(sec, dim))
+        return tuple(x.as_subclass(Tensor).special_from_(self) for x in super().split(sec, dim))
 
     def mvdim(self, dim1: INT, dim2: INT):
         """
@@ -915,7 +1004,7 @@ class Tensor(torch.Tensor):
             elif dim1 < dim2: res = self.unsqueeze(dim2+1).transpose(dim1, dim2+1).squeeze(dim1)
             else: res = self.unsqueeze(dim2).transpose(dim1+1, dim2).squeeze(dim1+1)
 
-        return res.as_subclass(Tensor).special_from_(special=[dim2 if x == dim1 else (
+        return res.as_subclass(Tensor).set_special_(special=[dim2 if x == dim1 else (
             x if x > dim2 and x > dim1 or x < dim1 and x < dim2 
             else (x + 1 if dim1 > dim2 else x - 1)) for x in self._special])
 
@@ -993,7 +1082,7 @@ class Tensor(torch.Tensor):
             a, b = self.shape ^ other.shape
             with torch._C.DisableTorchFunction():
                 res = getattr(super(Tensor, self.view(a).as_subclass(Tensor)), opname)(other.view(b))
-            return res.as_subclass(Tensor).special_from_(self)
+            return res.as_subclass(Tensor).special_from_(a)
         return getattr(super(), opname)(other, **kwargs).as_subclass(Tensor).special_from_()
 
     for op in '''
@@ -1037,6 +1126,8 @@ class Tensor(torch.Tensor):
         if 'shape=' not in string:
             string = string.rstrip(')') + f', shape={self.shape})'
         return string.replace("tensor", "Tensor")
+
+    def __hash__(self): return super().__hash__()
 
     @staticmethod
     def __torch_function_convert__(ret, cls):
@@ -1087,7 +1178,8 @@ class Tensor(torch.Tensor):
     @classmethod
     def __torch_function_ele_wise_func__(cls, func, types, args=(), kwargs=None):
         """
-        FOR: tensor __add__ __iadd__ __radd__
+        FOR: tensor where
+        __add__ __iadd__ __radd__
         __sub__ __isub__ __rsub__
         __mul__ __imul__ __rmul__
         __div__ __idiv__ __rdiv__
@@ -1117,7 +1209,9 @@ class Tensor(torch.Tensor):
     @classmethod
     def __torch_function_resizing_func__(cls, func, types, args=(), kwargs=None):
         "FOR: reshape view zeros ones rand randn"
-        dims = Size(args[1:])
+        dims = args[1:]
+        if len(dims) == 1: dims = dims[0]
+        if not isinstance(dims, Size): dims = Size(dims)
         args = args[:1] + tuple(dims)
 
         with torch._C.DisableTorchFunction():
@@ -1233,16 +1327,13 @@ class Tensor(torch.Tensor):
 
     @classmethod
     def __torch_function_reducing_func__(cls, func, types, args=(), kwargs=None):
-        "FOR: cummin cummax cumsum cumprod sum prod min max mean argmin argmax squeeze squeeze_"
+        "FOR: cummin cummax cumsum cumprod sum prod min max mean std argmin argmax"
         func_name = str(func).split(' of ')[0].split()[-1].strip("'")
         mkwargs = kwargs if kwargs is not None else {}
-        if len(args) == 1 and 'dim' not in mkwargs:
+        if len(args) == 1 and 'dim' not in mkwargs and func_name in ('sum', 'prod', 'mean', 'std', 'cumsum', 'cumprod'):
             self = args[0]
-            if func_name.startswith('squeeze'):
-                dims = list(i for i, x in enumerate(self.ishape) if x == 1)
-            else:
-                s = self._special
-                dims = list(RANGE(s[0])) + list(RANGE(s[0]+1, s[1])) + list(RANGE(s[1]+1, self.ndim))
+            s = self._special
+            dims = list(RANGE(s[0])) + list(RANGE(s[0]+1, s[1])) + list(RANGE(s[1]+1, self.ndim))
             args += (dims,)
 
         with torch._C.DisableTorchFunction():
@@ -1262,24 +1353,24 @@ class Tensor(torch.Tensor):
 
     @classmethod
     def __torch_function_expanding_func__(cls, func, types, args=(), kwargs=None):
-        "FOR: unsqueeze unsqueeze_"
-        self = args[0]
-        dims = kwget(kwargs, 'dim', args[1:])
-        if len(dims) == 1 and isinstance(dims[0], tuple): dims = dims[0]
+        "FOR: unsqueeze unsqueeze_ squeeze squeeze_"
+        # self = args[0]
+        # dims = kwget(kwargs, 'dim', args[1:])
+        # if len(dims) == 1 and isinstance(dims[0], tuple): dims = dims[0]
 
         with torch._C.DisableTorchFunction():
             ret = super().__torch_function__(func, types, args, kwargs)
             if isinstance(ret, type(NotImplemented)):
                 raise NotImplementedError(f"{func} for {args} is not implemented. ")
 
-        def apply(r):
-            a, b = self._special
-            ndim = self.ndim
-            for d in dims:
-                if 0 <= d <= a or d + ndim <= a: a += 1
-                if 0 <= d <= b or d + ndim <= b: b += 1
-                ndim += 1
-            r.set_special_(special=[a, b], bf=self._batch_first)
+        def apply(r): ...
+            # a, b = self._special
+            # ndim = self.ndim
+            # for d in dims:
+            #     if 0 <= d <= a or d + ndim <= a: a += 1
+            #     if 0 <= d <= b or d + ndim <= b: b += 1
+            #     ndim += 1
+            # r.set_special_(special=[a, b], bf=self._batch_first)
 
         return Tensor.__torch_function_convert_apply__(ret, apply, cls)
 
@@ -1575,6 +1666,10 @@ def t(tensor: Array.Torch):
     if isinstance(tensor, Tensor): return tensor.T
     else: return torch.t(tensor).as_subclass(Tensor).special_from_(tensor)
 
+def squeeze(tensor, *args, **kwargs):
+    if isinstance(tensor, Tensor): return tensor.squeeze(*args, **kwargs)
+    else: return torch.squeeze(tensor, *args, **kwargs).as_subclass(Tensor).special_from_(tensor)
+
 def unsqueeze(tensor, *args, **kwargs):
     if isinstance(tensor, Tensor): return tensor.unsqueeze(*args, **kwargs)
     else: return torch.unsqueeze(tensor, *args, **kwargs).as_subclass(Tensor).special_from_(tensor)
@@ -1583,7 +1678,7 @@ def tensor(data, *, dtype=None, device=None, requires_grad=False, pin_memory=Fal
     if device is None and _auto_device is True:
         device = Device
     if isinstance(data, Tensor):
-        return data.clone().special_from_()
+        return data.clone()
     if isinstance(data, torch.Tensor):
         return data.as_subclass(Tensor).special_from_()
     return torch.tensor(data, dtype=dtype, device=device, requires_grad=requires_grad, pin_memory=pin_memory).as_subclass(Tensor).special_from_()

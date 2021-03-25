@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "micomputing",
-    version = "0.0.2",
+    version = "0.0.28",
     keywords = ("pip", "pyctlib", "torchplus", "micomputing"),
     description = "This package is based on torchplus and provides medical image computations. ",
     long_description = open("./micomputing/README.md").read(),

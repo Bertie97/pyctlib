@@ -8,6 +8,7 @@
 __all__ = """
     crop_as
     decimal
+    divide
     dot
     down_scale
     gaussian_kernel
@@ -25,6 +26,15 @@ import torchplus as tp
 
 def decimal(tensor):
     return tensor - tp.floor(tensor)
+
+def divide(a, b, limit=1, tol=1e-6):
+    a = tp.tensor(a)
+    b = tp.tensor(b)
+    a_s, b_s = a.shape ^ b.shape
+    a = a.view(a_s)
+    b = b.view(b_s)
+    shape = tp.Size(max(x, y) for x, y in zip(a_s, b_s))
+    return tp.where(b.abs() < tol, limit * tp.ones(shape), a / tp.where(b.abs() < tol, tol * tp.ones(shape), b))
 
 def add_special(size, special, fill=1):
     s = special
@@ -51,7 +61,7 @@ def grad_image(array):
         array: (n_batch, n_feature, n_1, ..., n_{n_dim})
         output: (n_batch, n_dim, n_feature, n_1, ..., n_{n_dim})
     '''
-    array = tp.Tensor(array)
+    array = tp.tensor(array)
     output = tp.zeros_like(array)
     grad_dim = int(array.has_batch)
     output = []
@@ -65,7 +75,7 @@ def grad_image(array):
 @overload
 @restore_type_wrapper("roi")
 def crop_as(x: Array, y: tuple, center: tuple, fill: Scalar=0) -> Array:
-    x = tp.Tensor(x)
+    x = tp.tensor(x)
     size_x = x.shape
     size_y = y
 
@@ -111,7 +121,7 @@ def crop_as(x: Array, y: [tuple, Array], fill: Scalar=0) -> Array:
 
 @restore_type_wrapper
 def up_scale(image, *scaling:int):
-    image = tp.Tensor(image)
+    image = tp.tensor(image)
     if len(scaling) == 0:
         scaling = (1,)
     elif len(scaling) == 1 and iterable(scaling[0]):
@@ -136,7 +146,7 @@ def up_scale(image, *scaling:int):
 
 @restore_type_wrapper
 def down_scale(image, *scaling:int):
-    image = tp.Tensor(image)
+    image = tp.tensor(image)
     if len(scaling) == 0:
         scaling = (1,)
     elif len(scaling) == 1 and iterable(scaling[0]):

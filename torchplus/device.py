@@ -2,8 +2,8 @@ import torch
 from pyctlib import vector, recursive_apply
 from pynvml import *
 
-
-available_gpus = [torch.cuda.device(i) for i in range(torch.cuda.device_count())]
+available_gpu_ids = list(range(torch.cuda.device_count()))
+available_gpus = [torch.cuda.device(i) for i in available_gpu_ids]
 
 def free_memory_amount(device_number):
     nvmlInit()
@@ -17,10 +17,10 @@ def all_memory_amount(device_number):
     info = nvmlDeviceGetMemoryInfo(h)
     return info.total
 
-available_gpus_memory = vector([free_memory_amount(i) for i in range(torch.cuda.device_count())])
-all_gpus_memory = vector([all_memory_amount(i) for i in range(torch.cuda.device_count())])
+available_gpus_memory = vector([free_memory_amount(i) for i in available_gpu_ids])
+all_gpus_memory = vector([all_memory_amount(i) for i in available_gpu_ids])
 
-warning_free_memory_threshold = 5
+warning_free_memory_threshold = eval(os.environ.get('CUDA_RUN_MEMORY', '5'))
 
 if torch.cuda.is_available():
     most_available_gpus = available_gpus_memory.max(with_index=True)[1]
@@ -33,7 +33,7 @@ if torch.cuda.is_available():
             raise RuntimeError("There are no enough free memory left.")
 
     igpu = available_gpus_memory.index(max(available_gpus_memory))
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(igpu)
+    os.environ['CUDA_VISIBLE_DEVICES'] = ', '.join([f'{i}' for i in available_gpu_ids])
     AutoDevice = torch.device(f"cuda:{igpu}")
     print(f"Using GPU device {igpu}...")
 else:
