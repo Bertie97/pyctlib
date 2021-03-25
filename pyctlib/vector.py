@@ -598,6 +598,21 @@ class vector(list):
             return True
         return self.all(lambda x: x == self[0])
 
+    def sample(self, *args, replace=True, p=None):
+        args = totuple(args)
+        if len(args) == 0:
+            return vector()
+        if isinstance(args[-1], bool):
+            replace = args[-1]
+            args = args[:-1]
+        if len(args) >= 2 and isinstance(args[-2], bool) and isinstance(args[-1], (list, np.ndarray)):
+            replace = args[-2]
+            p = args[-1]
+            args = args[:-2]
+        if len(args) == 0:
+            return vector()
+        return vector(np.random.choice(self, size=args, replace=replace, p=p))
+
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
         func = raw_function(args[0])
