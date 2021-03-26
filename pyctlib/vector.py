@@ -125,12 +125,14 @@ class vector(list):
     def testnot(self, func):
         return vector([a for a in self if not touch(lambda: func(a))])
 
-    def map(self, func=None, default=NoDefault):
+    def map(self, func, *args, default=NoDefault):
         """
         generate a new vector with each element x are replaced with func(x)
         """
         if func is None:
             return self
+        for other_func in args:
+            func = lambda x: other_func(func(x))
         if default is not NoDefault:
             return vector([touch(lambda: func(a), default=default) for a in self])
         try:
@@ -145,9 +147,11 @@ class vector(list):
                     error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
                 raise RuntimeError(error_information)
 
-    def rmap(self, func=None, default=NoDefault):
+    def rmap(self, func, *args, default=NoDefault):
         if func is None:
             return self
+        for other_func in args:
+            func = lambda x: other_func(func(x))
         return self.map(lambda x: x.rmap(func, default) if isinstance(x, vector) else func(x), default)
 
     def replace(self, element, toelement=NoDefault):
