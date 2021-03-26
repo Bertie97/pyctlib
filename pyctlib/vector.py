@@ -92,10 +92,10 @@ class vector(list):
             elif isinstance(args[0], vector):
                 list.__init__(self, args[0])
             elif isinstance(args[0], list):
-                def to_vector(array):
-                    if isinstance(array, list):
-                        return [vector.from_list(x) for x in array]
                 if recursive:
+                    def to_vector(array):
+                        if isinstance(array, list):
+                            return [vector.from_list(x) for x in array]
                     temp = to_vector(args[0])
                 else:
                     temp = args[0]
