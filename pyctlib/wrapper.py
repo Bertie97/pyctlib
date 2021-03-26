@@ -22,6 +22,9 @@ def _restore_type_wrapper(func: Callable, special_attr: List[str]):
         if "numpy.ndarray" in str(totype):
             import numpy as np
             constructor = np.array
+        elif "torchplus" in str(totype):
+            import torchplus as tp
+            constructor = tp.tensor
         elif "torch.Tensor" in str(totype):
             import torch
             constructor = lambda x: x.as_subclass(torch.Tensor) if isinstance(x, torch.Tensor) else torch.tensor(x)

@@ -12,7 +12,7 @@ sys.path.append("/Users/admin/Documents/BJ_Files/_Courses_/Research/zycmodules/p
 import torch
 import torchplus as tp
 
-######## Section 1: Mutual Information ########
+######### Section 1: Information Based ########
 eps = 1e-6
 
 def Bspline(i, U):
@@ -94,15 +94,15 @@ class JointHistogram(tp.autograd.Function):
             nbin = ctx.nbin
             data_pair = ctx.data_pair
             nbatch, nhist, ndata = data_pair.ishape
-            dPdI1 = torch.zeros(ctx.Ishape)
-            dPdI2 = torch.zeros(ctx.Ishape)
+            dPdI1 = tp.zeros(ctx.Ishape)
+            dPdI2 = tp.zeros(ctx.Ishape)
             for shift in ctx.window:
                 # [nbatch] x {nhist} x ndata
                 shift = shift.view(1, 2, 1)
                 hist_pos = data_pair * nbin
                 index = torch.clamp(torch.floor(hist_pos).long() + shift, 0, nbin - 1)
                 grad_y = grad_output[(slice(None),) + index.split(1, 1)].squeeze(2)
-                value = grad_y.gather(0, torch.arange(nbatch).long().unsqueeze(0).unsqueeze(-1).repeat(1, 1, ndata)).view(ctx.Ishape)
+                value = grad_y.gather(0, tp.arange(nbatch).long().unsqueeze(0).unsqueeze(-1).repeat(1, 1, ndata)).view(ctx.Ishape)
                 dPdI1 += value * dBspline_WRT_I1(shift, tp.decimal(data_pair * nbin)).view(ctx.Ishape)
                 dPdI2 += value * dBspline_WRT_I2(shift, tp.decimal(data_pair * nbin)).view(ctx.Ishape)
         return dPdI1, dPdI2, None
@@ -125,6 +125,12 @@ def NormalizedMutualInformation(A, B, nbin=100):
     Hy = - tp.sum(Pb * tp.log2(tp.where(Pb < eps, tp.ones_like(Pb), Pb)), 1)
     return (Hx + Hy) / Hxy
 
+def KLDivergence(A, B, nbin=100):
+    assert A.has_batch and B.has_batch
+    Pab = JointHistogram.apply(A, B, nbin)
+    Pa = Pab.sum(2); Pb = Pab.sum(1)
+    return (Pa * tp.log2(tp.where(Pb < eps, tp.ones_like(Pa), Pa / Pb.clamp(min=eps)).clamp(min=eps))).sum(1)
+
 ###############################################
 
 ######## Section 2: Cross Correlation #########
@@ -132,38 +138,47 @@ def NormalizedMutualInformation(A, B, nbin=100):
 def local_matrix(A, B, s=0, kernel="Gaussian", kernel_size=3):
     if isinstance(kernel, str):
         if kernel.lower() == "gaussian": kernel = tp.gaussian_kernel(n_dims = A.nspace, kernel_size = kernel_size).unsqueeze(0, 0)
-        elif kernel.lower() == "mean": kernel = tp.ones(*(kernel_size,) * A.nspace).unsqueeze(0, 0)
+        elif kernel.lower() == "mean": kernel = tp.ones(*(kernel_size,) * A.nspace).unsqueeze(0, 0) / (kernel_size ** A.nspace)
     elif hasattr(kernel, 'shape'): kernel_size = kernel.size(-1)
-    mean = lambda a: eval("tp.nn.functional.conv%dd"%A.nspace)(a.unsqueeze(), kernel, padding = kernel_size // 2).squeeze(0)
+
+    def mean(a):
+        op = eval("tp.nn.functional.conv%dd"%A.nspace)
+        if a.has_batch: x = a.unsqueeze({1})
+        else: x = a.unsqueeze([0], {1})
+        return op(x, kernel, padding = kernel_size // 2).squeeze(*((1,) if a.has_batch else (0, 0)))
 
     if s > 0:
         GA = tp.grad_image(A)
         GB = tp.grad_image(B)
-        point_estim = tp.stack(tp.dot(GA, GA), tp.dot(GA, GB), tp.dot(GB, GB), dim={1})
+        point_estim = tp.stack(tp.dot(GA, GA), tp.dot(GA, GB), tp.dot(GB, GB), dim={int(A.has_batch)})
     else: point_estim = 0
 
-    RA = A - mean(A)
-    RB = B - mean(B)
-    local_estim = tp.stack(RA * RA, RA * RB, RB * RB, dim={1})
+    MA = mean(A)
+    MB = mean(B)
+    local_estim = tp.stack(mean(A * A) - MA ** 2, mean(A * B) - MA * MB, mean(B * B) - MB ** 2, dim={int(A.has_batch)})
 
     return s * point_estim + local_estim
 
 def LocalCrossCorrelation(A, B, s=0, kernel="Gaussian", kernel_size=3):
     assert A.has_batch and B.has_batch
-    S11, S12, S22 = local_matrix(A, B, s=0, kernel="Gaussian", kernel_size=3).split(1, 1)
-    num = S12.abs().squeeze(1)
-    den = tp.sqrt(S11 * S22).squeeze(1)
-    return tp.where(den.abs() < 1e-6, tp.zeros_like(num), num / den.clamp(min=1e-6)).mean()
+    S11, S12, S22 = local_matrix(A, B, s=s, kernel=kernel, kernel_size=kernel_size).split()
+    return (tp.divide(S12 ** 2, S11 * S22, tol=eps).squeeze(1) + eps).sqrt().mean()
 
 ###############################################
 
 ########## Section 3: Local Gradient ##########
 
 def NormalizedVectorInformation(A, B):
-    assert A.has_batch and B.has_batch and A.has_channel and B.has_channel
+    assert A.has_batch and B.has_batch
     GA = tp.grad_image(A)
     GB = tp.grad_image(B)
-    return (tp.dot(GA, GB) / tp.sqrt(tp.dot(GA, GB) * tp.dot(GB, GB))).mean()
+    return tp.divide(tp.dot(GA, GB) ** 2, tp.dot(GA, GA) * tp.dot(GB, GB), tol=eps).mean()
+
+def Cos2Theta(A, B):
+    assert A.has_batch and B.has_batch
+    GA = tp.grad_image(A)
+    GB = tp.grad_image(B)
+    return tp.divide(tp.dot(GA, GB) ** 2, tp.dot(GA, GA) * tp.dot(GB, GB), tol=eps)
 
 ###############################################
 
@@ -171,14 +186,10 @@ def NormalizedVectorInformation(A, B):
 
 def SumSquaredDifference(A, B):
     assert A.has_batch and B.has_batch
-    A.remove_channel()
-    B.remove_channel()
     return ((A - B) ** 2).sum()
 
 def MeanSquaredErrors(A, B):
     assert A.has_batch and B.has_batch
-    A.remove_channel()
-    B.remove_channel()
     return ((A - B) ** 2).mean()
 
 ###############################################
@@ -227,7 +238,7 @@ def LabelDice(A, B, class_labels=None):
     :return: (n_batch, n_class)
     '''
     assert A.has_batch and B.has_batch
-    if not class_labels: class_labels = sorted(I1.unique().tolist())
+    if not class_labels: class_labels = sorted(A.unique().tolist() + B.unique().tolist())
     A_labels = [1 - tp.clamp(tp.abs(A - i), 0, 1) for i in class_labels]
     B_labels = [1 - tp.clamp(tp.abs(B - i), 0, 1) for i in class_labels]
     A_maps = tp.stack(A_labels, {1})

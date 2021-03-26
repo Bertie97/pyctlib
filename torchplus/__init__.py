@@ -7,7 +7,6 @@
 ##############################
 
 from .tensor import *
-from .device import DeviceCPU
 from .tensorfunc import *
 from . import nn
 # import nn

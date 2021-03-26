@@ -64,9 +64,18 @@ def recursive_apply(container, func):
         return container
 
 class EmptyClass:
-    pass
 
-NoDefault = EmptyClass()
+    def __init__(self, name="EmptyClass"):
+        self.name = name
+        pass
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+NoDefault = EmptyClass("No Default Value")
 
 class vector(list):
 
@@ -133,9 +142,9 @@ class vector(list):
         for index, a in enumerate(self):
             if touch(lambda: func(a)) is None:
                 try:
-                    error_information = "Exception raised in map function at location {} for element {}".format(index, a)
+                    error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
                 except:
-                    error_information = "Exception raised in map function at location {} for element {}".format(index, "<unknown>")
+                    error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
                 raise RuntimeError(error_information)
 
     def rmap(self, func=None, default=NoDefault):
@@ -252,6 +261,7 @@ class vector(list):
             return self.filter(lambda x: x != other)
 
     def __setitem__(self, i, t):
+        self._shape = None
         if isinstance(i, int):
             super().__setitem__(i, t)
         elif isinstance(i, slice):
@@ -321,8 +331,6 @@ class vector(list):
         return super().count(args[0])
 
     def index(self, element):
-        # if isinstance(element, int):
-        #     return super().index(element)
         if callable(element):
             for index in range(len(self)):
                 if touch(lambda: element(self[index])):
@@ -486,10 +494,10 @@ class vector(list):
         temp = sorted(zip(self, afflicated_vector), key=lambda x: x[1])
         return vector(temp).map(lambda x: x[0])
 
-    def sort_by_vector(self, other):
+    def sort_by_vector(self, other, func=lambda x: x):
         assert isinstance(other, list)
         assert self.length == len(other)
-        return self.sort_by_index(lambda index: other[index])
+        return self.sort_by_index(lambda index: func(other[index]))
 
     @staticmethod
     def from_numpy(array):
@@ -591,6 +599,21 @@ class vector(list):
         if self.length <= 1:
             return True
         return self.all(lambda x: x == self[0])
+
+    def sample(self, *args, replace=True, p=None):
+        args = totuple(args)
+        if len(args) == 0:
+            return vector()
+        if isinstance(args[-1], bool):
+            replace = args[-1]
+            args = args[:-1]
+        if len(args) >= 2 and isinstance(args[-2], bool) and isinstance(args[-1], (list, np.ndarray)):
+            replace = args[-2]
+            p = args[-1]
+            args = args[:-2]
+        if len(args) == 0:
+            return vector()
+        return vector(np.random.choice(self, size=args, replace=replace, p=p))
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):

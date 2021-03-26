@@ -25,10 +25,10 @@ canvas = None
 colors = ['red', 'green', 'blue', 'gold', 'purple', 'gray', 'pink', 'darkgreen', 'dodgerblue']
 assert all(c in mc.CSS4_COLORS for c in colors)
 
-def to_image(data: Array, nslice: [int, null]=None, dim: int=-1):
-    data = tp.Tensor(data).squeeze()
+def to_image(data: Array, nslice: [int, null]=None, dim: int=-1, has_cmap=False):
+    data = tp.tensor(data).squeeze()
     if data.ndim <= 1: raise TypeError("Please don't use 'plot.imshow' to demonstrate an array or a scalar. ")
-    if data.nspace > 3: raise TypeError("'plot.imshow' takes 2 or 3D-data as input, please reduce the dimension manually or specify special dimensions to reduce. ")
+    if data.nspace > 3: raise TypeError(f"'plot.imshow' takes 2 or 3D-data as input (currently {data.shape}), please reduce the dimension manually or specify special dimensions to reduce. ")
     if data.nspace == 3:
         if data.has_batch: data = data.sample(random=False, dim=[])
         if data.has_channel: data = data.sample(random=False, dim={})
@@ -37,8 +37,8 @@ def to_image(data: Array, nslice: [int, null]=None, dim: int=-1):
             elif data.space[0] <= 3: data = data.mvdim(0, 2)
             else:
                 nslice = data.space[-1] // 2
-                data = data.pick(dim, nslice)
-        else: data = data.pick(dim, nslice)
+                data = data.pick(nslice, dim)
+        else: data = data.pick(nslice, dim)
     elif data.nspace == 2:
         if data.has_batch: data = data.sample(random=False, dim=[])
         if data.has_channel:
@@ -83,7 +83,7 @@ def imshow(data: [Array, null]=None, nslice: [int, null]=None, dim: int=-1, **kw
     if 'cmap' not in kwargs:
         has_cmap = False
         kwargs['cmap'] = plt.cm.gray
-    if data is not None: canvas = to_image(data, nslice, dim)
+    if data is not None: canvas = to_image(data, nslice, dim, has_cmap)
     if canvas is None or isinstance(canvas, tuple):
         raise TypeError("Please input data in 'imshow' or 'background' to show. ")
     return plt.imshow(canvas.numpy(), **kwargs)
@@ -139,13 +139,13 @@ def maskshow(*masks, on=None, alpha=0.5, nslice=None, dim=-1, stretch=False, **k
         canvas = adjust(canvas, to=target_shape)
 
     target_shape = tp.Size(*target_shape, {3})
-    if isinstance(canvas, tuple): canvas = tp.Tensor(list(canvas)).expand_to(target_shape)
+    if isinstance(canvas, tuple): canvas = tp.tensor(list(canvas)).expand_to(target_shape)
     elif canvas.ndim == 2: canvas = canvas.expand_to(target_shape)
     coeff = vector(1 - a * m for _, m, a in color_mask_map).prod()
     canvas *= coeff
     for i, (c, m, a) in enumerate(color_mask_map):
         coeff = vector(a * m if j == i else 1 - a * m for j, (_, m, a) in enumerate(color_mask_map)).prod()
-        canvas += coeff.unsqueeze(-1) * m.unsqueeze(-1) * tp.Tensor(list(c)).unsqueeze(0, 1)
+        canvas += coeff.unsqueeze(-1) * m.unsqueeze(-1) * tp.tensor(list(c)).unsqueeze(0, 1)
 
     return plt.imshow(canvas.numpy(), **kwargs)
 
