@@ -79,7 +79,8 @@ NoDefault = EmptyClass("No Default Value")
 
 class vector(list):
 
-    def __init__(self, *args):
+    def __init__(self, *args, recursive=False):
+        self._recursive=recursive
         if len(args) == 0:
             list.__init__(self)
         elif len(args) == 1:
@@ -88,11 +89,16 @@ class vector(list):
             elif isinstance(args[0], np.ndarray):
                 temp = vector.from_numpy(args[0])
                 list.__init__(self, temp)
+            elif isinstance(args[0], vector):
+                list.__init__(self, args[0])
             elif isinstance(args[0], list):
-                def to_vector(array):
-                    if isinstance(array, list):
-                        return [vector.from_list(x) for x in array]
-                temp = to_vector(args[0])
+                if recursive:
+                    def to_vector(array):
+                        if isinstance(array, list):
+                            return [vector.from_list(x) for x in array]
+                    temp = to_vector(args[0])
+                else:
+                    temp = args[0]
                 list.__init__(self, temp)
             else:
                 try:
@@ -107,8 +113,8 @@ class vector(list):
             return self
         try:
             if ignore_error:
-                return vector([a for a in self if touch(lambda: func(a))])
-            return vector([a for a in self if func(a)])
+                return vector([a for a in self if touch(lambda: func(a))], recursive=self._recursive)
+            return vector([a for a in self if func(a)], recursive=self._recursive)
         except:
             pass
         for index, a in enumerate(self):
@@ -120,10 +126,10 @@ class vector(list):
                 raise RuntimeError(error_information)
 
     def test(self, func):
-        return vector([a for a in self if touch(lambda: func(a))])
+        return vector([a for a in self if touch(lambda: func(a))], recursive=self._recursive)
 
     def testnot(self, func):
-        return vector([a for a in self if not touch(lambda: func(a))])
+        return vector([a for a in self if not touch(lambda: func(a))], recursive=self._recursive)
 
     def map(self, func, *args, default=NoDefault):
         """
@@ -134,9 +140,9 @@ class vector(list):
         for other_func in args:
             func = lambda x: other_func(func(x))
         if default is not NoDefault:
-            return vector([touch(lambda: func(a), default=default) for a in self])
+            return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
         try:
-            return vector([func(a) for a in self])
+            return vector([func(a) for a in self], recursive=self._recursive)
         except:
             pass
         for index, a in enumerate(self):
@@ -305,7 +311,7 @@ class vector(list):
 
     def unique(self):
         if len(self) == 0:
-            return vector([])
+            return vector([], recursive=False)
         hashable = self._hashable()
         explored = set() if hashable else list()
         pushfunc = explored.add if hashable else explored.append
@@ -314,11 +320,11 @@ class vector(list):
             if x not in explored:
                 unique_elements.append(x)
                 pushfunc(x)
-        return vector(unique_elements)
+        return vector(unique_elements, recursive=False)
 
     def count_all(self):
         if len(self) == 0:
-            return vector([])
+            return vector([], recursive=False)
         hashable = self._hashable()
         if hashable:
             return Counter(self)
@@ -343,13 +349,13 @@ class vector(list):
 
     def findall(self, element):
         if callable(element):
-            return vector([index for index in range(len(self)) if touch(lambda: element(self[index]))])
+            return vector([index for index in range(len(self)) if touch(lambda: element(self[index]))], recursive=False)
         else:
-            return vector([index for index in range(len(self)) if self[index] == element])
+            return vector([index for index in range(len(self)) if self[index] == element], recursive=False)
 
     def findall_crash(self, func):
         assert callable(func)
-        return vector([index for index in range(len(self)) if crash(lambda: func(self[index]))])
+        return vector([index for index in range(len(self)) if crash(lambda: func(self[index]))], recursive=False)
 
     def all(self, func=lambda x: x):
         for t in self:
@@ -403,7 +409,7 @@ class vector(list):
         for x in self:
             k_x = key(x)
             if k_x not in result:
-                result[k_x] = vector([x])
+                result[k_x] = vector([x], recursive=False)
             else:
                 result[k_x].append(x)
         return result
@@ -615,7 +621,7 @@ class vector(list):
             args = args[:-2]
         if len(args) == 0:
             return vector()
-        return vector(np.random.choice(self, size=args, replace=replace, p=p))
+        return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
@@ -658,13 +664,15 @@ class ctgenerator:
             if func(x):
                 yield x
 
-    def reduce(self, func, initial_value=None):
-        if not initial_value:
-            initial_value = next(self.generator)
-        result = initial_value
+    def reduce(self, func, default=None):
+        try:
+            init_value = next(self.generator)
+        except:
+            return default
+        ret = init_value
         for x in self.generator:
-            result = func(initial_value, x)
-        return result
+            ret = func(ret, x)
+        return ret
 
     def apply(self, func) -> None:
         for x in self.generator:
@@ -679,3 +687,6 @@ class ctgenerator:
 
     def vector(self):
         return vector(self)
+
+    def sum(self, default=None):
+        return self.reduce(lambda x, y: x+y, default)
