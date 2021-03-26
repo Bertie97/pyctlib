@@ -79,6 +79,8 @@ class vector(list):
             elif isinstance(args[0], np.ndarray):
                 temp = vector.from_numpy(args[0])
                 list.__init__(self, temp)
+            elif isinstance(args[0], vector):
+                list.__init__(self, args[0])
             elif isinstance(args[0], list):
                 def to_vector(array):
                     if isinstance(array, list):
@@ -631,13 +633,15 @@ class ctgenerator:
             if func(x):
                 yield x
 
-    def reduce(self, func, initial_value=None):
-        if not initial_value:
-            initial_value = next(self.generator)
-        result = initial_value
+    def reduce(self, func, default=None):
+        try:
+            init_value = next(self.generator)
+        except:
+            return default
+        ret = init_value
         for x in self.generator:
-            result = func(initial_value, x)
-        return result
+            ret = func(ret, x)
+        return ret
 
     def apply(self, func) -> None:
         for x in self.generator:
@@ -652,3 +656,6 @@ class ctgenerator:
 
     def vector(self):
         return vector(self)
+
+    def sum(self, default=None):
+        return self.reduce(lambda x, y: x+y, default)
