@@ -8,6 +8,10 @@ with scope("test vector"):
     vcontent = vector(content)
     print(math.sqrt(vcontent.map(lambda x: x.split()).map(len).map(lambda x: x**2).sum()))
 
+with scope("test vector"):
+    vcontent = vector(content)
+    print(math.sqrt(vcontent.map(lambda x: x.split(), len, lambda x: x**2).sum()))
+
 with scope("test ctgenerator"):
     vcontent = vector(content).generator()
     print(math.sqrt(vcontent.map(lambda x: x.split()).map(len).map(lambda x: x**2).sum()))

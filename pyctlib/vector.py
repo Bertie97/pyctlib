@@ -16,7 +16,7 @@ __all__ = """
 from types import GeneratorType
 from collections import Counter
 from pyoverload import *
-from functools import wraps, reduce
+from functools import wraps, reduce, partial
 from .touch import touch, crash
 import copy
 import numpy as np
@@ -137,12 +137,15 @@ class vector(list):
         """
         if func is None:
             return self
-        for other_func in args:
-            func = lambda x: other_func(func(x))
+        def final_function(functions, x):
+            for f in functions:
+                x = f(x)
+            return x
+        new_func = partial(final_function, (func, *args))
         if default is not NoDefault:
-            return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
+            return vector([touch(lambda: new_func(a), default=default) for a in self], recursive=self._recursive)
         try:
-            return vector([func(a) for a in self], recursive=self._recursive)
+            return vector([new_func(a) for a in self], recursive=self._recursive)
         except:
             pass
         for index, a in enumerate(self):
