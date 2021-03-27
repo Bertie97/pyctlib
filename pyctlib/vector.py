@@ -916,6 +916,8 @@ class vector(list):
         Example
         ----------
         vector(1,2,3,4,5,6).reshape(2,3)
+        will produce
+        [[1, 2, 3], [4, 5, 6]]
         """
         size = reduce(lambda x, y: x*y, self.shape)
         args = totuple(args)
@@ -949,24 +951,33 @@ class vector(list):
 
     def generator(self):
         """generator.
+        change vector to ctgenerator
         """
         return ctgenerator(self)
 
     @property
     def length(self):
         """length.
+        length of the vector
         """
         return len(self)
 
     def onehot(self, max_length=-1, default_dict={}):
         """onehot.
+        get onehot representation of the vector
 
         Parameters
         ----------
-        max_length :
-            max_length
+        max_length : int
+            max dimension of onehot vector
         default_dict :
             default_dict
+
+        Example
+        ----------
+        vector(["apple", "banana", "peach", "apple"]).onehot()
+        will produce
+        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]]
         """
         assert isinstance(default_dict, dict)
         assert isinstance(max_length, int)
@@ -992,15 +1003,6 @@ class vector(list):
                 current_index += 1
         temp_list = self.map(lambda x: index_dict[x])
         def create_onehot_vector(index, length):
-            """create_onehot_vector.
-
-            Parameters
-            ----------
-            index :
-                index
-            length :
-                length
-            """
             ret = vector.zeros(length)
             ret[index] = 1.
             return ret
@@ -1008,11 +1010,18 @@ class vector(list):
 
     def sort_by_index(self, key=lambda index: index):
         """sort_by_index.
+        sort vector by function of index
 
         Parameters
         ----------
         key :
             key
+
+        Example
+        ----------
+        vector([1,2,3,4,1]).sort_by_index(key=lambda x: -x)
+        will produce
+        [1, 4, 3, 2, 1]
         """
         afflicated_vector = vector(key(index) for index in range(self.length))
         temp = sorted(zip(self, afflicated_vector), key=lambda x: x[1])
@@ -1020,6 +1029,7 @@ class vector(list):
 
     def sort_by_vector(self, other, func=lambda x: x):
         """sort_by_vector.
+        sort vector A by vector B or func(B)
 
         Parameters
         ----------
@@ -1027,6 +1037,12 @@ class vector(list):
             other
         func :
             func
+
+        Example
+        ---------
+        vector(['apple', 'banana', 'peach']).sort_by_vector([2,3,1])
+        will produce
+        ['peach', 'apple', 'banana']
         """
         assert isinstance(other, list)
         assert self.length == len(other)
