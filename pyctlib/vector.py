@@ -304,7 +304,7 @@ class vector(list):
 
 
     def _hashable(self):
-        return all(self.filter(lambda x: "__hash__" in x.__dir__()))
+        return self.all(lambda x: "__hash__" in x.__dir__())
 
     def __hash__(self):
         if not self._hashable():
@@ -495,7 +495,7 @@ class vector(list):
                 current_index += 1
         temp_list = self.map(lambda x: index_dict[x])
         def create_onehot_vector(index, length):
-            ret = np.zeros(length)
+            ret = vector.zeros(length)
             ret[index] = 1.
             return ret
         return temp_list.map(lambda x: create_onehot_vector(x, max_length))
