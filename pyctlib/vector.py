@@ -593,7 +593,7 @@ class vector(list):
         else:
             return hash(tuple(self))
 
-    def unique(self) -> vector:
+    def unique(self):
         """unique.
         get unique values in the vector
 
