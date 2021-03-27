@@ -79,6 +79,22 @@ class EmptyClass:
 NoDefault = EmptyClass("No Default Value")
 
 def chain_function(funcs):
+    """chain_function.
+
+    Parameters
+    ----------
+    funcs :
+        tuple or list of function
+    return :
+        the composition function of funcs
+
+    Examples:
+    ----------
+    f1 = lambda x: x+1
+    f2 = lambda x: x**2
+    g = chain_function((f1, f2))
+    then g = f2(f1)
+    """
     def ret(funcs, x):
         for func in funcs:
             x = func(x)
@@ -86,8 +102,28 @@ def chain_function(funcs):
     return partial(ret, funcs)
 
 class vector(list):
+    """vector
+    vector is actually list in python with advanced method like map, filter and reduce
+    """
+
 
     def __init__(self, *args, recursive=False):
+        """__init__.
+
+        Parameters
+        ----------
+        args :
+            args
+        recursive : bool
+            recursive determine whether to convert element in vector whose type is list to vector.
+
+        Examples
+        ----------
+        vec = vector(1,2,3)
+        vec = vector([1,2,3])
+        vec = vector((1,2,3))
+        will all get [1,2,3]
+        """
         self._recursive=recursive
         if len(args) == 0:
             list.__init__(self)
@@ -102,6 +138,13 @@ class vector(list):
             elif isinstance(args[0], list):
                 if recursive:
                     def to_vector(array):
+                        """to_vector.
+
+                        Parameters
+                        ----------
+                        array :
+                            array
+                        """
                         if isinstance(array, list):
                             return [vector.from_list(x) for x in array]
                     temp = to_vector(args[0])
@@ -117,6 +160,21 @@ class vector(list):
             list.__init__(self, args)
 
     def filter(self, func=None, ignore_error=True):
+        """
+        filter element in the vector with which func(x) is True
+
+        Parameters
+        ----------
+        func : callable
+            a function, filter condition. After filter, element with which func value is True will be left.
+        ignore_error : bool
+            whether to ignore Error in the filter process, default True
+
+        Example:
+        ----------
+        vector([1,2,3,4,5,6]).filter(lambda x: x>3)
+        will produce [4,5,6]
+        """
         if func is None:
             return self
         try:
@@ -133,15 +191,59 @@ class vector(list):
                     error_information = "Exception raised in filter function at location {} for element {}".format(index, "<unknown>")
                 raise RuntimeError(error_information)
 
-    def test(self, func):
-        return vector([a for a in self if touch(lambda: func(a))], recursive=self._recursive)
+    def test(self, func, *args):
+        """
+        filter element with which func will not produce Error
 
-    def testnot(self, func):
-        return vector([a for a in self if not touch(lambda: func(a))], recursive=self._recursive)
+        Parameters
+        ----------
+        func : callable
+        args :
+            more functions
+
+        Example:
+        ----------
+        vector(0,1,2,3).test(lambda x: 1/x)
+        will produce [1,2,3]
+        """
+        if len(args) > 0:
+            func = chain_function((func, *args))
+        return vector([a for a in self if touch(lambda: (func(a), True)[-1])], recursive=self._recursive)
+
+    def testnot(self, func, *args):
+        """testnot
+        filter element with which func will produce Error
+
+        Parameters
+        ----------
+        func :
+            func
+        args :
+            more function
+
+        Example:
+        ----------
+        vector(0,1,2,3).testnot(lambda x: 1/x)
+        will produce [0]
+        """
+        return vector([a for a in self if not touch(lambda: (func(a), True)[-1])], recursive=self._recursive)
 
     def map(self, func, *args, default=NoDefault):
         """
         generate a new vector with each element x are replaced with func(x)
+
+        Parameters
+        ----------
+        func : callable
+        args :
+            more function
+        default :
+            default value used when func cause an error
+
+        Example:
+        ----------
+        vector([0,1,2]).map(lambda x: x ** 2)
+        will produce [0,2,4]
         """
         if func is None:
             return self
@@ -150,7 +252,7 @@ class vector(list):
         if default is not NoDefault:
             return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
         try:
-            return vector([new_func(a) for a in self], recursive=self._recursive)
+            return vector([func(a) for a in self], recursive=self._recursive)
         except:
             pass
         for index, a in enumerate(self):
@@ -162,6 +264,23 @@ class vector(list):
                 raise RuntimeError(error_information)
 
     def rmap(self, func, *args, default=NoDefault):
+        """rmap
+        recursively map each element in vector
+
+        Parameters
+        ----------
+        func :
+            func
+        args :
+            args
+        default :
+            default value used when func cause an error
+
+        Example:
+        ----------
+        vector([[0,1], [2,3]], recursive=True).rmap(lambda x: x+1)
+        will produce [[1,2], [3,4]]
+        """
         if func is None:
             return self
         if len(args) > 0:
@@ -169,6 +288,32 @@ class vector(list):
         return self.map(lambda x: x.rmap(func, default) if isinstance(x, vector) else func(x), default)
 
     def replace(self, element, toelement=NoDefault):
+        """
+        replace element in vector with to element
+
+        Parameters
+        ----------
+        element :
+            element
+        toelement :
+            toelement
+
+        Usages
+        ---------
+        There are three usages:
+        1. replace(a, b)
+            replace a with b
+            vector(0,1,2,3,1).replace(1, -1)
+            will produce [0,-1,2,3,-1]
+        2. replace(func, b):
+            replace element with which func is True with b
+            vector(0,1,2,3,4).replace(lambda x: x>2, 2)
+            will produce [0,1,2,2,2]
+        3. replace(func, another_func):
+            replace element x with which func is True with another_func(x)
+            vector(0,1,2,3,4).replace(lambda x: x>2, x+2)
+            will produce [0,1,2,5,6]
+        """
         if toelement is NoDefault:
             if callable(element):
                 for index in range(self.length):
@@ -186,6 +331,19 @@ class vector(list):
         return self
 
     def apply(self, command) -> None:
+        """apply
+        apply command to each element
+
+        Parameters
+        ----------
+        command : Tuple[str, callable]
+            command
+
+        Returns
+        -------
+        None
+
+        """
         if isinstance(command, str):
             for x in self:
                 exec(command.format(x))
@@ -194,9 +352,26 @@ class vector(list):
                 command(x)
 
     def check_type(self, instance):
+        """check_type
+        check if all the element in the vector is of type instance
+
+        Parameters
+        ----------
+        instance : Type
+            instance
+        """
         return all(self.map(lambda x: isinstance(x, instance)))
 
     def __mul__(self, other):
+        """__mul__.
+
+        Usages
+        -----------
+        1. vector * n will repeat the vector n times
+        2. vector * vector will zip the two vector
+            vector([1,2,3]) * vector([4,5,6])
+            will produce [(1,4),(2,5),(3,6)]
+        """
         if isinstance(other, int):
             return vector(super().__mul__(times))
         if touch(lambda: self.check_type(tuple) and other.check_type(tuple)):
@@ -209,53 +384,132 @@ class vector(list):
             return vector(zip(self, other))
 
     def __pow__(self, other):
+        """__pow__.
+        Cartesian Product of two vector
+
+        Parameters
+        ----------
+        other :
+            other
+
+        Example
+        ----------
+        vector([1,2,3]) ** vector([2,3,4])
+        will produce [(1, 2), (1, 3), (1, 4), (2, 2), (2, 3), (2, 4), (3, 2), (3, 3), (3, 4)]
+        """
         return vector([(i, j) for i in self for j in other])
 
     def __add__(self, other: list):
+        """__add__.
+
+        Parameters
+        ----------
+        other : list
+            other
+        """
         return vector(super().__add__(other))
 
     def _transform(self, element, func=None):
+        """_transform.
+
+        Parameters
+        ----------
+        element :
+            element
+        func :
+            func
+        """
         if not func:
             return element
         return func(element)
 
     def __eq__(self, other):
+        """__eq__.
+
+        Parameters
+        ----------
+        other :
+            other
+        """
         if isinstance(other, list):
             return vector(zip(self, other)).map(lambda x: x[0] == x[1])
         else:
             return self.map(lambda x: x == other)
 
     def __neq__(self, other):
+        """__neq__.
+
+        Parameters
+        ----------
+        other :
+            other
+        """
         if isinstance(self, list):
             return vector(zip(self, other)).map(lambda x: x[0] != x[1])
         else:
             return self.map(lambda x: x != other)
 
     def __lt__(self, element):
+        """__lt__.
+
+        Parameters
+        ----------
+        element :
+            element
+        """
         if isinstance(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] < x[1])
         else:
             return self.map(lambda x: x < element)
 
     def __gt__(self, element):
+        """__gt__.
+
+        Parameters
+        ----------
+        element :
+            element
+        """
         if isin(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] > x[1])
         else:
             return self.map(lambda x: x > element)
 
     def __le__(self, element):
+        """__le__.
+
+        Parameters
+        ----------
+        element :
+            element
+        """
         if isin(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] <= x[1])
         else:
             return self.map(lambda x: x < element)
 
     def __ge__(self, element):
+        """__ge__.
+
+        Parameters
+        ----------
+        element :
+            element
+        """
         if isin(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] >= x[1])
         else:
             return self.map(lambda x: x >= element)
 
     def __getitem__(self, index):
+        """__getitem__.
+
+        Parameters
+        ----------
+        index :
+            index
+
+        """
         if isinstance(index, slice):
             return vector(super().__getitem__(index))
         if isinstance(index, list):
@@ -266,6 +520,13 @@ class vector(list):
         return super().__getitem__(index)
 
     def __sub__(self, other):
+        """__sub__.
+
+        Parameters
+        ----------
+        other :
+            other
+        """
         if isinstance(other, (list, set, vector, tuple)):
             try:
                 other = set(other)
@@ -277,6 +538,15 @@ class vector(list):
             return self.filter(lambda x: x != other)
 
     def __setitem__(self, i, t):
+        """__setitem__.
+
+        Parameters
+        ----------
+        i :
+            i
+        t :
+            t
+        """
         self._shape = None
         if isinstance(i, int):
             super().__setitem__(i, t)
@@ -309,15 +579,29 @@ class vector(list):
 
 
     def _hashable(self):
+        """_hashable.
+        chech whether every element in the vector is hashable
+        """
         return self.all(lambda x: "__hash__" in x.__dir__())
 
     def __hash__(self):
+        """__hash__.
+        get the hash value of the vector if every element in the vector is hashable
+        """
         if not self._hashable():
             raise Exception("not all elements in the vector is hashable, the index of first unhashable element is %d" % self.index(lambda x: "__hash__" not in x.__dir__()))
         else:
             return hash(tuple(self))
 
-    def unique(self):
+    def unique(self) -> vector:
+        """unique.
+        get unique values in the vector
+
+        Example
+        ----------
+        vector([1,2,3,2,3,1]).unique()
+        will produce [1,2,3]
+        """
         if len(self) == 0:
             return vector([], recursive=False)
         hashable = self._hashable()
@@ -331,15 +615,41 @@ class vector(list):
         return vector(unique_elements, recursive=False)
 
     def count_all(self):
+        """count_all.
+        count all the elements in the vector, sorted by occurance time
+
+        Example
+        -----------
+        vector([1,2,3,2,3,1]).count_all()
+        will produce Counter({1: 2, 2: 2, 3: 2})
+        """
         if len(self) == 0:
             return vector([], recursive=False)
         hashable = self._hashable()
         if hashable:
             return Counter(self)
         else:
-            return self.unique().map(lambda x: (x, self.count(x)))
+            return dict(self.unique().map(lambda x: (x, self.count(x))))
 
     def count(self, *args):
+        """count.
+
+        Parameters
+        ----------
+        args :
+            args
+
+        Usages
+        ----------
+        1. count(element)
+            count the occurance time of element
+            vector([1,2,3,1]).count(1)
+            will produce 2
+        2. count(func)
+            count the number of elements with will func is True
+            vector([1,2,3,4,5]).count(lambda x: x%2 == 1)
+            will produce 3
+        """
         if len(args) == 0:
             return len(self)
         if callable(args[0]):
@@ -347,6 +657,24 @@ class vector(list):
         return super().count(args[0])
 
     def index(self, element):
+        """index.
+
+        Parameters
+        ----------
+        element :
+            element
+
+        Usages
+        ----------
+        1. index(element)
+            get the first index of element
+            vector([1,2,3,4,2,3]).index(3)
+            will produce 2
+        2. index(func)
+            get the first index of element with which func is True
+            vector([1,2,3,4,2,3]).index(lambda x: x>2)
+            will produce 2
+        """
         if callable(element):
             for index in range(len(self)):
                 if touch(lambda: element(self[index])):
@@ -356,28 +684,84 @@ class vector(list):
             return super().index(element)
 
     def findall(self, element):
+        """findall.
+
+        Parameters
+        ----------
+        element :
+            element
+
+        Usages:
+        ---------
+        1. findall(element)
+            get all indexs of element
+            vector([1,2,3,4,2,3]).findall(3)
+            will produce [2,5]
+        2. findall(func)
+            get all indexs of elements with which func is True
+            vector([1,2,3,4,2,3]).findall(lambda x: x>2)
+            will produce [2,3,5]
+        """
         if callable(element):
             return vector([index for index in range(len(self)) if touch(lambda: element(self[index]))], recursive=False)
         else:
             return vector([index for index in range(len(self)) if self[index] == element], recursive=False)
 
     def findall_crash(self, func):
+        """findall_crash.
+        get all indexs of elements with which func will cause an error
+
+        Parameters
+        ----------
+        func :
+            func
+
+        Examples
+        ----------
+        vector(0,1,2,3,4,0,1).findall_crash(lambda x: 1/x)
+        will produce [0,5]
+        """
         assert callable(func)
         return vector([index for index in range(len(self)) if crash(lambda: func(self[index]))], recursive=False)
 
     def all(self, func=lambda x: x):
+        """all.
+        check if all element in vector are True or all func(element) for element in vector are True
+
+        Parameters
+        ----------
+        func :
+            func
+        """
         for t in self:
             if not touch(lambda: func(t)):
                 return False
         return True
 
     def any(self, func=lambda x: x):
+        """any.
+        check if any element in vector are True or any func(element) for element in vector are True
+
+        Parameters
+        ----------
+        func :
+            func
+        """
         for t in self:
             if touch(lambda: func(t)):
                 return True
         return False
 
     def max(self, key=None, with_index=False):
+        """max.
+
+        Parameters
+        ----------
+        key :
+            key
+        with_index :
+            with_index
+        """
         if len(self) == 0:
             return None
         m_index = 0
@@ -393,6 +777,15 @@ class vector(list):
 
 
     def min(self, key=None, with_index=False):
+        """min.
+
+        Parameters
+        ----------
+        key :
+            key
+        with_index :
+            with_index
+        """
         if len(self) == 0:
             return None
         m_index = 0
@@ -407,12 +800,38 @@ class vector(list):
         return self[m_index]
 
     def sum(self, default=None):
+        """sum.
+
+        Parameters
+        ----------
+        default :
+            default
+        """
         return self.reduce(lambda x, y: x + y, default)
 
     def prod(self, default=None):
+        """prod.
+
+        Parameters
+        ----------
+        default :
+            default
+        """
         return self.reduce(lambda x, y: x * y, default)
 
-    def group_by(self, key=lambda x: x[0]):
+    def group_by(self, key=lambda x: x[0]) -> dict:
+        """group_by.
+
+        Parameters
+        ----------
+        key :
+            key
+
+        Example
+        ----------
+        vector([1,2], [1,3], [2,3], [2,2], [2,1], [3,1]).group_by()
+        will produce {1: [[1, 2], [1, 3]], 2: [[2, 3], [2, 2], [2, 1]], 3: [[3, 1]]}
+        """
         result = _Vector_Dict()
         for x in self:
             k_x = key(x)
@@ -423,6 +842,21 @@ class vector(list):
         return result
 
     def reduce(self, func, default=None):
+        """reduce.
+        reduce the vector will func (refer to map-reduce)
+
+        Parameters
+        ----------
+        func :
+            func
+        default :
+            default
+
+        Example
+        ----------
+        vector(1,2,3,4).reduce(lambda x, y: x+y)
+        will produce 10
+        """
         if len(self) == 0:
             return default
         temp = self[0]
@@ -431,10 +865,35 @@ class vector(list):
         return temp
 
     def enumerate(self):
+        """enumerate.
+        equivalent to enumerate(vector)
+        """
         return enumerate(self)
 
     def flatten(self, depth=-1):
+        """flatten.
+        flatten the vector
+
+        Parameters
+        ----------
+        depth :
+            depth
+
+        Example
+        ----------
+        vector([[1,2], [3,4,5], 6]).flatten()
+        will produce [1,2,3,4,5,6]
+        """
         def temp_flatten(array, depth=-1):
+            """temp_flatten.
+
+            Parameters
+            ----------
+            array :
+                array
+            depth :
+                depth
+            """
             if depth == 0:
                 return array
             if not isinstance(array, list):
@@ -447,6 +906,17 @@ class vector(list):
         return temp_flatten(self, depth)
 
     def reshape(self, *args):
+        """reshape.
+
+        Parameters
+        ----------
+        args :
+            args
+
+        Example
+        ----------
+        vector(1,2,3,4,5,6).reshape(2,3)
+        """
         size = reduce(lambda x, y: x*y, self.shape)
         args = totuple(args)
         assert args.count(-1) <= 1
@@ -461,6 +931,15 @@ class vector(list):
         if args == self.shape:
             return self
         def _reshape(value, target_shape):
+            """_reshape.
+
+            Parameters
+            ----------
+            value :
+                value
+            target_shape :
+                target_shape
+            """
             if len(target_shape) == 1:
                 return value
             piece_length = len(value) // target_shape[0]
@@ -469,13 +948,26 @@ class vector(list):
         return _reshape(self.flatten(), args)
 
     def generator(self):
+        """generator.
+        """
         return ctgenerator(self)
 
     @property
     def length(self):
+        """length.
+        """
         return len(self)
 
     def onehot(self, max_length=-1, default_dict={}):
+        """onehot.
+
+        Parameters
+        ----------
+        max_length :
+            max_length
+        default_dict :
+            default_dict
+        """
         assert isinstance(default_dict, dict)
         assert isinstance(max_length, int)
         assert len(default_dict) <= max_length or max_length == -1
@@ -500,23 +992,55 @@ class vector(list):
                 current_index += 1
         temp_list = self.map(lambda x: index_dict[x])
         def create_onehot_vector(index, length):
+            """create_onehot_vector.
+
+            Parameters
+            ----------
+            index :
+                index
+            length :
+                length
+            """
             ret = vector.zeros(length)
             ret[index] = 1.
             return ret
         return temp_list.map(lambda x: create_onehot_vector(x, max_length))
 
     def sort_by_index(self, key=lambda index: index):
+        """sort_by_index.
+
+        Parameters
+        ----------
+        key :
+            key
+        """
         afflicated_vector = vector(key(index) for index in range(self.length))
         temp = sorted(zip(self, afflicated_vector), key=lambda x: x[1])
         return vector(temp).map(lambda x: x[0])
 
     def sort_by_vector(self, other, func=lambda x: x):
+        """sort_by_vector.
+
+        Parameters
+        ----------
+        other :
+            other
+        func :
+            func
+        """
         assert isinstance(other, list)
         assert self.length == len(other)
         return self.sort_by_index(lambda index: func(other[index]))
 
     @staticmethod
     def from_numpy(array):
+        """from_numpy.
+
+        Parameters
+        ----------
+        array :
+            array
+        """
         try:
             assert isinstance(array, np.ndarray)
             if len(array.shape) == 1:
@@ -529,17 +1053,38 @@ class vector(list):
 
     @staticmethod
     def from_list(array):
+        """from_list.
+
+        Parameters
+        ----------
+        array :
+            array
+        """
         if not isinstance(array, list):
             return array
         return vector(vector.from_list(x) for x in array)
 
     @staticmethod
     def zeros(*args):
+        """zeros.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         args = totuple(args)
         return vector.from_numpy(np.zeros(args))
 
     @staticmethod
     def ones(*args):
+        """ones.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         args = totuple(args)
         ret = vector.from_numpy(np.ones(args))
         ret._shape = args
@@ -547,6 +1092,13 @@ class vector(list):
 
     @staticmethod
     def rand(*args):
+        """rand.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         args = totuple(args)
         ret = vector.from_numpy(np.random.rand(*args))
         ret._shape = args
@@ -554,6 +1106,13 @@ class vector(list):
 
     @staticmethod
     def randn(*args):
+        """randn.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         args = totuple(args)
         ret = vector.from_numpy(np.random.randn(*args))
         ret._shape = args
@@ -561,10 +1120,19 @@ class vector(list):
 
     @staticmethod
     def range(*args):
+        """range.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         return vector(range(*args))
 
     @property
     def shape(self):
+        """shape.
+        """
         if touch(lambda: self._shape) is not None:
             return self._shape
         if all(not isinstance(x, vector) for x in self):
@@ -583,40 +1151,90 @@ class vector(list):
         return self._shape
 
     def append(self, *args):
+        """append.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         self._shape = None
         super().append(*args)
         return self
 
     def extend(self, *args):
+        """extend.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         self._shape = None
         super().extend(*args)
         return self
 
     def pop(self, *args):
+        """pop.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         self._shape = None
         return super().pop(*args)
 
     def insert(self, *args):
+        """insert.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         self._shape = None
         super().insert(*args)
         return self
 
     def clear(self):
+        """clear.
+        """
         self._shape = None
         super().clear()
         return self
 
     def remove(self, *args):
+        """remove.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
         self._shape = None
         super().remove(*args)
         return self
 
     def all_equal(self):
+        """all_equal.
+        """
         if self.length <= 1:
             return True
         return self.all(lambda x: x == self[0])
 
     def sample(self, *args, replace=True, p=None):
+        """sample.
+
+        Parameters
+        ----------
+        args :
+            args
+        replace :
+            replace
+        p :
+            p
+        """
         args = totuple(args)
         if len(args) == 0:
             return vector()
