@@ -24,6 +24,7 @@ import numpy as np
 """
 Usage:
 from pyctlib.vector import *
+from pyctlib import touch
 """
 
 def totuple(x, depth=1):
@@ -706,7 +707,7 @@ class ctgenerator:
     def __add__(self, other):
         if not isinstance(other, ctgenerator):
             other = ctgenerator(other)
-        return ctgenerator(self.generator, other.generator)
+        return ctgenerator(ctgenerator._combine_generator(self.generator, other.generator))
 
     def vector(self):
         return vector(self)
