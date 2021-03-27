@@ -77,6 +77,13 @@ class EmptyClass:
 
 NoDefault = EmptyClass("No Default Value")
 
+def chain_function(funcs):
+    def ret(funcs, x):
+        for func in funcs:
+            x = func(x)
+        return x
+    return partial(ret, funcs)
+
 class vector(list):
 
     def __init__(self, *args, recursive=False):
@@ -137,13 +144,10 @@ class vector(list):
         """
         if func is None:
             return self
-        def final_function(functions, x):
-            for f in functions:
-                x = f(x)
-            return x
-        new_func = partial(final_function, (func, *args))
+        if len(args) > 0:
+            func = chain_function((func, *args))
         if default is not NoDefault:
-            return vector([touch(lambda: new_func(a), default=default) for a in self], recursive=self._recursive)
+            return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
         try:
             return vector([new_func(a) for a in self], recursive=self._recursive)
         except:
@@ -159,8 +163,8 @@ class vector(list):
     def rmap(self, func, *args, default=NoDefault):
         if func is None:
             return self
-        for other_func in args:
-            func = lambda x: other_func(func(x))
+        if len(args) > 0:
+            func = chain_function((func, *args))
         return self.map(lambda x: x.rmap(func, default) if isinstance(x, vector) else func(x), default)
 
     def replace(self, element, toelement=NoDefault):
@@ -643,23 +647,34 @@ class ctgenerator:
         for x in iterable:
             yield x
 
-    @override
+    @staticmethod
+    def _combine_generator(*args):
+        for generator in args:
+            for x in generator:
+                yield x
+
     def __init__(self, generator):
-        if "__iter__" in generator.__dir__():
+        if isinstance(generator, GeneratorType):
+            self.generator = generator
+        elif isinstance(generator, ctgenerator):
+            self.generator = generator
+        elif "__iter__" in generator.__dir__():
             self.generator = ctgenerator._generate(generator)
-
-    @__init__
-    def _(self, generator: "ctgenerator"):
-        self.generator = generator
-
-    @__init__
-    def _(self, generator: GeneratorType):
-        self.generator = generator
+        else:
+            raise TypeError("not a generator")
 
     @generator_wrapper
-    def map(self, func) -> "ctgenerator":
-        for x in self.generator:
-            yield func(x)
+    def map(self, func, *args, default=NoDefault) -> "ctgenerator":
+        if func is None:
+            return self
+        if len(args) > 0:
+            func = chain_function((func, *args))
+        if default is not NoDefault:
+            for x in self.generator:
+                yield touch(lambda: func(x), default=default)
+        else:
+            for x in self.generator:
+                yield func(x)
 
     @generator_wrapper
     def filter(self, func=None) -> "ctgenerator":
@@ -687,6 +702,11 @@ class ctgenerator:
 
     def __next__(self):
         return next(self.generator)
+
+    def __add__(self, other):
+        if not isinstance(other, ctgenerator):
+            other = ctgenerator(other)
+        return ctgenerator(self.generator, other.generator)
 
     def vector(self):
         return vector(self)
