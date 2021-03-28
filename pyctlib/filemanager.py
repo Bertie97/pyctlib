@@ -11,7 +11,7 @@ __all__ = """
     file
 """.split()
 
-import os, re, struct
+import os, re, struct, shutil
 from pyctlib import touch, vector, generator_wrapper
 from pyoverload import overload
 from typing import TextIO
@@ -24,6 +24,21 @@ def totuple(num):
     if isinstance(num, str): return (num,)
     try: return tuple(num)
     except: return (num,)
+
+def pwd():
+    return path(".").abs()
+
+def ls(folder=None):
+    if folder is None:
+        return pwd().ls()
+    else:
+        return folder.ls()
+
+def cp(src, dst):
+    assert isinstance(src, path)
+    assert isinstance(dst, path)
+    assert dst.isdir()
+    shutil.copy2(src, dst)
 
 class path(str):
 
@@ -178,11 +193,11 @@ class path(str):
         if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
         else: return str(self).split(*args)
     def abs(self): return path(os.path.abspath(self))
-    def listdir(self, recursively=False):
-        return self << path.File if recursively else path.pathList([self / x for x in os.listdir(str(self))])
+    def listdir(self, recursive=False):
+        return self << path.File if recursive else path.pathList([self / x for x in os.listdir(str(self))])
     # changed by zhangyiteng
-    def ls(self, func=None):
-        return self.listdir().filter(func)
+    def ls(self, recursive=False, func=None):
+        return self.listdir(recursive=recursive).filter(func)
     def cd(self, folder_name):
         folder_name = path(folder_name)
         if folder_name.isabs():
