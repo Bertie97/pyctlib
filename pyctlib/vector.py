@@ -1313,6 +1313,8 @@ class ctgenerator:
 
     @generator_wrapper
     def filter(self, func=None) -> "ctgenerator":
+        if func is None:
+            return self
         for x in self.generator:
             if func(x):
                 yield x

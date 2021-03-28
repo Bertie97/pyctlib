@@ -9,6 +9,9 @@
 __all__ = """
     path
     file
+    pwd
+    ls
+    cp
 """.split()
 
 import os, re, struct, shutil
