@@ -133,3 +133,4 @@ dmypy.json
 test.py
 test.*
 *.swp
+.DS_Store
