@@ -12,6 +12,8 @@ __all__ = """
     pwd
     ls
     cp
+    get_search_blacklist
+    set_search_blacklist
 """.split()
 
 import os, re, struct, shutil
@@ -24,6 +26,16 @@ from typing import TextIO
 """
 from pyinout import *
 """
+
+Search_BlackList = [".DS_Store", ".git"]
+
+def get_search_blacklist():
+    global Search_BlackList
+    return Search_BlackList
+
+def set_search_blacklist(blacklist):
+    global Search_BlackList
+    Search_BlackList = blacklist
 
 def totuple(num):
     if isinstance(num, str): return (num,)
@@ -113,7 +125,8 @@ class path(str):
     @filepath_generator_wrapper
     def recursive_search(self):
         for f in os.listdir(self):
-            if f == '.DS_Store': continue
+            if f in get_search_blacklist():
+                continue
             p = self / f
             if p.isdir():
                 for cp in p.recursive_search():
