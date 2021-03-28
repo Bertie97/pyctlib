@@ -1,4 +1,4 @@
 from pyctlib import path, pwd
 
-p = pwd()
+p = pwd().parent
 

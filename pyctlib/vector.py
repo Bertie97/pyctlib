@@ -151,6 +151,8 @@ class vector(list):
                 else:
                     temp = args[0]
                 list.__init__(self, temp)
+            elif isinstance(args[0], ctgenerator):
+                list.__init__(self, args[0])
             else:
                 try:
                     list.__init__(self, args[0])
@@ -1270,7 +1272,8 @@ def generator_wrapper(*args, **kwargs):
         func = raw_function(args[0])
         @wraps(func)
         def wrapper(*args, **kwargs):
-            return ctgenerator(func(*args, **kwargs))
+            ret = func(*args, **kwargs)
+            return ctgenerator(ret)
         return wrapper
     else:
         raise TypeError("function is not callable")
@@ -1292,7 +1295,7 @@ class ctgenerator:
         if isinstance(generator, GeneratorType):
             self.generator = generator
         elif isinstance(generator, ctgenerator):
-            self.generator = generator
+            self.generator = generator.generator
         elif "__iter__" in generator.__dir__():
             self.generator = ctgenerator._generate(generator)
         else:
@@ -1301,7 +1304,8 @@ class ctgenerator:
     @generator_wrapper
     def map(self, func, *args, default=NoDefault) -> "ctgenerator":
         if func is None:
-            return self
+            for x in self.generator:
+                yield x
         if len(args) > 0:
             func = chain_function((func, *args))
         if default is not NoDefault:
@@ -1314,7 +1318,8 @@ class ctgenerator:
     @generator_wrapper
     def filter(self, func=None) -> "ctgenerator":
         if func is None:
-            return self
+            for x in self.generator:
+                yield x
         for x in self.generator:
             if func(x):
                 yield x

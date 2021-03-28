@@ -15,8 +15,10 @@ __all__ = """
 """.split()
 
 import os, re, struct, shutil
-from pyctlib import touch, vector, generator_wrapper
-from pyoverload import overload
+from pyctlib import touch, vector, generator_wrapper, ctgenerator
+from pyoverload import *
+from pyctlib import raw_function
+from functools import wraps, reduce, partial
 from typing import TextIO
 
 """
@@ -42,6 +44,17 @@ def cp(src, dst):
     assert isinstance(dst, path)
     assert dst.isdir()
     shutil.copy2(src, dst)
+
+def filepath_generator_wrapper(*args, **kwargs):
+    if len(args) == 1 and callable(raw_function(args[0])):
+        func = raw_function(args[0])
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            ret = func(*args, **kwargs)
+            return filepath_generator(ret)
+        return wrapper
+    else:
+        raise TypeError("function is not callable")
 
 class path(str):
 
@@ -74,7 +87,7 @@ class path(str):
             if isinstance(i, list) and len(i) == len(self): return path.pathList([x for x, b in zip(self, i) if b])
             return super().__getitem__(i)
 
-    @generator_wrapper
+    @filepath_generator_wrapper
     @staticmethod
     def rlistdir(folder, tofolder=False, relative=False, ext='', filter=lambda x: True):
         folder = path(folder)
@@ -96,6 +109,17 @@ class path(str):
         if relative: file_list = -file_list
         if ext: file_list = file_list[file_list|ext]
         return file_list[filter]
+
+    @filepath_generator_wrapper
+    def recursive_search(self):
+        for f in os.listdir(self):
+            if f == '.DS_Store': continue
+            p = self / f
+            if p.isdir():
+                for cp in p.recursive_search():
+                    yield cp
+            if p.isfile():
+                yield p
 
     def __new__(cls, *init_texts):
         if len(init_texts) <= 0 or len(init_texts[0]) <= 0:
@@ -170,7 +194,7 @@ class path(str):
     def __len__(self): return len(self.split())
     def __hash__(self): return super().__hash__()
 
-    @generator_wrapper
+    @filepath_generator_wrapper
     def __iter__(self):
         for p in self<<path.File:
             yield p
@@ -197,7 +221,7 @@ class path(str):
         else: return str(self).split(*args)
     def abs(self): return path(os.path.abspath(self))
     def listdir(self, recursive=False):
-        return self << path.File if recursive else path.pathList([self / x for x in os.listdir(str(self))])
+        return self.recursive_search() if recursive else path.pathList([self / x for x in os.listdir(str(self))])
     # changed by zhangyiteng
     def ls(self, recursive=False, func=None):
         return self.listdir(recursive=recursive).filter(func)
@@ -607,6 +631,24 @@ class file(path):
     def __len__(self):
         with open(self, "rb") as _input:
             return len(_input.read())
+
+
+class filepath_generator(ctgenerator):
+
+    @filepath_generator_wrapper
+    def filter(self, func=None) -> "filepath_generator":
+        if func is None:
+            for x in self.generator:
+                yield x
+        if isinstance(func, str):
+            for x in self.generator:
+                if x | func:
+                    yield x
+        for x in self.generator:
+            if func(x):
+                yield x
+
+
 
 rootdir = (~path(os.path.curdir))[0] + path.sep
 curdir = path(os.path.curdir)
