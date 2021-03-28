@@ -644,6 +644,10 @@ class filepath_generator(ctgenerator):
             for x in self.generator:
                 if x | func:
                     yield x
+        if isinstance(func, bytes):
+            for x in self.generator:
+                if x | func:
+                    yield x
         for x in self.generator:
             if func(x):
                 yield x
