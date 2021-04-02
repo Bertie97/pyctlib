@@ -229,16 +229,6 @@ class path(str):
         elif len(parts) > 1: brk = -1
         else: brk = 1
         return path.extsep.join(parts[:brk])
-    @property.setter
-    def name(self, another_name):
-        pass
-
-    @property
-    def fullname(self):
-        return self[-1]
-    @property.setter
-    def fullname(self, another_name):
-        pass
 
     def split(self, *args):
         if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]

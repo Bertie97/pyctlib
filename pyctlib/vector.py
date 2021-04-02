@@ -13,7 +13,7 @@ __all__ = """
     ctgenerator
 """.split()
 
-from types import GeneratorType
+from types import GeneratorType, List
 from collections import Counter
 from pyoverload import *
 from functools import wraps, reduce, partial
@@ -549,7 +549,7 @@ class vector(list):
         t :
             t
         """
-        self._shape = None
+        self._shape = NoDefault
         if isinstance(i, int):
             super().__setitem__(i, t)
         elif isinstance(i, slice):
@@ -1151,7 +1151,7 @@ class vector(list):
     def shape(self):
         """shape.
         """
-        if touch(lambda: self._shape) is not None:
+        if touch(lambda: self._shape, NoDefault) is not NoDefault:
             return self._shape
         if all(not isinstance(x, vector) for x in self):
             self._shape = (self.length, )
@@ -1176,7 +1176,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self._shape = NoDefault
         super().append(*args)
         return self
 
@@ -1188,7 +1188,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self._shape = NoDefault
         super().extend(*args)
         return self
 
@@ -1200,7 +1200,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self._shape = NoDefault
         return super().pop(*args)
 
     def insert(self, *args):
@@ -1211,14 +1211,14 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self._shape = NoDefault
         super().insert(*args)
         return self
 
     def clear(self):
         """clear.
         """
-        self._shape = None
+        self._shape = NoDefault
         super().clear()
         return self
 
@@ -1230,7 +1230,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self._shape = NoDefault
         super().remove(*args)
         return self
 
@@ -1266,6 +1266,40 @@ class vector(list):
         if len(args) == 0:
             return vector()
         return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
+
+    def shuffle(self):
+        return self.sample(self.length)
+
+    def __str__(self):
+        if self.shape != "undefined" and len(self.shape) > 1:
+            ret: List[str] = vector()
+            for index, child in self.enumerate():
+                contents = str(child).split("\n")
+                for j, content in enumerate(contents):
+                    temp = ""
+                    if index == 0 and j == 0:
+                        temp = "["
+                    else:
+                        temp = " "
+                    temp += content.rstrip()
+                    if j == len(contents) - 1:
+                        if index < self.length - 1:
+                            temp += ","
+                        else:
+                            temp += "]"
+                    ret.append(temp)
+            return "\n".join(ret)
+        else:
+            ret = "["
+            for index, child in self.enumerate():
+                ret += str(child)
+                if index < self.length - 1:
+                    ret += ", "
+            ret += "]"
+            return ret
+
+    def __repr__(self):
+        return self.__str__()
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
