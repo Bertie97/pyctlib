@@ -229,12 +229,23 @@ class path(str):
         elif len(parts) > 1: brk = -1
         else: brk = 1
         return path.extsep.join(parts[:brk])
+    @property.setter
+    def name(self, another_name):
+        pass
+
+    @property
+    def fullname(self):
+        return self[-1]
+    @property.setter
+    def fullname(self, another_name):
+        pass
+
     def split(self, *args):
         if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
         else: return str(self).split(*args)
     def abs(self): return path(os.path.abspath(self))
     def listdir(self, recursive=False):
-        return self.recursive_search() if recursive else path.pathList([self / x for x in os.listdir(str(self))])
+        return self.recursive_search() if recursive else path.pathList([self / x for x in os.listdir(str(self))], main_folder=self)
     # changed by zhangyiteng
     def ls(self, recursive=False, func=None):
         return self.listdir(recursive=recursive).filter(func)
@@ -275,6 +286,10 @@ class path(str):
     @property
     def parent(self):
         return self @ path.Folder
+
+    @property
+    def children(self):
+        return self.ls()
     # end changed by zhangyiteng
     def isabs(self): return os.path.isabs(self)
     def exists(self): return os.path.exists(self)
@@ -293,6 +308,15 @@ class path(str):
             cumpath /= p
             if not cumpath.exists(): os.mkdir(cumpath)
         return self
+    def copyfrom(self, src):
+        if isinstance(src, str):
+            src = path(src)
+        assert isinstance(src, path)
+        if src.isfile():
+            if self.isfile():
+                shutil.copy2(src, self)
+            else:
+                shutil.copy2(src, self.name)
 
 class file(path):
 
