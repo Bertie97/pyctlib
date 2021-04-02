@@ -13,7 +13,8 @@ __all__ = """
     ctgenerator
 """.split()
 
-from types import GeneratorType, List
+from types import GeneratorType
+from typing import List
 from collections import Counter
 from pyoverload import *
 from functools import wraps, reduce, partial
@@ -549,7 +550,7 @@ class vector(list):
         t :
             t
         """
-        self._shape = NoDefault
+        self.clear_appendix()
         if isinstance(i, int):
             super().__setitem__(i, t)
         elif isinstance(i, slice):
@@ -580,17 +581,20 @@ class vector(list):
             raise TypeError("only support the following usages: \n [int] = \n [slice] = \n [list] = ")
 
 
-    def _hashable(self):
-        """_hashable.
+    def ishashable(self):
+        """ishashable.
         chech whether every element in the vector is hashable
         """
-        return self.all(lambda x: "__hash__" in x.__dir__())
+        if touch(lambda: self._hashable, NoDefault) is not NoDefault:
+            return self._hashable
+        self._hashable = self.all(lambda x: "__hash__" in x.__dir__())
+        return self._hashable
 
     def __hash__(self):
         """__hash__.
         get the hash value of the vector if every element in the vector is hashable
         """
-        if not self._hashable():
+        if not self.ishashable():
             raise Exception("not all elements in the vector is hashable, the index of first unhashable element is %d" % self.index(lambda x: "__hash__" not in x.__dir__()))
         else:
             return hash(tuple(self))
@@ -606,7 +610,7 @@ class vector(list):
         """
         if len(self) == 0:
             return vector([], recursive=False)
-        hashable = self._hashable()
+        hashable = self.ishashable()
         explored = set() if hashable else list()
         pushfunc = explored.add if hashable else explored.append
         unique_elements = list()
@@ -627,7 +631,7 @@ class vector(list):
         """
         if len(self) == 0:
             return vector([], recursive=False)
-        hashable = self._hashable()
+        hashable = self.ishashable()
         if hashable:
             return Counter(self)
         else:
@@ -1176,7 +1180,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = NoDefault
+        self.clear_appendix()
         super().append(*args)
         return self
 
@@ -1188,7 +1192,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = NoDefault
+        self.clear_appendix()
         super().extend(*args)
         return self
 
@@ -1200,7 +1204,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = NoDefault
+        self.clear_appendix()
         return super().pop(*args)
 
     def insert(self, *args):
@@ -1211,14 +1215,19 @@ class vector(list):
         args :
             args
         """
-        self._shape = NoDefault
+        self.clear_appendix()
         super().insert(*args)
         return self
+
+    def clear_appendix(self):
+        self._shape = NoDefault
+        self._hashable = NoDefault
+        self._set = NoDefault
 
     def clear(self):
         """clear.
         """
-        self._shape = NoDefault
+        self.clear_appendix()
         super().clear()
         return self
 
@@ -1230,7 +1239,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = NoDefault
+        self.clear_appendix()
         super().remove(*args)
         return self
 
@@ -1300,6 +1309,19 @@ class vector(list):
 
     def __repr__(self):
         return self.__str__()
+
+    def set(self):
+        if touch(lambda: self._set, NoDefault) is not NoDefault:
+            return self._set
+        if not self.ishashable():
+            raise RuntimeError("this vector is not hashable")
+        self._set = set(self)
+        return self._set
+
+    def __contains__(self, item):
+        if self.ishashable():
+            return item in self.set()
+        return super().__contains__(item)
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
