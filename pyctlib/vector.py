@@ -611,6 +611,8 @@ class vector(list):
         if len(self) == 0:
             return vector([], recursive=False)
         hashable = self.ishashable()
+        if self.ishashable():
+            return vector(self.set(), recursive=False)
         explored = set() if hashable else list()
         pushfunc = explored.add if hashable else explored.append
         unique_elements = list()
@@ -813,7 +815,10 @@ class vector(list):
         default :
             default
         """
-        return self.reduce(lambda x, y: x + y, default)
+        if touch(lambda: self._sum, NoDefault) is not NoDefault:
+            return self._sum
+        self._sum = self.reduce(lambda x, y: x + y, default)
+        return self._sum
 
     def prod(self, default=None):
         """prod.
@@ -1223,9 +1228,10 @@ class vector(list):
         self._shape = NoDefault
         self._hashable = NoDefault
         self._set = NoDefault
+        self._sum = NoDefault
 
     def clear(self):
-        """clear.
+        """clear
         """
         self.clear_appendix()
         super().clear()
