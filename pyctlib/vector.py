@@ -365,6 +365,20 @@ class vector(list):
         """
         return all(self.map(lambda x: isinstance(x, instance)))
 
+    def __and__(self, other):
+        if isinstance(other, vector):
+            if self.length == other.length:
+                return vector(zip(self, other)).map(lambda x: x[0] and x[1])
+            raise RuntimeError("length of vector A [{}] isnot compatible with length of vector B [{}]".format(self.length, other.length))
+        raise RuntimeError("can only support vector and vector")
+
+    def __or__(self, other):
+        if isinstance(other, vector):
+            if self.length == other.length:
+                return vector(zip(self, other)),map(lambda x: x[0] or x[1])
+            raise RuntimeError("length of vector A [{}] isnot compatible with length of vector B [{}]".format(self.length, other.length))
+        raise RuntimeError("can only support vector or vector")
+
     def __mul__(self, other):
         """__mul__.
 
@@ -1071,12 +1085,12 @@ class vector(list):
         try:
             assert isinstance(array, np.ndarray)
             if len(array.shape) == 1:
-                return vector(list(array))
+                return vector(array.tolist())
             else:
                 return vector(list(array)).map(lambda x: vector.from_numpy(x))
         except Exception as e:
             print("warning: input isn't pure np.ndarray")
-            return vector(list(array))
+            return vector(array.tolist())
 
     @staticmethod
     def from_list(array):
