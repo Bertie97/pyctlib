@@ -472,7 +472,7 @@ class vector(list):
         element :
             element
         """
-        if isin(element, list):
+        if isinstance(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] > x[1])
         else:
             return self.map(lambda x: x > element)
@@ -485,7 +485,7 @@ class vector(list):
         element :
             element
         """
-        if isin(element, list):
+        if isinstance(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] <= x[1])
         else:
             return self.map(lambda x: x < element)
@@ -498,7 +498,7 @@ class vector(list):
         element :
             element
         """
-        if isin(element, list):
+        if isinstance(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] >= x[1])
         else:
             return self.map(lambda x: x >= element)
