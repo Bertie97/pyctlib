@@ -20,6 +20,7 @@ from functools import wraps, reduce, partial
 from .touch import touch, crash
 import copy
 import numpy as np
+from pyoverload import iterable
 
 """
 Usage:
@@ -28,7 +29,7 @@ from pyctlib import touch
 """
 
 def totuple(x, depth=1):
-    if not iterable(x):
+    if not isinstance(x, tuple):
         x = (x, )
     if depth == 0:
         return tuple(x)
@@ -77,6 +78,7 @@ class EmptyClass:
         return self.name
 
 NoDefault = EmptyClass("No Default Value")
+OutBoundary = EmptyClass("Out of Boundary")
 
 def chain_function(funcs):
     """chain_function.
@@ -531,6 +533,8 @@ class vector(list):
             index
 
         """
+        if isinstance(index, int):
+            return super().__getitem__(index)
         if isinstance(index, slice):
             return vector(super().__getitem__(index))
         if isinstance(index, list):
