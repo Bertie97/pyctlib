@@ -21,6 +21,7 @@ from .touch import touch, crash
 import copy
 import numpy as np
 from pyoverload import iterable
+from tqdm import tqdm, trange
 
 """
 Usage:
@@ -232,7 +233,7 @@ class vector(list):
         """
         return vector([a for a in self if not touch(lambda: (func(a), True)[-1])], recursive=self._recursive)
 
-    def map(self, func, *args, default=NoDefault):
+    def map(self, func, *args, default=NoDefault, processing_bar=False):
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -254,12 +255,18 @@ class vector(list):
         if len(args) > 0:
             func = chain_function((func, *args))
         if default is not NoDefault:
-            return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
+            if processing_bar:
+                return vector([touch(lambda: func(a), default=default) for a in tqdm(self)], recursive=self._recursive)
+            else:
+                return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
         try:
-            return vector([func(a) for a in self], recursive=self._recursive)
+            if processing_bar:
+                return vector([func(a) for a in tqdm(self)], recursive=self._recursive)
+            else:
+                return vector([func(a) for a in self], recursive=self._recursive)
         except:
             pass
-        for index, a in enumerate(self):
+        for index, a in enum_self:
             if touch(lambda: func(a)) is None:
                 try:
                     error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
