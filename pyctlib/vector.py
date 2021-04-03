@@ -16,7 +16,6 @@ __all__ = """
 from types import GeneratorType
 from typing import List
 from collections import Counter
-from pyoverload import *
 from functools import wraps, reduce, partial
 from .touch import touch, crash
 import copy
@@ -246,7 +245,7 @@ class vector(list):
         Example:
         ----------
         vector([0,1,2]).map(lambda x: x ** 2)
-        will produce [0,2,4]
+        will produce [0,1,4]
         """
         if func is None:
             return self
@@ -288,7 +287,7 @@ class vector(list):
             return self
         if len(args) > 0:
             func = chain_function((func, *args))
-        return self.map(lambda x: x.rmap(func, default) if isinstance(x, vector) else func(x), default)
+        return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(x), default=default)
 
     def replace(self, element, toelement=NoDefault):
         """
@@ -314,7 +313,7 @@ class vector(list):
             will produce [0,1,2,2,2]
         3. replace(func, another_func):
             replace element x with which func is True with another_func(x)
-            vector(0,1,2,3,4).replace(lambda x: x>2, x+2)
+            vector(0,1,2,3,4).replace(lambda x: x>2, lambda x: x+2)
             will produce [0,1,2,5,6]
         """
         if toelement is NoDefault:
