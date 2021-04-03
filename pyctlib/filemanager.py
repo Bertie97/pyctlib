@@ -12,6 +12,8 @@ __all__ = """
     pwd
     ls
     cp
+    get_search_blacklist
+    set_search_blacklist
 """.split()
 
 import os, re, struct, shutil
@@ -24,6 +26,16 @@ from typing import TextIO
 """
 from pyinout import *
 """
+
+Search_BlackList = [".DS_Store", ".git"]
+
+def get_search_blacklist():
+    global Search_BlackList
+    return Search_BlackList
+
+def set_search_blacklist(blacklist):
+    global Search_BlackList
+    Search_BlackList = blacklist
 
 def totuple(num):
     if isinstance(num, str): return (num,)
@@ -113,7 +125,8 @@ class path(str):
     @filepath_generator_wrapper
     def recursive_search(self):
         for f in os.listdir(self):
-            if f == '.DS_Store': continue
+            if f in get_search_blacklist():
+                continue
             p = self / f
             if p.isdir():
                 yield p
@@ -217,12 +230,13 @@ class path(str):
         elif len(parts) > 1: brk = -1
         else: brk = 1
         return path.extsep.join(parts[:brk])
+
     def split(self, *args):
         if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
         else: return str(self).split(*args)
     def abs(self): return path(os.path.abspath(self))
     def listdir(self, recursive=False):
-        return self.recursive_search() if recursive else path.pathList([self / x for x in os.listdir(str(self))])
+        return self.recursive_search() if recursive else path.pathList([self / x for x in os.listdir(str(self))], main_folder=self)
     # changed by zhangyiteng
     def ls(self, recursive=False, func=None):
         return self.listdir(recursive=recursive).filter(func)
@@ -263,6 +277,10 @@ class path(str):
     @property
     def parent(self):
         return self @ path.Folder
+
+    @property
+    def children(self):
+        return self.ls()
     # end changed by zhangyiteng
     def isabs(self): return os.path.isabs(self)
     def exists(self): return os.path.exists(self)
@@ -281,6 +299,15 @@ class path(str):
             cumpath /= p
             if not cumpath.exists(): os.mkdir(cumpath)
         return self
+    def copyfrom(self, src):
+        if isinstance(src, str):
+            src = path(src)
+        assert isinstance(src, path)
+        if src.isfile():
+            if self.isfile():
+                shutil.copy2(src, self)
+            else:
+                shutil.copy2(src, self.name)
 
 class file(path):
 

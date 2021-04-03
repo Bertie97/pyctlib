@@ -14,6 +14,7 @@ __all__ = """
 """.split()
 
 from types import GeneratorType
+from typing import List
 from collections import Counter
 from pyoverload import *
 from functools import wraps, reduce, partial
@@ -364,6 +365,20 @@ class vector(list):
         """
         return all(self.map(lambda x: isinstance(x, instance)))
 
+    def __and__(self, other):
+        if isinstance(other, vector):
+            if self.length == other.length:
+                return vector(zip(self, other)).map(lambda x: x[0] and x[1])
+            raise RuntimeError("length of vector A [{}] isnot compatible with length of vector B [{}]".format(self.length, other.length))
+        raise RuntimeError("can only support vector and vector")
+
+    def __or__(self, other):
+        if isinstance(other, vector):
+            if self.length == other.length:
+                return vector(zip(self, other)),map(lambda x: x[0] or x[1])
+            raise RuntimeError("length of vector A [{}] isnot compatible with length of vector B [{}]".format(self.length, other.length))
+        raise RuntimeError("can only support vector or vector")
+
     def __mul__(self, other):
         """__mul__.
 
@@ -384,6 +399,11 @@ class vector(list):
             return vector(zip(self, other)).map(lambda x: (x[0], *x[1]))
         else:
             return vector(zip(self, other))
+
+    @staticmethod
+    def zip(*args):
+        args = totuple(args)
+        return vector(zip(*args)).map(lambda x: totuple(x))
 
     def __pow__(self, other):
         """__pow__.
@@ -472,7 +492,7 @@ class vector(list):
         element :
             element
         """
-        if isin(element, list):
+        if isinstance(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] > x[1])
         else:
             return self.map(lambda x: x > element)
@@ -485,7 +505,7 @@ class vector(list):
         element :
             element
         """
-        if isin(element, list):
+        if isinstance(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] <= x[1])
         else:
             return self.map(lambda x: x < element)
@@ -498,7 +518,7 @@ class vector(list):
         element :
             element
         """
-        if isin(element, list):
+        if isinstance(element, list):
             return vector(zip(self, element)).map(lambda x: x[0] >= x[1])
         else:
             return self.map(lambda x: x >= element)
@@ -549,7 +569,7 @@ class vector(list):
         t :
             t
         """
-        self._shape = None
+        self.clear_appendix()
         if isinstance(i, int):
             super().__setitem__(i, t)
         elif isinstance(i, slice):
@@ -580,17 +600,20 @@ class vector(list):
             raise TypeError("only support the following usages: \n [int] = \n [slice] = \n [list] = ")
 
 
-    def _hashable(self):
-        """_hashable.
+    def ishashable(self):
+        """ishashable.
         chech whether every element in the vector is hashable
         """
-        return self.all(lambda x: "__hash__" in x.__dir__())
+        if touch(lambda: self._hashable, NoDefault) is not NoDefault:
+            return self._hashable
+        self._hashable = self.all(lambda x: "__hash__" in x.__dir__())
+        return self._hashable
 
     def __hash__(self):
         """__hash__.
         get the hash value of the vector if every element in the vector is hashable
         """
-        if not self._hashable():
+        if not self.ishashable():
             raise Exception("not all elements in the vector is hashable, the index of first unhashable element is %d" % self.index(lambda x: "__hash__" not in x.__dir__()))
         else:
             return hash(tuple(self))
@@ -606,7 +629,9 @@ class vector(list):
         """
         if len(self) == 0:
             return vector([], recursive=False)
-        hashable = self._hashable()
+        hashable = self.ishashable()
+        if self.ishashable():
+            return vector(self.set(), recursive=False)
         explored = set() if hashable else list()
         pushfunc = explored.add if hashable else explored.append
         unique_elements = list()
@@ -627,7 +652,7 @@ class vector(list):
         """
         if len(self) == 0:
             return vector([], recursive=False)
-        hashable = self._hashable()
+        hashable = self.ishashable()
         if hashable:
             return Counter(self)
         else:
@@ -809,7 +834,10 @@ class vector(list):
         default :
             default
         """
-        return self.reduce(lambda x, y: x + y, default)
+        if touch(lambda: self._sum, NoDefault) is not NoDefault:
+            return self._sum
+        self._sum = self.reduce(lambda x, y: x + y, default)
+        return self._sum
 
     def prod(self, default=None):
         """prod.
@@ -1062,12 +1090,12 @@ class vector(list):
         try:
             assert isinstance(array, np.ndarray)
             if len(array.shape) == 1:
-                return vector(list(array))
+                return vector(array.tolist())
             else:
                 return vector(list(array)).map(lambda x: vector.from_numpy(x))
         except Exception as e:
             print("warning: input isn't pure np.ndarray")
-            return vector(list(array))
+            return vector(array.tolist())
 
     @staticmethod
     def from_list(array):
@@ -1151,7 +1179,7 @@ class vector(list):
     def shape(self):
         """shape.
         """
-        if touch(lambda: self._shape) is not None:
+        if touch(lambda: self._shape, NoDefault) is not NoDefault:
             return self._shape
         if all(not isinstance(x, vector) for x in self):
             self._shape = (self.length, )
@@ -1176,7 +1204,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self.clear_appendix()
         super().append(*args)
         return self
 
@@ -1188,7 +1216,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self.clear_appendix()
         super().extend(*args)
         return self
 
@@ -1200,7 +1228,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self.clear_appendix()
         return super().pop(*args)
 
     def insert(self, *args):
@@ -1211,14 +1239,20 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self.clear_appendix()
         super().insert(*args)
         return self
 
+    def clear_appendix(self):
+        self._shape = NoDefault
+        self._hashable = NoDefault
+        self._set = NoDefault
+        self._sum = NoDefault
+
     def clear(self):
-        """clear.
+        """clear
         """
-        self._shape = None
+        self.clear_appendix()
         super().clear()
         return self
 
@@ -1230,7 +1264,7 @@ class vector(list):
         args :
             args
         """
-        self._shape = None
+        self.clear_appendix()
         super().remove(*args)
         return self
 
@@ -1266,6 +1300,53 @@ class vector(list):
         if len(args) == 0:
             return vector()
         return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
+
+    def shuffle(self):
+        return self.sample(self.length)
+
+    def __str__(self):
+        if self.shape != "undefined" and len(self.shape) > 1:
+            ret: List[str] = vector()
+            for index, child in self.enumerate():
+                contents = str(child).split("\n")
+                for j, content in enumerate(contents):
+                    temp = ""
+                    if index == 0 and j == 0:
+                        temp = "["
+                    else:
+                        temp = " "
+                    temp += content.rstrip()
+                    if j == len(contents) - 1:
+                        if index < self.length - 1:
+                            temp += ","
+                        else:
+                            temp += "]"
+                    ret.append(temp)
+            return "\n".join(ret)
+        else:
+            ret = "["
+            for index, child in self.enumerate():
+                ret += str(child)
+                if index < self.length - 1:
+                    ret += ", "
+            ret += "]"
+            return ret
+
+    def __repr__(self):
+        return self.__str__()
+
+    def set(self):
+        if touch(lambda: self._set, NoDefault) is not NoDefault:
+            return self._set
+        if not self.ishashable():
+            raise RuntimeError("this vector is not hashable")
+        self._set = set(self)
+        return self._set
+
+    def __contains__(self, item):
+        if self.ishashable():
+            return item in self.set()
+        return super().__contains__(item)
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
