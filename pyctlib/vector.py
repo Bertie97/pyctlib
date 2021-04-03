@@ -400,6 +400,11 @@ class vector(list):
         else:
             return vector(zip(self, other))
 
+    @staticmethod
+    def zip(*args):
+        args = totuple(args)
+        return vector(zip(*args)).map(lambda x: totuple(x))
+
     def __pow__(self, other):
         """__pow__.
         Cartesian Product of two vector
