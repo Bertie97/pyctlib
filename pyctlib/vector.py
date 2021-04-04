@@ -30,8 +30,13 @@ from pyctlib import touch
 """
 
 def totuple(x, depth=1):
-    if not isinstance(x, tuple):
+    if not iterable(x):
         x = (x, )
+    if depth == 1:
+        if iterable(x) and len(x) == 1 and iterable(x[0]):
+            return tuple(x[0])
+        else:
+            return tuple(x)
     if depth == 0:
         return tuple(x)
     temp = vector(x).map(lambda t: totuple(t, depth=depth-1))
