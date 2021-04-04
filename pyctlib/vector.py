@@ -16,11 +16,12 @@ __all__ = """
 from types import GeneratorType
 from typing import List
 from collections import Counter
-from pyoverload import *
 from functools import wraps, reduce, partial
 from .touch import touch, crash
 import copy
 import numpy as np
+from pyoverload import iterable
+from tqdm import tqdm, trange
 
 """
 Usage:
@@ -31,6 +32,11 @@ from pyctlib import touch
 def totuple(x, depth=1):
     if not iterable(x):
         x = (x, )
+    if depth == 1:
+        if iterable(x) and len(x) == 1 and iterable(x[0]):
+            return tuple(x[0])
+        else:
+            return tuple(x)
     if depth == 0:
         return tuple(x)
     temp = vector(x).map(lambda t: totuple(t, depth=depth-1))
@@ -78,6 +84,7 @@ class EmptyClass:
         return self.name
 
 NoDefault = EmptyClass("No Default Value")
+OutBoundary = EmptyClass("Out of Boundary")
 
 def chain_function(funcs):
     """chain_function.
@@ -231,7 +238,7 @@ class vector(list):
         """
         return vector([a for a in self if not touch(lambda: (func(a), True)[-1])], recursive=self._recursive)
 
-    def map(self, func, *args, default=NoDefault):
+    def map(self, func, *args, default=NoDefault, processing_bar=False):
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -246,19 +253,25 @@ class vector(list):
         Example:
         ----------
         vector([0,1,2]).map(lambda x: x ** 2)
-        will produce [0,2,4]
+        will produce [0,1,4]
         """
         if func is None:
             return self
         if len(args) > 0:
             func = chain_function((func, *args))
         if default is not NoDefault:
-            return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
+            if processing_bar:
+                return vector([touch(lambda: func(a), default=default) for a in tqdm(self)], recursive=self._recursive)
+            else:
+                return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
         try:
-            return vector([func(a) for a in self], recursive=self._recursive)
+            if processing_bar:
+                return vector([func(a) for a in tqdm(self)], recursive=self._recursive)
+            else:
+                return vector([func(a) for a in self], recursive=self._recursive)
         except:
             pass
-        for index, a in enumerate(self):
+        for index, a in enum_self:
             if touch(lambda: func(a)) is None:
                 try:
                     error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
@@ -288,7 +301,7 @@ class vector(list):
             return self
         if len(args) > 0:
             func = chain_function((func, *args))
-        return self.map(lambda x: x.rmap(func, default) if isinstance(x, vector) else func(x), default)
+        return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(x), default=default)
 
     def replace(self, element, toelement=NoDefault):
         """
@@ -314,7 +327,7 @@ class vector(list):
             will produce [0,1,2,2,2]
         3. replace(func, another_func):
             replace element x with which func is True with another_func(x)
-            vector(0,1,2,3,4).replace(lambda x: x>2, x+2)
+            vector(0,1,2,3,4).replace(lambda x: x>2, lambda x: x+2)
             will produce [0,1,2,5,6]
         """
         if toelement is NoDefault:
@@ -532,6 +545,8 @@ class vector(list):
             index
 
         """
+        if isinstance(index, int):
+            return super().__getitem__(index)
         if isinstance(index, slice):
             return vector(super().__getitem__(index))
         if isinstance(index, list):

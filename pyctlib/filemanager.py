@@ -129,6 +129,7 @@ class path(str):
                 continue
             p = self / f
             if p.isdir():
+                yield p
                 for cp in p.recursive_search():
                     yield cp
             if p.isfile():
