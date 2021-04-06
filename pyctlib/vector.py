@@ -115,7 +115,7 @@ class vector(list):
     """
 
 
-    def __init__(self, *args, recursive=False):
+    def __init__(self, *args, recursive=False, map_index=None):
         """__init__.
 
         Parameters
@@ -133,6 +133,7 @@ class vector(list):
         will all get [1,2,3]
         """
         self._recursive=recursive
+        self._map_index = map_index
         if len(args) == 0:
             list.__init__(self)
         elif len(args) == 1:
@@ -143,6 +144,7 @@ class vector(list):
                 list.__init__(self, temp)
             elif isinstance(args[0], vector):
                 list.__init__(self, args[0])
+                self._map_index = args[0]._map_index
             elif isinstance(args[0], list):
                 if recursive:
                     def to_vector(array):
@@ -189,8 +191,8 @@ class vector(list):
             return self
         try:
             if ignore_error:
-                return vector([a for a in self if touch(lambda: func(a))], recursive=self._recursive)
-            return vector([a for a in self if func(a)], recursive=self._recursive)
+                return vector([a for a in self if touch(lambda: func(a))], recursive=self._recursive, map_index=self._map_index)
+            return vector([a for a in self if func(a)], recursive=self._recursive, map_index=self._map_index)
         except:
             pass
         for index, a in enumerate(self):
@@ -218,7 +220,7 @@ class vector(list):
         """
         if len(args) > 0:
             func = chain_function((func, *args))
-        return vector([a for a in self if touch(lambda: (func(a), True)[-1])], recursive=self._recursive)
+        return vector([a for a in self if touch(lambda: (func(a), True)[-1])], recursive=self._recursive, map_index=self._map_index)
 
     def testnot(self, func, *args):
         """testnot
@@ -236,7 +238,7 @@ class vector(list):
         vector(0,1,2,3).testnot(lambda x: 1/x)
         will produce [0]
         """
-        return vector([a for a in self if not touch(lambda: (func(a), True)[-1])], recursive=self._recursive)
+        return vector([a for a in self if not touch(lambda: (func(a), True)[-1])], recursive=self._recursive, map_index=self._map_index)
 
     def map(self, func, *args, default=NoDefault, processing_bar=False):
         """
@@ -261,14 +263,14 @@ class vector(list):
             func = chain_function((func, *args))
         if default is not NoDefault:
             if processing_bar:
-                return vector([touch(lambda: func(a), default=default) for a in tqdm(self)], recursive=self._recursive)
+                return vector([touch(lambda: func(a), default=default) for a in tqdm(self)], recursive=self._recursive, map_index=self._map_index)
             else:
-                return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive)
+                return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive, map_index=self._map_index)
         try:
             if processing_bar:
-                return vector([func(a) for a in tqdm(self)], recursive=self._recursive)
+                return vector([func(a) for a in tqdm(self)], recursive=self._recursive, map_index=self._map_index)
             else:
-                return vector([func(a) for a in self], recursive=self._recursive)
+                return vector([func(a) for a in self], recursive=self._recursive, map_index=self._map_index)
         except:
             pass
         for index, a in enum_self:
@@ -442,6 +444,18 @@ class vector(list):
         other : list
             other
         """
+        if isinstance(other, list) and (self._map_index is not None or (isinstance(other, vector) and other._map_index is not None)):
+            if self._map_index is None:
+                new_map_index = self._map_index
+            else:
+                new_map_index = vector.range(self.length)
+            if isinstance(other, vector) and other._map_index is not None:
+                new_map_index += other._map_index.map(lambda x: x+self.length)
+            else:
+                new_map_index += vector.range(self.length, self.length + len(other))
+            ret = vector(super().__add__(other))
+            ret._map_index = new_map_index
+            return ret
         return vector(super().__add__(other))
 
     def _transform(self, element, func=None):
@@ -633,7 +647,7 @@ class vector(list):
         else:
             return hash(tuple(self))
 
-    def unique(self):
+    def unique(self) -> "vector":
         """unique.
         get unique values in the vector
 
@@ -1053,6 +1067,15 @@ class vector(list):
             return ret
         return temp_list.map(lambda x: create_onehot_vector(x, max_length))
 
+    def sort(self, key=lambda x: x):
+        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
+        map_index = vector.range(self.length)
+        for index, x in enumerate(temp):
+            map_index[x[1]] = index
+        ret = self.copy()
+        ret = ret.map_index(map_index)
+        return ret
+
     def sort_by_index(self, key=lambda index: index):
         """sort_by_index.
         sort vector by function of index
@@ -1069,8 +1092,8 @@ class vector(list):
         [1, 4, 3, 2, 1]
         """
         afflicated_vector = vector(key(index) for index in range(self.length))
-        temp = sorted(zip(self, afflicated_vector), key=lambda x: x[1])
-        return vector(temp).map(lambda x: x[0])
+        temp = vector(sorted(zip(vector.range(self.length), afflicated_vector), key=lambda x: x[1]))
+        return self.map_reverse_index(temp.map(lambda x: x[0]))
 
     def sort_by_vector(self, other, func=lambda x: x):
         """sort_by_vector.
@@ -1211,7 +1234,7 @@ class vector(list):
         self._shape = (self.length, *(self[0].shape))
         return self._shape
 
-    def append(self, *args):
+    def append(self, element):
         """append.
 
         Parameters
@@ -1220,10 +1243,12 @@ class vector(list):
             args
         """
         self.clear_appendix()
-        super().append(*args)
+        if self._map_index:
+            self._map_index.append(self.length)
+        super().append(element)
         return self
 
-    def extend(self, *args):
+    def extend(self, other):
         """extend.
 
         Parameters
@@ -1232,8 +1257,28 @@ class vector(list):
             args
         """
         self.clear_appendix()
-        super().extend(*args)
+        if self._map_index:
+            if isinstance(other, vector) and other._map_index is not None:
+                self._map_index = self._map_index + other._map_index.map(lambda x: x + self.length)
+            else:
+                self._map_index.extend(vector.range(self.length, self.length+len(other)))
+        super().extend(other)
         return self
+
+    def remove_map(self, from_index):
+        assert self._map_index is not None
+        self.remove_mapto(self._map_index[from_list])
+
+    def remove_mapto(self, to_index):
+        assert self._map_index is not None
+        new_index = vector()
+        for i in self._map_index:
+            if i < to_index:
+                new_index.append(i)
+            if i > to_index:
+                new_index.append(i-1)
+        self._map_index = new_index
+
 
     def pop(self, *args):
         """pop.
@@ -1244,6 +1289,15 @@ class vector(list):
             args
         """
         self.clear_appendix()
+        if len(args) == 0:
+            number = 1
+        elif len(args) == 1:
+            number = args[0]
+        else:
+            raise TypeError("pop expected at most 1 argument, got {}".format(len(args)))
+        for _ in range(number):
+            self.remove_mapto(0)
+
         return super().pop(*args)
 
     def insert(self, *args):
@@ -1268,6 +1322,7 @@ class vector(list):
         """clear
         """
         self.clear_appendix()
+        self._map_index = None
         super().clear()
         return self
 
@@ -1327,7 +1382,63 @@ class vector(list):
             return (self + self.sample(batch_size - self.length % batch_size)).batch(batch_size=batch_size, drop=True)
 
     def shuffle(self):
-        return self.sample(self.length)
+        return self.sample(self.length, replace=False)
+
+    def split(self, *args):
+        args = totuple(args)
+
+    def copy(self, deep_copy=False):
+        if not deep_copy:
+            ret = vector(self)
+        else:
+            ret = vector(copy.deep_copy(self))
+        if self._map_index is not None:
+            ret._map_index = self._map_index.copy()
+        else:
+            ret._map_index = None
+        return ret
+
+    def map_index(self, index):
+        assert len(index) == self.length
+        index = vector(index)
+        assert index.check_type(int)
+        assert index.unique().length == self.length
+        ret = vector([None for _ in range(self.length)])
+        for i, j in index.enumerate():
+            ret[j] = self[i]
+        if not self._map_index:
+            ret._map_index = index
+        else:
+            ret._map_index = vector()
+            for to in self._map_index:
+                ret._map_index.append(index[to])
+        return ret
+
+    def map_reverse_index(self, reverse_index):
+        assert len(reverse_index) == self.length
+        reverse_index = vector(reverse_index)
+        assert reverse_index.check_type(int)
+        assert reverse_index.unique().length == self.length
+        ret = vector()
+        map_index = vector()
+        for f in reverse_index:
+            ret.append(self[f])
+            map_index.append(f)
+        ret._map_index = map_index
+        return ret
+
+    def clear_map_index(self):
+        self._map_index = None
+        return self
+
+    def unmap_index(self):
+        if self._map_index is None:
+            print("warning: there is no map in the current vector")
+            return
+        ret = vector()
+        for to in self._map_index:
+            ret.append(self[to])
+        return ret
 
     def __str__(self):
         if self.shape != "undefined" and len(self.shape) > 1:
