@@ -1290,7 +1290,7 @@ class vector(list):
             return True
         return self.all(lambda x: x == self[0])
 
-    def sample(self, *args, replace=True, p=None):
+    def sample(self, *args, replace=True, batch_size=1, p=None):
         """sample.
 
         Parameters
@@ -1314,6 +1314,8 @@ class vector(list):
             args = args[:-2]
         if len(args) == 0:
             return vector()
+        if batch_size > 1:
+            args = (*args, batch_size)
         return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
 
     def shuffle(self):
