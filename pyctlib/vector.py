@@ -1318,6 +1318,14 @@ class vector(list):
             args = (*args, batch_size)
         return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
 
+    def batch(self, batch_size=1, drop=True):
+        if self.length % batch_size == 0:
+            return self.sample(self.length // batch_size, batch_size, replace=False)
+        if drop:
+            return self.sample(self.length // batch_size, batch_size, replace=False)
+        else:
+            return (self + self.sample(batch_size - self.length % batch_size)).batch(batch_size=batch_size, drop=True)
+
     def shuffle(self):
         return self.sample(self.length)
 
