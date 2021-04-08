@@ -1519,12 +1519,15 @@ class vector(list):
                                 return None
                         question_done = True
                     elif char == "\x1b":
-                        continue
+                        return None
                     else:
                         raise AssertionError(repr(char))
 
                     search_k = 1 if question_done else k
-                    result = self.fuzzy_search(question, search_k)
+                    if len(question) > 0:
+                        result = self.fuzzy_search(question, search_k)
+                    else:
+                        result = self[:search_k]
                     for index in range(len(result)):
                         stdscr.addstr(1 + index, 0, str(result[index])[:100])
                         stdscr.clrtoeol()
