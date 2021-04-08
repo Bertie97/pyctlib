@@ -87,6 +87,7 @@ class EmptyClass:
 
 NoDefault = EmptyClass("No Default Value")
 OutBoundary = EmptyClass("Out of Boundary")
+NoDefined = EmptyClass("Not Defined")
 
 def chain_function(funcs):
     """chain_function.
@@ -110,6 +111,81 @@ def chain_function(funcs):
             x = func(x)
         return x
     return partial(ret, funcs)
+
+class IndexMapping:
+
+    def __init__(self, index_map=None, reverse=False):
+        if index_map is None:
+            self._index_map = None
+            self._index_map_reverse = None
+            return
+        if not reverse:
+            self._index_map = index_map
+            self._index_map_reverse = self._reverse_mapping(index_map)
+        else:
+            self._index_map_reverse = index_map
+            self._index_map = self._reverse_mapping(index_map)
+
+    def reverse(self):
+        ret = IndexMapping()
+        ret._index_map = self._index_map_reverse
+        ret._index_map_reverse = self._index_map
+        return ret
+
+    @property
+    def domain_size(self):
+        return len(self.index_map)
+
+    @property
+    def range_size(self):
+        return len(self.index_map_reverse)
+
+    @property
+    def index_map(self):
+        return self._index_map
+
+    @property
+    def index_map_reverse(self):
+        return self._index_map_reverse
+
+    def map(self, other):
+        assert isinstance(other, IndexMapping)
+        ret = IndexMapping()
+        ret._index_map = [0] * self.domain_size
+        for index, to in enumerate(self.domain_size):
+            if to != -1
+                ret._index_map[index] = other.index_map[to]
+        ret._index_map_reverse = [0] * other.range_size
+
+    @staticmethod
+    def _reverse_mapping(mapping):
+        range_size = max(mapping) + 1
+        ret = [-1] * range_size
+        for index, to in enumerate(mapping):
+            if to == -1:
+                continue
+            assert ret[to] == -1
+            ret[to] = index
+        return ret
+
+    def __str__(self):
+        return str(self.index_map_reverse)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def check_valid(self):
+        if self.index_map is None:
+            return self.index_map_reverse is None
+        for index, to in enumerate(self.index_map):
+            if to != -1:
+                if self.index_map_reverse[to] != index:
+                    return False
+        for index, to in enumerate(self.index_map):
+            if to != -1:
+                if self.index_map[to] != index:
+                    return False
+        return True
 
 class vector(list):
     """vector
