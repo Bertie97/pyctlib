@@ -33,3 +33,7 @@ assert list(vector(0,1,2,3,4,0,1).findall_crash(lambda x: 1/x)) == [0, 5]
 assert list(vector([1,2,3,4,2,3]).findall(lambda x: x>2)) == [2, 3, 5]
 assert list(vector.zip(vector(1,2,3), vector(1,2,3), vector(1,2,3))) == [(1, 1, 1), (2, 2, 2), (3, 3, 3)]
 assert list(vector([1, 2, 3, 4, 1]).sort_by_index(key=lambda x: -x)) == [1, 4, 3, 2, 1]
+x = vector.range(100).shuffle()
+assert x == vector.range(100).map_index_from(x)
+x = vector.range(100).sample(10, replace=False)
+assert x == vector.range(100).map_index_from(x)
