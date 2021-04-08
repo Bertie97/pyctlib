@@ -7,10 +7,15 @@
 ##############################
 __all__ = """
     restore_type_wrapper
+    generate_typehint_wrapper
 """.split()
 
 from pyoverload import *
 from .basicwrapper import *
+import inspect
+from .vector import vector
+from functools import wraps
+from .strtools import delete_surround
 
 def _restore_type_wrapper(func: Callable, special_attr: List[str]):
     def wrapper(*args, **kwargs):
@@ -51,3 +56,33 @@ def restore_type_wrapper(*special_attr: str):
     def restore_type_decorator(func: Callable):
         return _restore_type_wrapper(func, special_attr)
     return restore_type_decorator
+
+def type_str(obj):
+    if isinstance(obj, list):
+        if len(obj) > 0 and all(isinstance(t, type(obj[0])) for t in obj):
+            return delete_surround(str(type(obj)), "<class '", "'>") + "[{}]".format(type_str(obj[0]))
+    return delete_surround(str(type(obj)), "<class '", "'>")
+
+def generate_typehint_wrapper(func):
+    assert callable(raw_function(func))
+    func = raw_function(func)
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        args_name = inspect.getfullargspec(func)[0]
+        ret = func(*args, **kwargs)
+        typehint = vector()
+        default_dict = dict()
+        default = inspect.getfullargspec(func).defaults
+        for index in range(len(default)):
+            name = args_name[len(args_name) - len(default) + index]
+            default_dict[name] = default[index]
+        for name, arg in zip(args_name, args):
+            typehint.append("@type {}: {}".format(name, type_str(arg)))
+        for name in args_name[len(args):]:
+            if name in kwargs:
+                typehint.append("@type {}: {}".format(name, type_str(kwargs[name])))
+            else:
+                typehint.append("@type {}: {}".format(name, type_str(default_dict[name])))
+        print("\n".join(typehint))
+        return ret
+    return wrapper
