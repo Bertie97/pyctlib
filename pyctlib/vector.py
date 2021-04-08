@@ -24,6 +24,7 @@ from pyoverload import iterable
 from tqdm import tqdm, trange
 from fuzzywuzzy import fuzz
 import curses
+import re
 
 """
 Usage:
@@ -1556,6 +1557,77 @@ class vector(list):
         if self.ishashable():
             return item in self.set()
         return super().__contains__(item)
+
+    def regrex_search(self, question="", k=NoDefault):
+
+        if len(question) > 0:
+            regrex = re.compile(question)
+            ratio = self.map(str).filter(lambda x: regrex.search(x))
+            return self.map_index_from(ratio)
+        else:
+            def c_main(stdscr: "curses._CursesWindow"):
+                stdscr.clear()
+                question = ""
+                question_done = False
+                select_number = 0
+                result = vector()
+                rows, cols = stdscr.getmaxyx()
+
+                stdscr.addstr(0, 0, "token to search: ")
+                search_k = k
+                if search_k is NoDefault:
+                    search_k = rows - 1
+                for index in range(len(self[:search_k])):
+                    if index == 0:
+                        stdscr.addstr(index + 1, 0, "* " + str(self[index])[:100])
+                    else:
+                        stdscr.addstr(index + 1, 0, str(self[index])[:100])
+
+                while True:
+                    stdscr.addstr(0, 0, "token to search: ")
+                    stdscr.clrtoeol()
+                    stdscr.addstr(question)
+
+                    char = stdscr.get_wch()
+                    if isinstance(char, str) and char.isprintable():
+                        question += char
+                        select_number = 0
+                    elif char == curses.KEY_BACKSPACE or char == "\x7f":
+                        question = question[:-1]
+                        select_number = 0
+                    elif char == "\n":
+                        if len(result) > 0:
+                            return result[select_number]
+                    elif char == "\x1b":
+                        return None
+                    elif char == curses.KEY_UP:
+                        select_number = max(select_number - 1, 0)
+                    elif char == curses.KEY_DOWN:
+                        select_number = max(min(select_number + 1, len(result) - 1), 0)
+                    elif char == curses.KEY_LEFT or char == curses.KEY_RIGHT:
+                        continue
+                    else:
+                        raise AssertionError(repr(char))
+
+                    if len(question) > 0:
+                        regrex = touch(lambda: re.compile(question), None)
+                        if regrex:
+                            ratio = self.map(str).filter(lambda x: regrex.search(x), ignore_error=True)
+                            result = self.map_index(ratio.index_mapping)[:search_k]
+                    else:
+                        result = self[:search_k]
+                        ratio = result.map(lambda x: 0)
+                    for index in range(len(result)):
+                        if index == select_number:
+                            stdscr.addstr(1 + index, 0, "* " + str(result[index])[:100] + " " + str(ratio[index]))
+                        else:
+                            stdscr.addstr(1 + index, 0, str(result[index])[:100] + " " + str(ratio[index]))
+                        stdscr.clrtoeol()
+                    for index in range(len(result), search_k):
+                        stdscr.addstr(1 + index, 0, "")
+                        stdscr.clrtoeol()
+
+            return curses.wrapper(c_main)
 
     def fuzzy_search(self, question="", k=NoDefault):
         if len(question) > 0:
