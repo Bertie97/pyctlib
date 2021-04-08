@@ -151,11 +151,15 @@ class IndexMapping:
     def map(self, other):
         assert isinstance(other, IndexMapping)
         ret = IndexMapping()
-        ret._index_map = [0] * self.domain_size
+        ret._index_map = [-1] * self.domain_size
         for index, to in enumerate(self.domain_size):
-            if to != -1
+            if 0 <= to < other.domain_size:
                 ret._index_map[index] = other.index_map[to]
-        ret._index_map_reverse = [0] * other.range_size
+        ret._index_map_reverse = [-1] * other.range_size
+        for index, to in enumerate(other.range_size):
+            if 0 <= to < self.range_size:
+                ret._index_map_reverse[index] = other.index_map_reverse[to]
+        return ret
 
     @staticmethod
     def _reverse_mapping(mapping):
