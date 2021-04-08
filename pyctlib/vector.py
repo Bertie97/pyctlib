@@ -1609,7 +1609,8 @@ class vector(list):
                     elif char == curses.KEY_LEFT or char == curses.KEY_RIGHT:
                         continue
                     else:
-                        raise AssertionError(repr(char))
+                        # raise AssertionError(repr(char))
+                        continue
 
                     if len(question) > 0:
                         regex = touch(lambda: re.compile(question), None)
