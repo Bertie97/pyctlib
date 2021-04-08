@@ -23,6 +23,7 @@ import numpy as np
 from pyoverload import iterable
 from tqdm import tqdm, trange
 from fuzzywuzzy import fuzz
+import curses
 
 """
 Usage:
@@ -1485,9 +1486,53 @@ class vector(list):
             return item in self.set()
         return super().__contains__(item)
 
-    def fuzzy_search(self, question, k=10):
-        ratio = self.map(str).map(lambda x: -fuzz.partial_ratio(x.lower(), question.lower()))
-        return self.map_index(ratio.sort()._map_index)[:k]
+    def fuzzy_search(self, question="", k=10):
+        if len(question) > 0:
+            ratio = self.map(str).map(lambda x: -fuzz.ratio(x.lower(), question.lower()))
+            return self.map_index(ratio.sort()._map_index)[:k]
+        else:
+            def c_main(stdscr: "curses._CursesWindow"):
+                stdscr.clear()
+                question = ""
+                question_done = False
+                result = vector()
+
+                stdscr.addstr(0, 0, "token to search: ")
+                for index in range(len(self[:k])):
+                    stdscr.addstr(index + 1, 0, str(self[index])[:100])
+
+                while True:
+                    stdscr.addstr(0, 0, "token to search: ")
+                    stdscr.clrtoeol()
+                    stdscr.addstr(question)
+
+                    char = stdscr.get_wch()
+                    if isinstance(char, str) and char.isprintable():
+                        question += char
+                    elif char == curses.KEY_BACKSPACE or char == "\x7f":
+                        question = question[:-1]
+                    elif char == "\n":
+                        if question_done:
+                            if len(result) > 0:
+                                return result[0]
+                            else:
+                                return None
+                        question_done = True
+                    elif char == "\x1b":
+                        continue
+                    else:
+                        raise AssertionError(repr(char))
+
+                    search_k = 1 if question_done else k
+                    result = self.fuzzy_search(question, search_k)
+                    for index in range(len(result)):
+                        stdscr.addstr(1 + index, 0, str(result[index])[:100])
+                        stdscr.clrtoeol()
+                    for index in range(len(result), k):
+                        stdscr.addstr(1 + index, 0, "")
+                        stdscr.clrtoeol()
+
+            return curses.wrapper(c_main)
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
