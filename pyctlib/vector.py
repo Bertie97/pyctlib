@@ -1558,7 +1558,7 @@ class vector(list):
             return item in self.set()
         return super().__contains__(item)
 
-    def regrex_search(self, question="", k=NoDefault):
+    def regex_search(self, question="", k=NoDefault):
 
         if len(question) > 0:
             regrex = re.compile(question)
