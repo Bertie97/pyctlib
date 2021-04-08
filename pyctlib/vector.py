@@ -1560,11 +1560,11 @@ class vector(list):
             return item in self.set()
         return super().__contains__(item)
 
-    def regex_search(self, question="", k=NoDefault):
+    def regex_search(self, question="", k=NoDefault, str_func=str):
 
         if len(question) > 0:
             regex = re.compile(question)
-            ratio = self.map(str).filter(lambda x: regex.search(x), ignore_error=False)
+            ratio = self.map(str_func).filter(lambda x: regex.search(x), ignore_error=False)
             return self.map_index_from(ratio)
         else:
             def c_main(stdscr: "curses._CursesWindow"):
@@ -1610,16 +1610,17 @@ class vector(list):
                     elif char == curses.KEY_LEFT or char == curses.KEY_RIGHT:
                         continue
                     else:
-                        # raise AssertionError(repr(char))
                         continue
 
                     if len(question) > 0:
                         regex = touch(lambda: re.compile(question), None)
                         if regex:
-                            ratio = self.map(str).filter(lambda x: regex.search(x), ignore_error=False)
+                            ratio = self.map(str_func).filter(lambda x: regex.search(x), ignore_error=False)
                             result = self.map_index(ratio.index_mapping)[:search_k]
                         stdscr.addstr(search_k + 1, 0, "regex " + str(regex))
+                        stdscr.clrtoeol()
                         stdscr.addstr(search_k + 2, 0, "# match: " + str(ratio.length))
+                        stdscr.clrtoeol()
                     else:
                         result = self[:search_k]
                         ratio = result.map(lambda x: 0)
@@ -1635,9 +1636,9 @@ class vector(list):
 
             return curses.wrapper(c_main)
 
-    def fuzzy_search(self, question="", k=NoDefault):
+    def fuzzy_search(self, question="", k=NoDefault, str_func=str):
         if len(question) > 0:
-            ratio = self.map(str).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            ratio = self.map(str_func).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
             if k is not NoDefault:
                 return self.map_index(ratio.sort().index_mapping)[:k]
             else:
@@ -1688,7 +1689,7 @@ class vector(list):
                         raise AssertionError(repr(char))
 
                     if len(question) > 0:
-                        ratio = self.map(str).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
+                        ratio = self.map(str_func).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
                         result = self.map_index(ratio.index_mapping)[:search_k]
                         remain_len = ratio.filter(lambda x: x > 5).length
                         result = result[:remain_len]
