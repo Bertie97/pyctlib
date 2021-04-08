@@ -85,6 +85,7 @@ class path(str):
             for e in lst:
                 if e not in self: self.append(e)
             self.main_folder = main_folder
+            self._map_index = None
             return self
 
         def __init__(self, *args, **kwargs): pass
