@@ -171,6 +171,8 @@ class IndexMapping:
 
     @staticmethod
     def _reverse_mapping(mapping, range_size=0):
+        if len(mapping) == 0:
+            return [-1] * range_size
         range_size = max(range_size, max(mapping) + 1)
         ret = [-1] * range_size
         for index, to in enumerate(mapping):
@@ -301,16 +303,16 @@ class vector(list):
                 index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
                 return self.map_index(index_mapping)
             filtered_index = [index for index, a in enumerate(self) if func(a)]
-            index_mapping = IndexMapping(filtered_index, reverse=True)
+            index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
             return self.map_index(index_mapping)
-        except:
-            pass
+        except Exception as e:
+            error_info = str(e)
         for index, a in enumerate(self):
             if touch(lambda: func(a)) is None:
                 try:
-                    error_information = "Exception raised in filter function at location {} for element {}".format(index, a)
+                    error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, a)
                 except:
-                    error_information = "Exception raised in filter function at location {} for element {}".format(index, "<unknown>")
+                    error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, "<unknown>")
                 raise RuntimeError(error_information)
 
     def test(self, func, *args):
@@ -1561,8 +1563,8 @@ class vector(list):
     def regex_search(self, question="", k=NoDefault):
 
         if len(question) > 0:
-            regrex = re.compile(question)
-            ratio = self.map(str).filter(lambda x: regrex.search(x))
+            regex = re.compile(question)
+            ratio = self.map(str).filter(lambda x: regex.search(x), ignore_error=False)
             return self.map_index_from(ratio)
         else:
             def c_main(stdscr: "curses._CursesWindow"):
@@ -1576,7 +1578,7 @@ class vector(list):
                 stdscr.addstr(0, 0, "token to search: ")
                 search_k = k
                 if search_k is NoDefault:
-                    search_k = rows - 1
+                    search_k = int(rows * 0.8)
                 for index in range(len(self[:search_k])):
                     if index == 0:
                         stdscr.addstr(index + 1, 0, "* " + str(self[index])[:100])
@@ -1610,10 +1612,12 @@ class vector(list):
                         raise AssertionError(repr(char))
 
                     if len(question) > 0:
-                        regrex = touch(lambda: re.compile(question), None)
-                        if regrex:
-                            ratio = self.map(str).filter(lambda x: regrex.search(x), ignore_error=True)
+                        regex = touch(lambda: re.compile(question), None)
+                        if regex:
+                            ratio = self.map(str).filter(lambda x: regex.search(x), ignore_error=False)
                             result = self.map_index(ratio.index_mapping)[:search_k]
+                        stdscr.addstr(search_k + 1, 0, "regex " + str(regex))
+                        stdscr.addstr(search_k + 2, 0, "# match: " + str(ratio.length))
                     else:
                         result = self[:search_k]
                         ratio = result.map(lambda x: 0)
