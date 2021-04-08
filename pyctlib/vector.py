@@ -1591,6 +1591,7 @@ class vector(list):
                     stdscr.addstr(question)
 
                     char = stdscr.get_wch()
+                    ratio = vector()
                     if isinstance(char, str) and char.isprintable():
                         question += char
                         select_number = 0
