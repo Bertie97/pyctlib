@@ -80,15 +80,9 @@ class path(str):
 
     class pathList(vector):
 
-        def __new__(cls, lst, main_folder = os.curdir):
-            self = super().__new__(cls)
-            for e in lst:
-                if e not in self: self.append(e)
+        def __init__(self, lst, main_folder = os.curdir):
+            super().__init__(lst)
             self.main_folder = main_folder
-            self._map_index = None
-            return self
-
-        def __init__(self, *args, **kwargs): pass
 
         def __or__(self, k): return self[[x|k for x in self]]
         def __sub__(self, y): return path.pathList([x - y for x in self])

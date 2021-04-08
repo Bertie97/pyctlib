@@ -5,6 +5,7 @@ sys.path.append(os.path.abspath("."))
 import pyctlib
 from pyctlib import vector
 from pyctlib import path
+from pyctlib import touch
 
 print(pyctlib.__file__)
 

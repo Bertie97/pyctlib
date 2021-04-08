@@ -87,7 +87,7 @@ class EmptyClass:
 
 NoDefault = EmptyClass("No Default Value")
 OutBoundary = EmptyClass("Out of Boundary")
-NoDefined = EmptyClass("Not Defined")
+UnDefined = EmptyClass("Not Defined")
 
 def chain_function(funcs):
     """chain_function.
@@ -114,17 +114,17 @@ def chain_function(funcs):
 
 class IndexMapping:
 
-    def __init__(self, index_map=None, reverse=False):
+    def __init__(self, index_map=None, range_size=0, reverse=False):
         if index_map is None:
             self._index_map = None
             self._index_map_reverse = None
             return
         if not reverse:
             self._index_map = index_map
-            self._index_map_reverse = self._reverse_mapping(index_map)
+            self._index_map_reverse = self._reverse_mapping(index_map, range_size=range_size)
         else:
             self._index_map_reverse = index_map
-            self._index_map = self._reverse_mapping(index_map)
+            self._index_map = self._reverse_mapping(index_map, range_size=range_size)
 
     def reverse(self):
         ret = IndexMapping()
@@ -133,37 +133,44 @@ class IndexMapping:
         return ret
 
     @property
-    def domain_size(self):
+    def domain_size(self) -> int:
         return len(self.index_map)
 
     @property
-    def range_size(self):
+    def range_size(self) -> int:
         return len(self.index_map_reverse)
 
     @property
-    def index_map(self):
+    def index_map(self) -> list:
         return self._index_map
 
     @property
-    def index_map_reverse(self):
+    def index_map_reverse(self) -> list:
         return self._index_map_reverse
 
     def map(self, other):
         assert isinstance(other, IndexMapping)
+        if self.isidentity:
+            return copy.deepcopy(other)
+        if other.isidentity:
+            return copy.deepcopy(self)
         ret = IndexMapping()
         ret._index_map = [-1] * self.domain_size
-        for index, to in enumerate(self.domain_size):
+        for index, to in enumerate(self.index_map):
             if 0 <= to < other.domain_size:
                 ret._index_map[index] = other.index_map[to]
         ret._index_map_reverse = [-1] * other.range_size
-        for index, to in enumerate(other.range_size):
+        for index, to in enumerate(other.index_map_reverse):
             if 0 <= to < self.range_size:
-                ret._index_map_reverse[index] = other.index_map_reverse[to]
+                ret._index_map_reverse[index] = self.index_map_reverse[to]
         return ret
 
+    def copy(self):
+        return copy.deepcopy(self)
+
     @staticmethod
-    def _reverse_mapping(mapping):
-        range_size = max(mapping) + 1
+    def _reverse_mapping(mapping, range_size=0):
+        range_size = max(range_size, max(mapping) + 1)
         ret = [-1] * range_size
         for index, to in enumerate(mapping):
             if to == -1:
@@ -172,7 +179,13 @@ class IndexMapping:
             ret[to] = index
         return ret
 
+    @property
+    def isidentity(self):
+        return self.index_map is None
+
     def __str__(self):
+        if self.isidentity:
+            return "id()"
         return str(self.index_map_reverse)
 
     def __repr__(self):
@@ -197,7 +210,7 @@ class vector(list):
     """
 
 
-    def __init__(self, *args, recursive=False, map_index=None):
+    def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False):
         """__init__.
 
         Parameters
@@ -215,7 +228,13 @@ class vector(list):
         will all get [1,2,3]
         """
         self._recursive=recursive
-        self._map_index = map_index
+        self.allow_undefined_value = allow_undefined_value
+        if isinstance(index_mapping, list):
+            self._index_mapping = IndexMapping(index_mapping)
+        elif isinstance(index_mapping, IndexMapping):
+            self._index_mapping = index_mapping
+        else:
+            self._index_mapping = IndexMapping()
         if len(args) == 0:
             list.__init__(self)
         elif len(args) == 1:
@@ -226,7 +245,7 @@ class vector(list):
                 list.__init__(self, temp)
             elif isinstance(args[0], vector):
                 list.__init__(self, args[0])
-                self._map_index = args[0]._map_index
+                self._index_mapping = args[0]._index_mapping
             elif isinstance(args[0], list):
                 if recursive:
                     def to_vector(array):
@@ -253,6 +272,10 @@ class vector(list):
         else:
             list.__init__(self, args)
 
+    @property
+    def index_mapping(self) -> "IndexMapping":
+        return touch(lambda: self._index_mapping, IndexMapping())
+
     def filter(self, func=None, ignore_error=True):
         """
         filter element in the vector with which func(x) is True
@@ -273,8 +296,12 @@ class vector(list):
             return self
         try:
             if ignore_error:
-                return vector([a for a in self if touch(lambda: func(a))], recursive=self._recursive, map_index=self._map_index)
-            return vector([a for a in self if func(a)], recursive=self._recursive, map_index=self._map_index)
+                filtered_index = [index for index, a in enumerate(self) if touch(lambda: func(a), False)]
+                index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
+                return self.map_index(index_mapping)
+            filtered_index = [index for index, a in enumerate(self) if func(a)]
+            index_mapping = IndexMapping(filtered_index, reverse=True)
+            return self.map_index(index_mapping)
         except:
             pass
         for index, a in enumerate(self):
@@ -302,7 +329,7 @@ class vector(list):
         """
         if len(args) > 0:
             func = chain_function((func, *args))
-        return vector([a for a in self if touch(lambda: (func(a), True)[-1])], recursive=self._recursive, map_index=self._map_index)
+        return self.filter(lambda x: touch(lambda: (func(x), True)[-1], False))
 
     def testnot(self, func, *args):
         """testnot
@@ -320,7 +347,9 @@ class vector(list):
         vector(0,1,2,3).testnot(lambda x: 1/x)
         will produce [0]
         """
-        return vector([a for a in self if not touch(lambda: (func(a), True)[-1])], recursive=self._recursive, map_index=self._map_index)
+        if len(args) > 0:
+            func = chain_function((func, *args))
+        return self.filter(lambda x: not touch(lambda: (func(x), True)[-1], False))
 
     def map(self, func, *args, default=NoDefault, processing_bar=False):
         """
@@ -345,14 +374,14 @@ class vector(list):
             func = chain_function((func, *args))
         if default is not NoDefault:
             if processing_bar:
-                return vector([touch(lambda: func(a), default=default) for a in tqdm(self)], recursive=self._recursive, map_index=self._map_index)
+                return vector([touch(lambda: func(a), default=default) for a in tqdm(self)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
-                return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive, map_index=self._map_index)
+                return vector([touch(lambda: func(a), default=default) for a in self], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
         try:
             if processing_bar:
-                return vector([func(a) for a in tqdm(self)], recursive=self._recursive, map_index=self._map_index)
+                return vector([func(a) for a in tqdm(self)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
-                return vector([func(a) for a in self], recursive=self._recursive, map_index=self._map_index)
+                return vector([func(a) for a in self], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
         except:
             pass
         for index, a in enum_self:
@@ -526,18 +555,6 @@ class vector(list):
         other : list
             other
         """
-        if isinstance(other, list) and (self._map_index is not None or (isinstance(other, vector) and other._map_index is not None)):
-            if self._map_index is None:
-                new_map_index = self._map_index
-            else:
-                new_map_index = vector.range(self.length)
-            if isinstance(other, vector) and other._map_index is not None:
-                new_map_index += other._map_index.map(lambda x: x+self.length)
-            else:
-                new_map_index += vector.range(self.length, self.length + len(other))
-            ret = vector(super().__add__(other))
-            ret._map_index = new_map_index
-            return ret
         return vector(super().__add__(other))
 
     def _transform(self, element, func=None):
@@ -644,10 +661,10 @@ class vector(list):
         if isinstance(index, int):
             return super().__getitem__(index)
         if isinstance(index, slice):
-            return vector(super().__getitem__(index))
+            return vector(super().__getitem__(index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value)
         if isinstance(index, list):
             assert len(self) == len(index)
-            return vector(zip(self, index)).filter(lambda x: x[1]).map(lambda x: x[0])
+            return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
         if isinstance(index, tuple):
             return super().__getitem__(index[0])[index[1:]]
         return super().__getitem__(index)
@@ -1151,12 +1168,9 @@ class vector(list):
 
     def sort(self, key=lambda x: x):
         temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
-        map_index = vector.range(self.length)
-        for index, x in enumerate(temp):
-            map_index[x[1]] = index
-        ret = self.copy()
-        ret = ret.map_index(map_index)
-        return ret
+        index_mapping_reverse = [x[1] for x in temp]
+        index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
+        return self.map_index(index_mapping)
 
     def sort_by_index(self, key=lambda index: index):
         """sort_by_index.
@@ -1173,9 +1187,8 @@ class vector(list):
         will produce
         [1, 4, 3, 2, 1]
         """
-        afflicated_vector = vector(key(index) for index in range(self.length))
-        temp = vector(sorted(zip(vector.range(self.length), afflicated_vector), key=lambda x: x[1]))
-        return self.map_reverse_index(temp.map(lambda x: x[0]))
+        afflicated_vector = vector(key(index) for index in range(self.length)).sort()
+        return self.map_index(afflicated_vector.index_mapping)
 
     def sort_by_vector(self, other, func=lambda x: x):
         """sort_by_vector.
@@ -1325,8 +1338,7 @@ class vector(list):
             args
         """
         self.clear_appendix()
-        if self._map_index:
-            self._map_index.append(self.length)
+        self._index_mapping = IndexMapping()
         super().append(element)
         return self
 
@@ -1339,28 +1351,9 @@ class vector(list):
             args
         """
         self.clear_appendix()
-        if self._map_index:
-            if isinstance(other, vector) and other._map_index is not None:
-                self._map_index = self._map_index + other._map_index.map(lambda x: x + self.length)
-            else:
-                self._map_index.extend(vector.range(self.length, self.length+len(other)))
+        self._index_mapping = IndexMapping()
         super().extend(other)
         return self
-
-    def remove_map(self, from_index):
-        assert self._map_index is not None
-        self.remove_mapto(self._map_index[from_list])
-
-    def remove_mapto(self, to_index):
-        assert self._map_index is not None
-        new_index = vector()
-        for i in self._map_index:
-            if i < to_index:
-                new_index.append(i)
-            if i > to_index:
-                new_index.append(i-1)
-        self._map_index = new_index
-
 
     def pop(self, *args):
         """pop.
@@ -1371,14 +1364,13 @@ class vector(list):
             args
         """
         self.clear_appendix()
+        self._index_mapping = IndexMapping()
         if len(args) == 0:
             number = 1
         elif len(args) == 1:
             number = args[0]
         else:
             raise TypeError("pop expected at most 1 argument, got {}".format(len(args)))
-        for _ in range(number):
-            self.remove_mapto(0)
 
         return super().pop(*args)
 
@@ -1391,6 +1383,7 @@ class vector(list):
             args
         """
         self.clear_appendix()
+        self._index_mapping = IndexMapping()
         super().insert(*args)
         return self
 
@@ -1404,7 +1397,7 @@ class vector(list):
         """clear
         """
         self.clear_appendix()
-        self._map_index = None
+        self._index_mapping = IndexMapping()
         super().clear()
         return self
 
@@ -1474,52 +1467,38 @@ class vector(list):
             ret = vector(self)
         else:
             ret = vector(copy.deep_copy(self))
-        if self._map_index is not None:
-            ret._map_index = self._map_index.copy()
+        if self.index_mapping is not None:
+            ret._index_mapping = self.index_mapping.copy()
         else:
-            ret._map_index = None
+            ret._index_mapping = IndexMapping()
         return ret
 
-    def map_index(self, index):
-        assert len(index) == self.length
-        index = vector(index)
-        assert index.check_type(int)
-        assert index.unique().length == self.length
-        ret = vector([None for _ in range(self.length)])
-        for i, j in index.enumerate():
-            ret[j] = self[i]
-        if not self._map_index:
-            ret._map_index = index
+    def map_index(self, index_mapping: "IndexMapping"):
+        assert isinstance(index_mapping, IndexMapping)
+        assert self.length == index_mapping.domain_size
+        if not self.allow_undefined_value:
+            ret = vector([self[index] for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
+            return ret
         else:
-            ret._map_index = vector()
-            for to in self._map_index:
-                ret._map_index.append(index[to])
-        return ret
+            ret = vector([self[index] if index > 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
+            return ret
 
-    def map_reverse_index(self, reverse_index):
-        assert len(reverse_index) == self.length
-        reverse_index = vector(reverse_index)
-        assert reverse_index.check_type(int)
-        assert reverse_index.unique().length == self.length
-        ret = vector()
-        map_index = vector()
-        for f in reverse_index:
-            ret.append(self[f])
-            map_index.append(f)
-        ret._map_index = map_index
-        return ret
+    def map_reverse_index(self, reverse_index_mapping: "IndexMapping"):
+        assert isinstance(reverse_index_mapping, IndexMapping)
+        return self.map_index(reverse_index_mapping.reverse())
 
     def clear_map_index(self):
-        self._map_index = None
+        self._index_mapping = IndexMapping()
         return self
 
     def unmap_index(self):
-        if self._map_index is None:
-            print("warning: there is no map in the current vector")
-            return
-        ret = vector()
-        for to in self._map_index:
-            ret.append(self[to])
+        if self.index_mapping.isidentity:
+            return self
+        temp_flag = self.allow_undefined_value
+        if self.index_mapping.domain_size > self.index_mapping.range_size:
+            self.allow_undefined_value = True
+        ret = self.map_index(self.index_mapping.reverse())
+        self.allow_undefined_value = temp_flag
         return ret
 
     def __str__(self):
@@ -1569,11 +1548,10 @@ class vector(list):
     def fuzzy_search(self, question="", k=NoDefault):
         if len(question) > 0:
             ratio = self.map(str).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
-            # return self.map_index(ratio.sort()._map_index)[:k]
             if k is not NoDefault:
-                return self.map_index(ratio.sort()._map_index)[:k]
+                return self.map_index(ratio.sort().index_mapping)[:k]
             else:
-                return self.map_index(ratio.sort()._map_index)[0]
+                return self.map_index(ratio.sort().index_mapping)[0]
         else:
             def c_main(stdscr: "curses._CursesWindow"):
                 stdscr.clear()
@@ -1619,7 +1597,7 @@ class vector(list):
 
                     if len(question) > 0:
                         ratio = self.map(str).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
-                        result = self.map_index(ratio._map_index)[:search_k]
+                        result = self.map_index(ratio.index_mapping)[:search_k]
                         remain_len = ratio.filter(lambda x: x > 5).length
                         result = result[:remain_len]
                     else:
