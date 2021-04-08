@@ -1486,20 +1486,32 @@ class vector(list):
             return item in self.set()
         return super().__contains__(item)
 
-    def fuzzy_search(self, question="", k=10):
+    def fuzzy_search(self, question="", k=NoDefault):
         if len(question) > 0:
-            ratio = self.map(str).map(lambda x: -fuzz.ratio(x.lower(), question.lower()))
-            return self.map_index(ratio.sort()._map_index)[:k]
+            ratio = self.map(str).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            # return self.map_index(ratio.sort()._map_index)[:k]
+            if k is not NoDefault:
+                return self.map_index(ratio.sort()._map_index)[:k]
+            else:
+                return self.map_index(ratio.sort()._map_index)[0]
         else:
             def c_main(stdscr: "curses._CursesWindow"):
                 stdscr.clear()
                 question = ""
                 question_done = False
+                select_number = 0
                 result = vector()
+                rows, cols = stdscr.getmaxyx()
 
                 stdscr.addstr(0, 0, "token to search: ")
-                for index in range(len(self[:k])):
-                    stdscr.addstr(index + 1, 0, str(self[index])[:100])
+                search_k = k
+                if search_k is NoDefault:
+                    search_k = rows - 1
+                for index in range(len(self[:search_k])):
+                    if index == 0:
+                        stdscr.addstr(index + 1, 0, "* " + str(self[index])[:100])
+                    else:
+                        stdscr.addstr(index + 1, 0, str(self[index])[:100])
 
                 while True:
                     stdscr.addstr(0, 0, "token to search: ")
@@ -1509,29 +1521,37 @@ class vector(list):
                     char = stdscr.get_wch()
                     if isinstance(char, str) and char.isprintable():
                         question += char
+                        select_number = 0
                     elif char == curses.KEY_BACKSPACE or char == "\x7f":
                         question = question[:-1]
+                        select_number = 0
                     elif char == "\n":
-                        if question_done:
-                            if len(result) > 0:
-                                return result[0]
-                            else:
-                                return None
-                        question_done = True
+                        if len(result) > 0:
+                            return result[select_number]
                     elif char == "\x1b":
                         return None
+                    elif char == curses.KEY_UP:
+                        select_number = max(select_number - 1, 0)
+                    elif char == curses.KEY_DOWN:
+                        select_number = max(min(select_number + 1, len(result) - 1), 0)
                     else:
                         raise AssertionError(repr(char))
 
-                    search_k = 1 if question_done else k
                     if len(question) > 0:
-                        result = self.fuzzy_search(question, search_k)
+                        ratio = self.map(str).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
+                        result = self.map_index(ratio._map_index)[:search_k]
+                        remain_len = ratio.filter(lambda x: x > 5).length
+                        result = result[:remain_len]
                     else:
                         result = self[:search_k]
+                        ratio = result.map(lambda x: 0)
                     for index in range(len(result)):
-                        stdscr.addstr(1 + index, 0, str(result[index])[:100])
+                        if index == select_number:
+                            stdscr.addstr(1 + index, 0, "* " + str(result[index])[:100] + " " + str(ratio[index]))
+                        else:
+                            stdscr.addstr(1 + index, 0, str(result[index])[:100] + " " + str(ratio[index]))
                         stdscr.clrtoeol()
-                    for index in range(len(result), k):
+                    for index in range(len(result), search_k):
                         stdscr.addstr(1 + index, 0, "")
                         stdscr.clrtoeol()
 
