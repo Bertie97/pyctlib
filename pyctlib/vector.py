@@ -1574,6 +1574,8 @@ class vector(list):
                 select_number = 0
                 result = vector()
                 rows, cols = stdscr.getmaxyx()
+                x_init = len("token to search: ")
+                x_bias = 0
 
                 stdscr.addstr(0, 0, "token to search: ")
                 search_k = k
@@ -1590,14 +1592,16 @@ class vector(list):
                     stdscr.clrtoeol()
                     stdscr.addstr(question)
 
+                    stdscr.addstr(0, x_init + x_bias, "")
                     char = stdscr.get_wch()
-                    ratio = vector()
                     if isinstance(char, str) and char.isprintable():
-                        question += char
+                        question = question[:x_bias] + char + question[x_bias:]
                         select_number = 0
+                        x_bias += 1
                     elif char == curses.KEY_BACKSPACE or char == "\x7f":
-                        question = question[:-1]
+                        question = question[:max(x_bias-1, 0)] + question[x_bias:]
                         select_number = 0
+                        x_bias = max(x_bias - 1, 0)
                     elif char == "\n":
                         if len(result) > 0:
                             return result[select_number]
@@ -1607,8 +1611,11 @@ class vector(list):
                         select_number = max(select_number - 1, 0)
                     elif char == curses.KEY_DOWN:
                         select_number = max(min(select_number + 1, len(result) - 1), 0)
-                    elif char == curses.KEY_LEFT or char == curses.KEY_RIGHT:
+                    elif char == curses.KEY_LEFT:
+                        x_bias = max(x_bias - 1, 0)
                         continue
+                    elif char == curses.KEY_RIGHT:
+                        x_bias = min(x_bias+1, len(question))
                     else:
                         continue
 
@@ -1651,29 +1658,34 @@ class vector(list):
                 select_number = 0
                 result = vector()
                 rows, cols = stdscr.getmaxyx()
+                x_init = len("token to search: ")
+                x_bias = 0
 
                 stdscr.addstr(0, 0, "token to search: ")
                 search_k = k
                 if search_k is NoDefault:
-                    search_k = rows - 1
+                    search_k = int(rows * 0.8)
                 for index in range(len(self[:search_k])):
                     if index == 0:
-                        stdscr.addstr(index + 1, 0, "* " + str(self[index])[:100])
+                        stdscr.addstr(index + 1, 0, "* " + str(self[index])[:cols-2])
                     else:
-                        stdscr.addstr(index + 1, 0, str(self[index])[:100])
+                        stdscr.addstr(index + 1, 0, str(self[index])[:cols-2])
 
                 while True:
                     stdscr.addstr(0, 0, "token to search: ")
                     stdscr.clrtoeol()
                     stdscr.addstr(question)
 
+                    stdscr.addstr(0, x_init + x_bias, "")
                     char = stdscr.get_wch()
                     if isinstance(char, str) and char.isprintable():
-                        question += char
+                        question = question[:x_bias] + char + question[x_bias:]
                         select_number = 0
+                        x_bias += 1
                     elif char == curses.KEY_BACKSPACE or char == "\x7f":
-                        question = question[:-1]
+                        question = question[:max(x_bias-1, 0)] + question[x_bias:]
                         select_number = 0
+                        x_bias = max(x_bias - 1, 0)
                     elif char == "\n":
                         if len(result) > 0:
                             return result[select_number]
@@ -1683,10 +1695,13 @@ class vector(list):
                         select_number = max(select_number - 1, 0)
                     elif char == curses.KEY_DOWN:
                         select_number = max(min(select_number + 1, len(result) - 1), 0)
-                    elif char == curses.KEY_LEFT or char == curses.KEY_RIGHT:
+                    elif char == curses.KEY_LEFT:
+                        x_bias = max(x_bias - 1, 0)
                         continue
+                    elif char == curses.KEY_RIGHT:
+                        x_bias = min(x_bias+1, len(question))
                     else:
-                        raise AssertionError(repr(char))
+                        continue
 
                     if len(question) > 0:
                         ratio = self.map(str_func).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
@@ -1698,9 +1713,9 @@ class vector(list):
                         ratio = result.map(lambda x: 0)
                     for index in range(len(result)):
                         if index == select_number:
-                            stdscr.addstr(1 + index, 0, "* " + str(result[index])[:100] + " " + str(ratio[index]))
+                            stdscr.addstr(1 + index, 0, "* " + str(result[index])[:cols-5] + " " + str(ratio[index]))
                         else:
-                            stdscr.addstr(1 + index, 0, str(result[index])[:100] + " " + str(ratio[index]))
+                            stdscr.addstr(1 + index, 0, str(result[index])[:cols-5] + " " + str(ratio[index]))
                         stdscr.clrtoeol()
                     for index in range(len(result), search_k):
                         stdscr.addstr(1 + index, 0, "")
