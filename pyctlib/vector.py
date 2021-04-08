@@ -1623,9 +1623,9 @@ class vector(list):
                         ratio = result.map(lambda x: 0)
                     for index in range(len(result)):
                         if index == select_number:
-                            stdscr.addstr(1 + index, 0, "* " + str(result[index])[:100] + " " + str(ratio[index]))
+                            stdscr.addstr(1 + index, 0, "* " + str(result[index])[:100])
                         else:
-                            stdscr.addstr(1 + index, 0, str(result[index])[:100] + " " + str(ratio[index]))
+                            stdscr.addstr(1 + index, 0, str(result[index])[:100])
                         stdscr.clrtoeol()
                     for index in range(len(result), search_k):
                         stdscr.addstr(1 + index, 0, "")
