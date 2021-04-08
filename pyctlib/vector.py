@@ -667,6 +667,8 @@ class vector(list):
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
         if isinstance(index, tuple):
             return super().__getitem__(index[0])[index[1:]]
+        if isinstance(index, IndexMapping):
+            return self.map_index(index)
         return super().__getitem__(index)
 
     def __sub__(self, other):
@@ -1446,6 +1448,9 @@ class vector(list):
             return vector()
         if batch_size > 1:
             args = (*args, batch_size)
+        if len(args) == 1 and replace == False:
+            index_mapping = IndexMapping(np.random.choice(vector.range(self.length), size = args, replace=False, p=p), range_size=self.length, reverse=True)
+            return self.map_index(index_mapping)
         return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
 
     def batch(self, batch_size=1, drop=True):
@@ -1457,7 +1462,8 @@ class vector(list):
             return (self + self.sample(batch_size - self.length % batch_size)).batch(batch_size=batch_size, drop=True)
 
     def shuffle(self):
-        return self.sample(self.length, replace=False)
+        index_mapping = IndexMapping(vector.range(self.length).sample(self.length, replace=False))
+        return self.map_index(index_mapping)
 
     def split(self, *args):
         args = totuple(args)
@@ -1475,6 +1481,8 @@ class vector(list):
 
     def map_index(self, index_mapping: "IndexMapping"):
         assert isinstance(index_mapping, IndexMapping)
+        if index_mapping.isidentity:
+            return self
         assert self.length == index_mapping.domain_size
         if not self.allow_undefined_value:
             ret = vector([self[index] for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
@@ -1482,6 +1490,10 @@ class vector(list):
         else:
             ret = vector([self[index] if index > 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
             return ret
+
+    def map_index_from(self, x):
+        assert isinstance(x, vector)
+        return self.map_index(x.index_mapping)
 
     def map_reverse_index(self, reverse_index_mapping: "IndexMapping"):
         assert isinstance(reverse_index_mapping, IndexMapping)
