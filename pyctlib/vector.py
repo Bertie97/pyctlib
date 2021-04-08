@@ -1604,6 +1604,8 @@ class vector(list):
                         select_number = max(select_number - 1, 0)
                     elif char == curses.KEY_DOWN:
                         select_number = max(min(select_number + 1, len(result) - 1), 0)
+                    elif char == curses.KEY_LEFT or char == curses.KEY_RIGHT:
+                        continue
                     else:
                         raise AssertionError(repr(char))
 
