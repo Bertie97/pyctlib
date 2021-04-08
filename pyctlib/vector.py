@@ -22,6 +22,7 @@ import copy
 import numpy as np
 from pyoverload import iterable
 from tqdm import tqdm, trange
+from fuzzywuzzy import fuzz
 
 """
 Usage:
@@ -1483,6 +1484,10 @@ class vector(list):
         if self.ishashable():
             return item in self.set()
         return super().__contains__(item)
+
+    def fuzzy_search(self, question, k=10):
+        ratio = self.map(str).map(lambda x: -fuzz.partial_ratio(x.lower(), question.lower()))
+        return self.map_index(ratio.sort()._map_index)[:k]
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
