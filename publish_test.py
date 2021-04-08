@@ -4,6 +4,7 @@ import os
 sys.path.append(os.path.abspath("."))
 import pyctlib
 from pyctlib import vector
+from pyctlib import path
 
 print(pyctlib.__file__)
 
