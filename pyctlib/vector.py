@@ -492,6 +492,50 @@ class vector(list):
             vector(0,1,2,3,4).replace(lambda x: x>2, lambda x: x+2)
             will produce [0,1,2,5,6]
         """
+        ret = self.copy()
+        if toelement is NoDefault:
+            if callable(element):
+                for index in range(self.length):
+                    ret[index] = element(self[index])
+            else:
+                for index in range(self.length):
+                    ret[index] = element
+        else:
+            replace_indexs = self.findall(element)
+            for index in replace_indexs:
+                if callable(toelement):
+                    ret[index] = toelement(self[index])
+                else:
+                    ret[index] = toelement
+        return ret
+
+    def replace_(self, element, toelement=NoDefault):
+        """
+        inplace replace element in vector with to element
+
+        Parameters
+        ----------
+        element :
+            element
+        toelement :
+            toelement
+
+        Usages
+        ---------
+        There are three usages:
+        1. replace(a, b)
+            replace a with b
+            vector(0,1,2,3,1).replace(1, -1)
+            will produce [0,-1,2,3,-1]
+        2. replace(func, b):
+            replace element with which func is True with b
+            vector(0,1,2,3,4).replace(lambda x: x>2, 2)
+            will produce [0,1,2,2,2]
+        3. replace(func, another_func):
+            replace element x with which func is True with another_func(x)
+            vector(0,1,2,3,4).replace(lambda x: x>2, lambda x: x+2)
+            will produce [0,1,2,5,6]
+        """
         if toelement is NoDefault:
             if callable(element):
                 for index in range(self.length):
