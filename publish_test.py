@@ -38,3 +38,4 @@ x = vector.range(100).shuffle()
 assert x == vector.range(100).map_index_from(x)
 x = vector.range(100).sample(10, replace=False)
 assert x == vector.range(100).map_index_from(x)
+assert repr(vector.range(10).filter(lambda x: x<5).unmap_index()) == "[0, 1, 2, 3, 4, Not Defined, Not Defined, Not Defined, Not Defined, Not Defined]"

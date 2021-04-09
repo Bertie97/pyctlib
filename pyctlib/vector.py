@@ -383,7 +383,7 @@ class vector(list):
             if ignore_error:
                 filtered_index = [index for index, a in enumerate(self) if touch(lambda: func(a), False)]
                 index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
-                self.map_index(index_mapping)
+                self.map_index_(index_mapping)
                 return
             filtered_index = [index for index, a in enumerate(self) if func(a)]
             index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
@@ -1787,10 +1787,11 @@ class vector(list):
             return self
         assert self.length == index_mapping.domain_size
         if not self.allow_undefined_value:
+            assert all(0 <= index < self.length for index in index_mapping.index_map_reverse)
             ret = vector([self[index] for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
             return ret
         else:
-            ret = vector([self[index] if index > 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
+            ret = vector([self[index] if index >= 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
             return ret
 
     def map_index_(self, index_mapping: "IndexMapping"):
@@ -1799,9 +1800,10 @@ class vector(list):
             return self
         assert self.length == index_mapping.domain_size
         if not self.allow_undefined_value:
+            assert all(0 <= index < self.length for index in index_mapping.index_map_reverse)
             ret = vector([self[index] for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
         else:
-            ret = vector([self[index] if index > 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
+            ret = vector([self[index] if index >= 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
         self.clear_appendix()
         super().clear()
         super().extend(ret)
@@ -1838,6 +1840,7 @@ class vector(list):
         if self.index_mapping.domain_size > self.index_mapping.range_size:
             self.allow_undefined_value = True
         ret = self.map_index(self.index_mapping.reverse())
+        ret.clear_map_index_()
         self.allow_undefined_value = temp_flag
         return ret
 
