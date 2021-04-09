@@ -361,6 +361,44 @@ class vector(list):
                     error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, "<unknown>")
                 raise RuntimeError(error_information)
 
+    def filter_(self, func=None, ignore_error=True):
+        """
+        filter element in the vector with which func(x) is True
+
+        Parameters
+        ----------
+        func : callable
+            a function, filter condition. After filter, element with which func value is True will be left.
+        ignore_error : bool
+            whether to ignore Error in the filter process, default True
+
+        Example:
+        ----------
+        vector([1,2,3,4,5,6]).filter(lambda x: x>3)
+        will produce [4,5,6]
+        """
+        if func is None:
+            return
+        try:
+            if ignore_error:
+                filtered_index = [index for index, a in enumerate(self) if touch(lambda: func(a), False)]
+                index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
+                self.map_index(index_mapping)
+                return
+            filtered_index = [index for index, a in enumerate(self) if func(a)]
+            index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
+            self.map_index_(index_mapping)
+            return
+        except Exception as e:
+            error_info = str(e)
+        for index, a in enumerate(self):
+            if touch(lambda: func(a)) is None:
+                try:
+                    error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, a)
+                except:
+                    error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, "<unknown>")
+                raise RuntimeError(error_information)
+
     def test(self, func, *args):
         """
         filter element with which func will not produce Error
@@ -431,6 +469,53 @@ class vector(list):
                 return vector([func(a) for a in tqdm(self)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
                 return vector([func(a) for a in self], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+        except Exception as e:
+            error_info = str(e)
+        for index, a in self.enumerate():
+            if touch(lambda: func(a)) is None:
+                try:
+                    error_information = "Error info: {}. ".format(error_info) + "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
+                except:
+                    error_information = "Error info: {}. ".format(error_info) +"Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
+                raise RuntimeError(error_information)
+
+    def map_(self, func, *args, default=NoDefault, processing_bar=False):
+        """
+        generate a new vector with each element x are replaced with func(x)
+
+        Parameters
+        ----------
+        func : callable
+        args :
+            more function
+        default :
+            default value used when func cause an error
+
+        Example:
+        ----------
+        vector([0,1,2]).map(lambda x: x ** 2)
+        will produce [0,1,4]
+        """
+        if func is None:
+            return
+        if len(args) > 0:
+            func = chain_function((func, *args))
+        if not isinstance(default, EmptyClass):
+            if processing_bar:
+                for index in trange(self.length):
+                    self[index] = touch(lambda: func(self[index]), default=default)
+            else:
+                for index in range(self.length):
+                    self[index] = touch(lambda: func(self[index]), default=default)
+            return
+        try:
+            if processing_bar:
+                for index in trange(self.length):
+                    self[index] = func(self[index])
+            else:
+                for index in range(self.length):
+                    self[index] = func(self[index])
+            return
         except Exception as e:
             error_info = str(e)
         for index, a in self.enumerate():
@@ -550,7 +635,7 @@ class vector(list):
                     self[index] = toelement(self[index])
                 else:
                     self[index] = toelement
-        return self
+        return
 
     def apply(self, command) -> None:
         """apply
@@ -1296,6 +1381,12 @@ class vector(list):
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
         return self.map_index(index_mapping)
 
+    def sort_(self, key=lambda x: x):
+        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
+        index_mapping_reverse = [x[1] for x in temp]
+        index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
+        self.map_index_(index_mapping)
+
     def sort_by_index(self, key=lambda index: index):
         """sort_by_index.
         sort vector by function of index
@@ -1313,6 +1404,24 @@ class vector(list):
         """
         afflicated_vector = vector(key(index) for index in range(self.length)).sort()
         return self.map_index(afflicated_vector.index_mapping)
+
+    def sort_by_index_(self, key=lambda index: index):
+        """sort_by_index.
+        sort vector by function of index
+
+        Parameters
+        ----------
+        key :
+            key
+
+        Example
+        ----------
+        vector([1,2,3,4,1]).sort_by_index(key=lambda x: -x)
+        will produce
+        [1, 4, 3, 2, 1]
+        """
+        afflicated_vector = vector(key(index) for index in range(self.length)).sort()
+        self.map_index_(afflicated_vector.index_mapping)
 
     def sort_by_vector(self, other, func=lambda x: x):
         """sort_by_vector.
@@ -1334,6 +1443,27 @@ class vector(list):
         assert isinstance(other, list)
         assert self.length == len(other)
         return self.sort_by_index(lambda index: func(other[index]))
+
+    def sort_by_vector_(self, other, func=lambda x: x):
+        """sort_by_vector.
+        sort vector A by vector B or func(B)
+
+        Parameters
+        ----------
+        other :
+            other
+        func :
+            func
+
+        Example
+        ---------
+        vector(['apple', 'banana', 'peach']).sort_by_vector([2,3,1])
+        will produce
+        ['peach', 'apple', 'banana']
+        """
+        assert isinstance(other, list)
+        assert self.length == len(other)
+        self.sort_by_index_(lambda index: func(other[index]))
 
     @staticmethod
     def from_numpy(array):
@@ -1601,6 +1731,10 @@ class vector(list):
         index_mapping = IndexMapping(vector.range(self.length).sample(self.length, replace=False))
         return self.map_index(index_mapping)
 
+    def shuffle_(self):
+        index_mapping = IndexMapping(vector.range(self.length).sample(self.length, replace=False))
+        self.map_index_(index_mapping)
+
     def split(self, *args):
         """
         split vector in given position
@@ -1659,17 +1793,43 @@ class vector(list):
             ret = vector([self[index] if index > 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
             return ret
 
+    def map_index_(self, index_mapping: "IndexMapping"):
+        assert isinstance(index_mapping, IndexMapping)
+        if index_mapping.isidentity:
+            return self
+        assert self.length == index_mapping.domain_size
+        if not self.allow_undefined_value:
+            ret = vector([self[index] for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
+        else:
+            ret = vector([self[index] if index > 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
+        self.clear_appendix()
+        super().clear()
+        super().extend(ret)
+        self._index_mapping = ret.index_mapping
+
     def map_index_from(self, x):
         assert isinstance(x, vector)
         return self.map_index(x.index_mapping)
+
+    def map_index_from_(self, x):
+        assert isinstance(x, vector)
+        self.map_index(x.index_mapping)
 
     def map_reverse_index(self, reverse_index_mapping: "IndexMapping"):
         assert isinstance(reverse_index_mapping, IndexMapping)
         return self.map_index(reverse_index_mapping.reverse())
 
+    def map_reverse_index_(self, reverse_index_mapping: "IndexMapping"):
+        assert isinstance(reverse_index_mapping, IndexMapping)
+        self.map_index(reverse_index_mapping.reverse())
+
     def clear_map_index(self):
+        ret = self.copy()
+        ret._index_mapping = IndexMapping()
+        return ret
+
+    def clear_map_index_(self):
         self._index_mapping = IndexMapping()
-        return self
 
     def unmap_index(self):
         if self.index_mapping.isidentity:
@@ -1680,6 +1840,14 @@ class vector(list):
         ret = self.map_index(self.index_mapping.reverse())
         self.allow_undefined_value = temp_flag
         return ret
+
+    def unmap_index_(self):
+        if self.index_mapping.isidentity:
+            return
+        if self.index_mapping.domain_size > self.index_mapping.range_size:
+            self.allow_undefined_value = True
+        self.map_index_(self.index_mapping.reverse())
+        self.clear_map_index_()
 
     def __str__(self):
         if self.shape != "undefined" and len(self.shape) > 1:
