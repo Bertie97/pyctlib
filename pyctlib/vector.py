@@ -245,6 +245,12 @@ class IndexMapping:
                     return False
         return True
 
+    def __getitem__(self, index):
+        assert isinstance(index, int)
+        if self.isidentity:
+            return index
+        return self.index_map[index]
+
 class vector(list):
     """vector
     vector is actually list in python with advanced method like map, filter and reduce
@@ -714,10 +720,13 @@ class vector(list):
             return self.map_index(index)
         return super().__getitem__(index)
 
-    def getitem(self, index, outboundary_value=OutBoundary):
-        if 0 <= index < self.length:
-            return self[index]
-        return outboundary_value
+    def getitem(self, index, outboundary_value=OutBoundary, index_mapping=None):
+        if not index_mapping:
+            if 0 <= index < self.length:
+                return self[index]
+            return outboundary_value
+        else:
+            return self.getitem(index_mapping[index], outboundary_value=outboundary_value)
 
     def __sub__(self, other):
         """__sub__.
