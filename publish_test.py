@@ -6,6 +6,7 @@ import pyctlib
 from pyctlib import vector, IndexMapping
 from pyctlib import path
 from pyctlib import touch
+from pyctlib.wrapper import generate_typehint_wrapper
 
 print(pyctlib.__file__)
 
@@ -37,4 +38,3 @@ x = vector.range(100).shuffle()
 assert x == vector.range(100).map_index_from(x)
 x = vector.range(100).sample(10, replace=False)
 assert x == vector.range(100).map_index_from(x)
-
