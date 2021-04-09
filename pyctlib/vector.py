@@ -11,6 +11,7 @@ __all__ = """
     vector
     generator_wrapper
     ctgenerator
+    IndexMapping
 """.split()
 
 from types import GeneratorType
@@ -25,6 +26,7 @@ from tqdm import tqdm, trange
 from fuzzywuzzy import fuzz
 import curses
 import re
+import math
 
 """
 Usage:
@@ -133,6 +135,42 @@ class IndexMapping:
         ret._index_map_reverse = self._index_map
         return ret
 
+    @staticmethod
+    def from_slice(index: slice, length):
+        if index.start is None:
+            start = 0
+        else:
+            start = index.start
+            if start < 0:
+                start = length + start
+        if index.stop is None:
+            stop = length
+        else:
+            stop = index.stop
+            if stop < 0:
+                stop = length + stop
+            stop = min(max(stop, -1), length)
+        if index.step is None:
+            step = 1
+        else:
+            step = index.step
+        assert step != 0
+        if start < 0 and stop <= 0:
+            return IndexMapping([-1] * length)
+        if start >= length and stop >= length - 1:
+            return IndexMapping([-1] * length)
+        if (stop - start) * step <= 0:
+            return IndexMapping([-1] * length)
+        temp = [-1] * length
+        current_index = start
+        current_nu = 0
+        while (stop - current_index) * step > 0:
+            if 0 <= current_index < length:
+                temp[current_index] = current_nu
+                current_nu += 1
+            current_index += step
+        return IndexMapping(temp)
+
     @property
     def domain_size(self) -> int:
         return len(self.index_map)
@@ -189,7 +227,7 @@ class IndexMapping:
     def __str__(self):
         if self.isidentity:
             return "id()"
-        return str(self.index_map_reverse)
+        return "->: {}\n<-: {}".format(str(self.index_map), str(self.index_map_reverse))
 
     def __repr__(self):
         return self.__str__()
@@ -213,7 +251,7 @@ class vector(list):
     """
 
 
-    def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False):
+    def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault):
         """__init__.
 
         Parameters
@@ -232,6 +270,8 @@ class vector(list):
         """
         self._recursive=recursive
         self.allow_undefined_value = allow_undefined_value
+        self.content_type = content_type
+        self.clear_appendix()
         if isinstance(index_mapping, list):
             self._index_mapping = IndexMapping(index_mapping)
         elif isinstance(index_mapping, IndexMapping):
@@ -375,7 +415,7 @@ class vector(list):
             return self
         if len(args) > 0:
             func = chain_function((func, *args))
-        if default is not NoDefault:
+        if not isinstance(default, EmptyClass):
             if processing_bar:
                 return vector([touch(lambda: func(a), default=default) for a in tqdm(self)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
@@ -385,14 +425,14 @@ class vector(list):
                 return vector([func(a) for a in tqdm(self)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
                 return vector([func(a) for a in self], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
-        except:
-            pass
-        for index, a in enum_self:
+        except Exception as e:
+            error_info = str(e)
+        for index, a in self.enumerate():
             if touch(lambda: func(a)) is None:
                 try:
-                    error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
+                    error_information = "Error info: {}. ".format(error_info) + "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
                 except:
-                    error_information = "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
+                    error_information = "Error info: {}. ".format(error_info) +"Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
                 raise RuntimeError(error_information)
 
     def rmap(self, func, *args, default=NoDefault):
@@ -664,7 +704,7 @@ class vector(list):
         if isinstance(index, int):
             return super().__getitem__(index)
         if isinstance(index, slice):
-            return vector(super().__getitem__(index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value)
+            return self.map_index(IndexMapping.from_slice(index, self.length))
         if isinstance(index, list):
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
@@ -673,6 +713,11 @@ class vector(list):
         if isinstance(index, IndexMapping):
             return self.map_index(index)
         return super().__getitem__(index)
+
+    def getitem(self, index, outboundary_value=OutBoundary):
+        if 0 <= index < self.length:
+            return self[index]
+        return outboundary_value
 
     def __sub__(self, other):
         """__sub__.
@@ -737,7 +782,7 @@ class vector(list):
         """ishashable.
         chech whether every element in the vector is hashable
         """
-        if touch(lambda: self._hashable, NoDefault) is not NoDefault:
+        if not isinstance(touch(lambda: self._hashable, NoDefault), EmptyClass):
             return self._hashable
         self._hashable = self.all(lambda x: "__hash__" in x.__dir__())
         return self._hashable
@@ -967,10 +1012,23 @@ class vector(list):
         default :
             default
         """
-        if touch(lambda: self._sum, NoDefault) is not NoDefault:
+        if not isinstance(touch(lambda: self._sum, NoDefault), EmptyClass):
             return self._sum
         self._sum = self.reduce(lambda x, y: x + y, default)
         return self._sum
+
+    def cumsum(self):
+        return self.cumulative_reduce(lambda x, y: x + y)
+
+    def norm(self, p=2):
+        if touch(lambda: self._norm[p], None):
+            return self._norm[p]
+        self._norm[p] = math.pow(self.map(lambda x: math.pow(abs(x), p)).sum(), 1/p)
+        return self._norm[p]
+
+    def normalization(self, p=1):
+        norm_p = self.norm(p)
+        return self.map(lambda x: x / self.norm(p))
 
     def prod(self, default=None):
         """prod.
@@ -1026,6 +1084,14 @@ class vector(list):
         for x in self[1:]:
             temp = func(temp, x)
         return temp
+
+    def cumulative_reduce(self, func):
+        if self.length == 0:
+            return vector()
+        ret = vector([self[0]] * self.length)
+        for index in range(1, self.length):
+            ret[index] = func(ret[index-1], self[index])
+        return ret
 
     def enumerate(self):
         """enumerate.
@@ -1289,6 +1355,12 @@ class vector(list):
         return ret
 
     @staticmethod
+    def randint(low, high=None, size=(1, )):
+        ret = vector.from_numpy(np.random.randint(low, high=high, size=size))
+        ret._shape = totuple(size)
+        return ret
+
+    @staticmethod
     def randn(*args):
         """randn.
 
@@ -1317,7 +1389,7 @@ class vector(list):
     def shape(self):
         """shape.
         """
-        if touch(lambda: self._shape, NoDefault) is not NoDefault:
+        if not isinstance(touch(lambda: self._shape, NoDefault), EmptyClass):
             return self._shape
         if all(not isinstance(x, vector) for x in self):
             self._shape = (self.length, )
@@ -1344,6 +1416,8 @@ class vector(list):
         """
         self.clear_appendix()
         self._index_mapping = IndexMapping()
+        if not isinstance(self.content_type, EmptyClass):
+            assert isinstance(element, self.content_type)
         super().append(element)
         return self
 
@@ -1357,6 +1431,8 @@ class vector(list):
         """
         self.clear_appendix()
         self._index_mapping = IndexMapping()
+        if not isinstance(self.content_type, EmptyClass):
+            assert vector(other).check_type(self.content_type)
         super().extend(other)
         return self
 
@@ -1379,7 +1455,7 @@ class vector(list):
 
         return super().pop(*args)
 
-    def insert(self, *args):
+    def insert(self, location, element):
         """insert.
 
         Parameters
@@ -1388,7 +1464,10 @@ class vector(list):
             args
         """
         self.clear_appendix()
+        if not isinstance(self.content_type, EmptyClass):
+            assert isinstance(element, self.content_type)
         self._index_mapping = IndexMapping()
+
         super().insert(*args)
         return self
 
@@ -1397,6 +1476,7 @@ class vector(list):
         self._hashable = NoDefault
         self._set = NoDefault
         self._sum = NoDefault
+        self._norm = dict()
 
     def clear(self):
         """clear
@@ -1469,7 +1549,39 @@ class vector(list):
         return self.map_index(index_mapping)
 
     def split(self, *args):
+        """
+        split vector in given position
+        """
+        if len(args) == 0:
+            return self
         args = totuple(args)
+        args = vector(args).sort()
+        args.all(lambda x: 0 <= x <= self.length)
+        if args[0] != 0:
+            args = [0] + args
+        if args[-1] != self.length:
+            args.append(self.length)
+        ret_split = vector()
+        for index in range(len(args)-1):
+            ret_split.append(IndexMapping(vector.range(args[index], args[index+1]), range_size=self.length, reverse=True))
+        ret = ret_split.map(lambda x: self.map_index(x))
+        return ret
+
+    def split_random(self, *args):
+        args = totuple(args)
+        args = vector(args).sort(lambda x: -x).normalization(p=1)
+        sorted_index_mapping = args.index_mapping
+        split_num = vector()
+        remain_len = self.length
+        while len(args) > 0:
+            args = args.normalization(p=1)
+            split_len = round(remain_len * args[0])
+            remain_len -= split_len
+            split_num.append(split_len)
+            args.pop()
+        assert split_num.sum() == self.length
+        cumsum = split_num.cumsum()
+        return self.shuffle().split(cumsum).map_index(sorted_index_mapping.reverse())
 
     def copy(self, deep_copy=False):
         if not deep_copy:
@@ -1545,10 +1657,13 @@ class vector(list):
             return ret
 
     def __repr__(self):
-        return self.__str__()
+        ret = self.__str__()
+        if not self.index_mapping.isidentity:
+            ret += ", with index mapping"
+        return ret
 
     def set(self):
-        if touch(lambda: self._set, NoDefault) is not NoDefault:
+        if not isinstance(touch(lambda: self._set, NoDefault), EmptyClass):
             return self._set
         if not self.ishashable():
             raise RuntimeError("this vector is not hashable")
@@ -1560,168 +1675,122 @@ class vector(list):
             return item in self.set()
         return super().__contains__(item)
 
-    def regex_search(self, question="", k=NoDefault, str_func=str):
-
+    def function_search(self, search_func, question="", max_k=NoDefault, str_func=str, display_info=None):
         if len(question) > 0:
+            candidate = self.clear_map_index().map(str_func)
+            selected = search_func(candidate, question)
+            return self.map_index_from(selected)
+        else:
+            candidate = self.clear_map_index().map(str_func)
+            def c_main(stdscr: "curses._CursesWindow"):
+                stdscr.clear()
+                question = ""
+                question_done = False
+                select_number = 0
+                result = candidate
+                rows, cols = stdscr.getmaxyx()
+                x_init = len("token to search: ")
+                x_bias = 0
+
+                stdscr.addstr(0, 0, "token to search: ")
+                search_k = max_k
+                if search_k is NoDefault:
+                    search_k = int(rows * 0.8)
+                for index in range(len(self[:search_k])):
+                    if index == 0:
+                        stdscr.addstr(index + 1, 0, "* " + self[index][:cols-2])
+                    else:
+                        stdscr.addstr(index + 1, 0, self[index][:cols])
+
+                while True:
+                    stdscr.addstr(0, 0, "token to search: ")
+                    stdscr.clrtoeol()
+                    stdscr.addstr(question)
+
+                    stdscr.addstr(0, x_init + x_bias, "")
+                    char = stdscr.get_wch()
+                    if isinstance(char, str) and char.isprintable():
+                        question = question[:x_bias] + char + question[x_bias:]
+                        select_number = 0
+                        x_bias += 1
+                    elif char == curses.KEY_BACKSPACE or char == "\x7f":
+                        question = question[:max(x_bias-1, 0)] + question[x_bias:]
+                        select_number = 0
+                        x_bias = max(x_bias - 1, 0)
+                    elif char == "\n":
+                        if len(result) > 0:
+                            return self.map_index_from(result)[select_number]
+                        return None
+                    elif char == "\x1b":
+                        return None
+                    elif char == curses.KEY_UP:
+                        select_number = max(select_number - 1, 0)
+                    elif char == curses.KEY_DOWN:
+                        select_number = max(min(select_number + 1, len(result) - 1), 0)
+                    elif char == curses.KEY_LEFT:
+                        x_bias = max(x_bias - 1, 0)
+                        continue
+                    elif char == curses.KEY_RIGHT:
+                        x_bias = min(x_bias+1, len(question))
+                    else:
+                        continue
+
+                    try:
+                        selected = search_func(candidate, question)
+                        result = candidate.map_index_from(selected)[:search_k]
+                    except Exception as e:
+                        error_info = str(e)
+                    else:
+                        error_info = ""
+
+                    stdscr.addstr(search_k + 1, 0, "-" * int(0.8 * cols))
+                    stdscr.addstr(search_k + 2, 0, "# match: " + str(selected.length))
+                    stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
+                    stdscr.clrtoeol()
+                    error_nu = search_k + 4
+                    if display_info is not None:
+                        info = display_info(question)
+                        for index in range(len(info)):
+                            stdscr.addstr(search_k+3+index, 0, info[index])
+                            error_nu += 1
+                    if error_info:
+                        stdscr.addstr(error_nu, 0, error_info)
+                        stdscr.clrtoeol()
+
+                    temp = self.map_index_from(result)
+                    for index in range(len(result)):
+                        if index == select_number:
+                            stdscr.addstr(1 + index, 0, "* " + str(temp[index])[:cols-2])
+                        else:
+                            stdscr.addstr(1 + index, 0, str(temp[index])[:cols])
+                        stdscr.clrtoeol()
+                    for index in range(len(result), search_k):
+                        stdscr.addstr(1 + index, 0, "")
+                        stdscr.clrtoeol()
+
+            return curses.wrapper(c_main)
+
+    def regex_search(self, question="", max_k=NoDefault, str_func=str):
+
+        def regex_function(candidate, question):
+            if len(question) == 0:
+                return candidate
             regex = re.compile(question)
-            ratio = self.map(str_func).filter(lambda x: regex.search(x), ignore_error=False)
-            return self.map_index_from(ratio)
-        else:
-            def c_main(stdscr: "curses._CursesWindow"):
-                stdscr.clear()
-                question = ""
-                question_done = False
-                select_number = 0
-                result = vector()
-                rows, cols = stdscr.getmaxyx()
-                x_init = len("token to search: ")
-                x_bias = 0
+            selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
+            return selected
 
-                stdscr.addstr(0, 0, "token to search: ")
-                search_k = k
-                if search_k is NoDefault:
-                    search_k = int(rows * 0.8)
-                for index in range(len(self[:search_k])):
-                    if index == 0:
-                        stdscr.addstr(index + 1, 0, "* " + str(self[index])[:100])
-                    else:
-                        stdscr.addstr(index + 1, 0, str(self[index])[:100])
+        return self.function_search(regex_function, question=question, max_k=max_k, str_func=str_func, display_info=None)
 
-                while True:
-                    stdscr.addstr(0, 0, "token to search: ")
-                    stdscr.clrtoeol()
-                    stdscr.addstr(question)
+    def fuzzy_search(self, question="", max_k=NoDefault, str_func=str):
 
-                    stdscr.addstr(0, x_init + x_bias, "")
-                    char = stdscr.get_wch()
-                    if isinstance(char, str) and char.isprintable():
-                        question = question[:x_bias] + char + question[x_bias:]
-                        select_number = 0
-                        x_bias += 1
-                    elif char == curses.KEY_BACKSPACE or char == "\x7f":
-                        question = question[:max(x_bias-1, 0)] + question[x_bias:]
-                        select_number = 0
-                        x_bias = max(x_bias - 1, 0)
-                    elif char == "\n":
-                        if len(result) > 0:
-                            return result[select_number]
-                    elif char == "\x1b":
-                        return None
-                    elif char == curses.KEY_UP:
-                        select_number = max(select_number - 1, 0)
-                    elif char == curses.KEY_DOWN:
-                        select_number = max(min(select_number + 1, len(result) - 1), 0)
-                    elif char == curses.KEY_LEFT:
-                        x_bias = max(x_bias - 1, 0)
-                        continue
-                    elif char == curses.KEY_RIGHT:
-                        x_bias = min(x_bias+1, len(question))
-                    else:
-                        continue
+        def fuzzy_function(candidate, question):
+            if len(question) == 0:
+                return candidate
+            selected = candidate.map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            return selected
 
-                    if len(question) > 0:
-                        regex = touch(lambda: re.compile(question), None)
-                        if regex:
-                            ratio = self.map(str_func).filter(lambda x: regex.search(x), ignore_error=False)
-                            result = self.map_index(ratio.index_mapping)[:search_k]
-                        stdscr.addstr(search_k + 1, 0, "regex " + str(regex))
-                        stdscr.clrtoeol()
-                        stdscr.addstr(search_k + 2, 0, "# match: " + str(ratio.length))
-                        stdscr.clrtoeol()
-                    else:
-                        result = self[:search_k]
-                        ratio = result.map(lambda x: 0)
-                    for index in range(len(result)):
-                        if index == select_number:
-                            stdscr.addstr(1 + index, 0, "* " + str(result[index])[:cols-2])
-                        else:
-                            stdscr.addstr(1 + index, 0, str(result[index])[:cols])
-                        stdscr.clrtoeol()
-                    for index in range(len(result), search_k):
-                        stdscr.addstr(1 + index, 0, "")
-                        stdscr.clrtoeol()
+        return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, display_info=None)
 
-            return curses.wrapper(c_main)
-
-    def fuzzy_search(self, question="", k=NoDefault, str_func=str):
-        if len(question) > 0:
-            ratio = self.map(str_func).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
-            if k is not NoDefault:
-                return self.map_index(ratio.sort().index_mapping)[:k]
-            else:
-                return self.map_index(ratio.sort().index_mapping)[0]
-        else:
-            def c_main(stdscr: "curses._CursesWindow"):
-                stdscr.clear()
-                question = ""
-                question_done = False
-                select_number = 0
-                result = vector()
-                rows, cols = stdscr.getmaxyx()
-                x_init = len("token to search: ")
-                x_bias = 0
-
-                stdscr.addstr(0, 0, "token to search: ")
-                search_k = k
-                if search_k is NoDefault:
-                    search_k = int(rows * 0.8)
-                for index in range(len(self[:search_k])):
-                    if index == 0:
-                        stdscr.addstr(index + 1, 0, "* " + str(self[index])[:cols-2])
-                    else:
-                        stdscr.addstr(index + 1, 0, str(self[index])[:cols-2])
-
-                while True:
-                    stdscr.addstr(0, 0, "token to search: ")
-                    stdscr.clrtoeol()
-                    stdscr.addstr(question)
-
-                    stdscr.addstr(0, x_init + x_bias, "")
-                    char = stdscr.get_wch()
-                    if isinstance(char, str) and char.isprintable():
-                        question = question[:x_bias] + char + question[x_bias:]
-                        select_number = 0
-                        x_bias += 1
-                    elif char == curses.KEY_BACKSPACE or char == "\x7f":
-                        question = question[:max(x_bias-1, 0)] + question[x_bias:]
-                        select_number = 0
-                        x_bias = max(x_bias - 1, 0)
-                    elif char == "\n":
-                        if len(result) > 0:
-                            return result[select_number]
-                    elif char == "\x1b":
-                        return None
-                    elif char == curses.KEY_UP:
-                        select_number = max(select_number - 1, 0)
-                    elif char == curses.KEY_DOWN:
-                        select_number = max(min(select_number + 1, len(result) - 1), 0)
-                    elif char == curses.KEY_LEFT:
-                        x_bias = max(x_bias - 1, 0)
-                        continue
-                    elif char == curses.KEY_RIGHT:
-                        x_bias = min(x_bias+1, len(question))
-                    else:
-                        continue
-
-                    if len(question) > 0:
-                        ratio = self.map(str_func).map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
-                        result = self.map_index(ratio.index_mapping)[:search_k]
-                        remain_len = ratio.filter(lambda x: x > 5).length
-                        result = result[:remain_len]
-                    else:
-                        result = self[:search_k]
-                        ratio = result.map(lambda x: 0)
-                    for index in range(len(result)):
-                        if index == select_number:
-                            stdscr.addstr(1 + index, 0, "* " + str(result[index])[:cols-5] + " " + str(ratio[index]))
-                        else:
-                            stdscr.addstr(1 + index, 0, str(result[index])[:cols-5] + " " + str(ratio[index]))
-                        stdscr.clrtoeol()
-                    for index in range(len(result), search_k):
-                        stdscr.addstr(1 + index, 0, "")
-                        stdscr.clrtoeol()
-
-            return curses.wrapper(c_main)
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
@@ -1764,7 +1833,7 @@ class ctgenerator:
                 yield x
         if len(args) > 0:
             func = chain_function((func, *args))
-        if default is not NoDefault:
+        if not isinstance(default, EmptyClass):
             for x in self.generator:
                 yield touch(lambda: func(x), default=default)
         else:

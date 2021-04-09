@@ -226,6 +226,10 @@ class path(str):
         else: brk = 1
         return path.extsep.join(parts[:brk])
 
+    @property
+    def fullname(self):
+        return self.abs()[-1]
+
     def split(self, *args):
         if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
         else: return str(self).split(*args)
@@ -235,19 +239,24 @@ class path(str):
     # changed by zhangyiteng
     def ls(self, recursive=False, func=None):
         return self.listdir(recursive=recursive).filter(func)
-    def cd(self, folder_name):
-        folder_name = path(folder_name)
-        if folder_name.isabs():
-            return folder_name
-        new_folder = self / folder_name
-        if new_folder.isdir():
-            if self.isabs():
-                return new_folder.abs()
-            return new_folder
-        elif (new_folder @ path.Folder).isdir():
-            raise NotADirectoryError("%s doesn't exist, all available folder is: %s" % (new_folder, (new_folder @ path.Folder).ls().filter(lambda x: x.isdir()).map(lambda x: x.name)))
+    def cd(self, folder_name=None):
+        if folder_name:
+            folder_name = path(folder_name)
+            if folder_name.isabs():
+                return folder_name
+            new_folder = self / folder_name
+            if new_folder.isdir():
+                if self.isabs():
+                    return new_folder.abs()
+                return new_folder
+            elif (new_folder @ path.Folder).isdir():
+                raise NotADirectoryError("%s doesn't exist, all available folder is: %s" % (new_folder, (new_folder @ path.Folder).ls().filter(lambda x: x.isdir()).map(lambda x: x.name)))
+            else:
+                raise NotADirectoryError("%s doesn't exist" % new_folder)
         else:
-            raise NotADirectoryError("%s doesn't exist" % new_folder)
+            candidate = self.ls().filter(lambda x: x.isdir()).map(lambda x: x.abs()).append(self.parent.abs())
+            return candidate.fuzzy_search(str_func=lambda x: x.fullname)
+
     def rm(self):
         if self.isdir():
             self.parent.cmd(f"rm -r {self[-1]}")
@@ -281,6 +290,7 @@ class path(str):
     def exists(self): return os.path.exists(self)
     def isfile(self): return os.path.isfile(self)
     def isdir(self): return os.path.isdir(self)
+    def isfolder(self): return self.isdir()
     def isfilepath(self): return True if os.path.isfile(self) else 0 < len(self.ext) < 7
     def isdirpath(self): return True if os.path.isdir(self) else (len(self.ext) == 0 or len(self.ext) >= 7)
     def mkdir(self, to: str='Auto'):

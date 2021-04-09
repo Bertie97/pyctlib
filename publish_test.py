@@ -3,7 +3,7 @@ import os
 
 sys.path.append(os.path.abspath("."))
 import pyctlib
-from pyctlib import vector
+from pyctlib import vector, IndexMapping
 from pyctlib import path
 from pyctlib import touch
 
