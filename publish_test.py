@@ -4,7 +4,7 @@ import os
 sys.path.append(os.path.abspath("."))
 import pyctlib
 from pyctlib import vector, IndexMapping
-from pyctlib import path
+from pyctlib import path, get_relative_path
 from pyctlib import touch
 from pyctlib.wrapper import generate_typehint_wrapper
 
