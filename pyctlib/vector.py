@@ -258,15 +258,15 @@ class vector(list):
     """
 
     @overload
-    def __init__(self, list, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> vector:
+    def __init__(self, list, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> "vector":
         ...
 
     @overload
-    def __init__(self, tuple, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> vector:
+    def __init__(self, tuple, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> "vector":
         ...
 
     @overload
-    def __init__(self, *data, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> vector:
+    def __init__(self, *data, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> "vector":
         ...
 
     def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault):
