@@ -12,6 +12,9 @@ __all__ = """
     generator_wrapper
     ctgenerator
     IndexMapping
+    NoDefault
+    UnDefined
+    OutBoundary
 """.split()
 
 from types import GeneratorType
@@ -2037,6 +2040,14 @@ class vector(list):
                 stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
                 stdscr.clrtoeol()
 
+                if display_info is not None:
+                    info = display_info(self, question)
+                    if isinstance(info, str):
+                        info = vector([info])
+                    for index in range(len(info)):
+                        stdscr.addstr(search_k+4+index, 0, info[index])
+                        stdscr.clrtoeol()
+
                 while True:
                     stdscr.addstr(0, 0, "token to search: ")
                     stdscr.clrtoeol()
@@ -2098,9 +2109,12 @@ class vector(list):
                     stdscr.clrtoeol()
                     error_nu = search_k + 4
                     if display_info is not None:
-                        info = display_info(question)
+                        info = display_info(self, question)
+                        if isinstance(info, str):
+                            info = vector([info])
                         for index in range(len(info)):
-                            stdscr.addstr(search_k+3+index, 0, info[index])
+                            stdscr.addstr(search_k+4+index, 0, info[index])
+                            stdscr.clrtoeol()
                             error_nu += 1
                     if error_info:
                         stdscr.addstr(error_nu, 0, error_info)
@@ -2118,7 +2132,7 @@ class vector(list):
 
             return curses.wrapper(c_main)
 
-    def regex_search(self, question="", max_k=NoDefault, str_func=str):
+    def regex_search(self, question="", max_k=NoDefault, str_func=str, str_display=str, display_info=None):
 
         def regex_function(candidate, question):
             if len(question) == 0:
@@ -2127,9 +2141,9 @@ class vector(list):
             selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
             return selected
 
-        return self.function_search(regex_function, question=question, max_k=max_k, str_func=str_func, display_info=None)
+        return self.function_search(regex_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
-    def fuzzy_search(self, question="", max_k=NoDefault, str_func=str):
+    def fuzzy_search(self, question="", max_k=NoDefault, str_func=str, str_display=str):
 
         def fuzzy_function(candidate, question):
             if len(question) == 0:
@@ -2139,7 +2153,7 @@ class vector(list):
             score = selected.map(lambda x: x[0] * min(1, len(x[1]) / len(question)) * min(1, len(question) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
-        return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, display_info=None)
+        return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
 
 def generator_wrapper(*args, **kwargs):
