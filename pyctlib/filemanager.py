@@ -194,17 +194,19 @@ class path(str):
         return file_list[filter]
 
     @filepath_generator_wrapper
-    def recursive_search(self, main_folder=None):
+    def recursive_search(self, main_folder=None, all_files=False):
         if main_folder is None:
             main_folder = self
         for f in os.listdir(self):
             if f in get_search_blacklist():
                 continue
+            if not all_files and f.startswith("."):
+                continue
             p = self / f
             p.main_folder = main_folder
             if p.isdir():
                 yield p
-                for cp in p.recursive_search(main_folder=main_folder):
+                for cp in p.recursive_search(main_folder=main_folder, all_files=all_files):
                     yield cp
             if p.isfile():
                 yield p
@@ -333,19 +335,22 @@ class path(str):
         if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
         else: return str(self).split(*args)
     def abs(self): return path(os.path.abspath(self))
-    def listdir(self, recursive=False):
+    def listdir(self, recursive=False, all_files=False):
         if recursive:
-            ret = self.recursive_search()
+            ret = self.recursive_search(all_files=all_files)
             ret.main_folder = self
             return ret
         else:
             def assign_mainfolder(x):
                 x.main_folder = self
                 return x
-            return pathList([self / x for x in os.listdir(str(self))], main_folder=self).map(assign_mainfolder)
+            if all_files:
+                return pathList([self / x for x in os.listdir(str(self))], main_folder=self).map(assign_mainfolder)
+            else:
+                return pathList([self / x for x in os.listdir(str(self)) if not x.startswith(".")], main_folder=self).map(assign_mainfolder)
     # changed by zhangyiteng
-    def ls(self, recursive=False, func=None):
-        return self.listdir(recursive=recursive).filter(func)
+    def ls(self, recursive=False, all_files=False, func=None):
+        return self.listdir(recursive=recursive, all_files=all_files).filter(func)
     def cd(self, folder_name=None):
         if folder_name:
             folder_name = path(folder_name)
