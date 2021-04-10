@@ -720,13 +720,13 @@ class vector(list):
             return self.map_index(index)
         return super().__getitem__(index)
 
-    def getitem(self, index, outboundary_value=OutBoundary, index_mapping=None):
+    def getitem(self, index: int, index_mapping: IndexMapping=None, outboundary_value=OutBoundary):
         if not index_mapping:
             if 0 <= index < self.length:
                 return self[index]
             return outboundary_value
         else:
-            return self.getitem(index_mapping[index], outboundary_value=outboundary_value)
+            return self.getitem(index_mapping.index_map_reverse[index], outboundary_value=outboundary_value)
 
     def __sub__(self, other):
         """__sub__.
