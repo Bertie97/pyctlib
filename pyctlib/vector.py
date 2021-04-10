@@ -335,6 +335,14 @@ class vector(list):
 
     @property
     def index_mapping(self) -> "IndexMapping":
+        """
+        property of vector
+
+        Returns
+        ----------
+        IndexMapping
+            IndexMapping of the current vector
+        """
         return touch(lambda: self._index_mapping, IndexMapping())
 
     def filter(self, func=None, ignore_error=True):
@@ -375,7 +383,7 @@ class vector(list):
 
     def filter_(self, func=None, ignore_error=True):
         """
-        filter element in the vector with which func(x) is True
+        **Inplace** function: filter element in the vector with which func(x) is True
 
         Parameters
         ----------
@@ -450,7 +458,7 @@ class vector(list):
             func = chain_function((func, *args))
         return self.filter(lambda x: not touch(lambda: (func(x), True)[-1], False))
 
-    def map(self, func, *args, default=NoDefault, processing_bar=False):
+    def map(self, func: callable, *args, default=NoDefault, processing_bar=False):
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -491,9 +499,9 @@ class vector(list):
                     error_information = "Error info: {}. ".format(error_info) +"Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
                 raise RuntimeError(error_information)
 
-    def map_(self, func, *args, default=NoDefault, processing_bar=False):
+    def map_(self, func: callable, *args, default=NoDefault, processing_bar=False):
         """
-        generate a new vector with each element x are replaced with func(x)
+        **Inplace function**: generate a new vector with each element x are replaced with func(x)
 
         Parameters
         ----------
@@ -608,7 +616,7 @@ class vector(list):
 
     def replace_(self, element, toelement=NoDefault):
         """
-        inplace replace element in vector with to element
+        **Inplace function**: inplace replace element in vector with to element
 
         Parameters
         ----------
@@ -1419,7 +1427,7 @@ class vector(list):
 
     def sort_by_index_(self, key=lambda index: index):
         """sort_by_index.
-        sort vector by function of index
+        **Inplace function**: sort vector by function of index
 
         Parameters
         ----------
@@ -1458,7 +1466,7 @@ class vector(list):
 
     def sort_by_vector_(self, other, func=lambda x: x):
         """sort_by_vector.
-        sort vector A by vector B or func(B)
+        **Inplace function**: sort vector A by vector B or func(B)
 
         Parameters
         ----------
@@ -2063,7 +2071,7 @@ class ctgenerator:
             raise TypeError("not a generator")
 
     @generator_wrapper
-    def map(self, func, *args, default=NoDefault) -> "ctgenerator":
+    def map(self, func: callable, *args, default=NoDefault) -> "ctgenerator":
         if func is None:
             for x in self.generator:
                 yield x
