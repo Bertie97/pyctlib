@@ -27,6 +27,7 @@ from fuzzywuzzy import fuzz
 import curses
 import re
 import math
+from typing import overload
 
 """
 Usage:
@@ -256,6 +257,17 @@ class vector(list):
     vector is actually list in python with advanced method like map, filter and reduce
     """
 
+    @overload
+    def __init__(self, list, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> vector:
+        ...
+
+    @overload
+    def __init__(self, tuple, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> vector:
+        ...
+
+    @overload
+    def __init__(self, *data, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> vector:
+        ...
 
     def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault):
         """__init__.
