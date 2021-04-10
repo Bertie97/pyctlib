@@ -73,9 +73,10 @@ def generate_typehint_wrapper(func):
         typehint = vector()
         default_dict = dict()
         default = inspect.getfullargspec(func).defaults
-        for index in range(len(default)):
-            name = args_name[len(args_name) - len(default) + index]
-            default_dict[name] = default[index]
+        if default:
+            for index in range(len(default)):
+                name = args_name[len(args_name) - len(default) + index]
+                default_dict[name] = default[index]
         for name, arg in zip(args_name, args):
             typehint.append("@type {}: {}".format(name, type_str(arg)))
         for name in args_name[len(args):]:
