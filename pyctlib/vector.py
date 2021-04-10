@@ -27,7 +27,8 @@ from fuzzywuzzy import fuzz
 import curses
 import re
 import math
-from typing import overload
+from typing import overload, Callable, Iterable
+import traceback
 
 """
 Usage:
@@ -373,12 +374,14 @@ class vector(list):
             return self.map_index(index_mapping)
         except Exception as e:
             error_info = str(e)
+            error_trace = traceback.format_exc()
         for index, a in enumerate(self):
             if touch(lambda: func(a)) is None:
                 try:
-                    error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, a)
+                    error_information = "Error info: {}. \nException raised in filter function at location {} for element {}".format(error_info, index, a)
                 except:
-                    error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, "<unknown>")
+                    error_information = "Error info: {}. \nException raised in filter function at location {} for element {}".format(error_info, index, "<unknown>")
+                error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
 
     def filter_(self, func=None, ignore_error=True):
@@ -411,12 +414,15 @@ class vector(list):
             return
         except Exception as e:
             error_info = str(e)
+            error_trace = traceback.format_exc()
         for index, a in enumerate(self):
             if touch(lambda: func(a)) is None:
                 try:
-                    error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, a)
+                    error_information = "Error info: {}. \nException raised in filter function at location {} for element {}".format(error_info, index, a)
                 except:
-                    error_information = "Error info: {}. Exception raised in filter function at location {} for element {}".format(error_info, index, "<unknown>")
+                    error_information = "Error info: {}. \nException raised in filter function at location {} for element {}".format(error_info, index, "<unknown>")
+
+                error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
 
     def test(self, func, *args):
@@ -458,7 +464,7 @@ class vector(list):
             func = chain_function((func, *args))
         return self.filter(lambda x: not touch(lambda: (func(x), True)[-1], False))
 
-    def map(self, func: callable, *args, default=NoDefault, processing_bar=False):
+    def map(self, func: Callable, *args, default=NoDefault, processing_bar=False):
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -491,15 +497,18 @@ class vector(list):
                 return vector([func(a) for a in self], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
         except Exception as e:
             error_info = str(e)
+            error_trace = traceback.format_exc()
         for index, a in self.enumerate():
             if touch(lambda: func(a)) is None:
                 try:
-                    error_information = "Error info: {}. ".format(error_info) + "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
+                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
                 except:
-                    error_information = "Error info: {}. ".format(error_info) +"Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
+                    error_information = "Error info: {}. ".format(error_info) +"\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
+                error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
+
                 raise RuntimeError(error_information)
 
-    def map_(self, func: callable, *args, default=NoDefault, processing_bar=False):
+    def map_(self, func: Callable, *args, default=NoDefault, processing_bar=False):
         """
         **Inplace function**: generate a new vector with each element x are replaced with func(x)
 
@@ -538,12 +547,14 @@ class vector(list):
             return
         except Exception as e:
             error_info = str(e)
+            error_trace = traceback.format_exc()
         for index, a in self.enumerate():
             if touch(lambda: func(a)) is None:
                 try:
-                    error_information = "Error info: {}. ".format(error_info) + "Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
+                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
                 except:
-                    error_information = "Error info: {}. ".format(error_info) +"Exception raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
+                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
+                error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
 
     def rmap(self, func, *args, default=NoDefault):
@@ -1517,6 +1528,14 @@ class vector(list):
             return array
         return vector(vector.from_list(x) for x in array)
 
+    @overload
+    @staticmethod
+    def zeros(size: Iterable): ...
+
+    @overload
+    @staticmethod
+    def zeros(*size): ...
+
     @staticmethod
     def zeros(*args):
         """zeros.
@@ -1528,6 +1547,14 @@ class vector(list):
         """
         args = totuple(args)
         return vector.from_numpy(np.zeros(args))
+
+    @overload
+    @staticmethod
+    def ones(size: Iterable): ...
+
+    @overload
+    @staticmethod
+    def ones(*size): ...
 
     @staticmethod
     def ones(*args):
@@ -1576,6 +1603,16 @@ class vector(list):
         ret = vector.from_numpy(np.random.randn(*args))
         ret._shape = args
         return ret
+
+    @overload
+    @staticmethod
+    def range(stop): ...
+
+    @overload
+    def range(start, stop): ...
+
+    @overload
+    def range(start, stop, step): ...
 
     @staticmethod
     def range(*args):
@@ -1708,6 +1745,12 @@ class vector(list):
             return True
         return self.all(lambda x: x == self[0])
 
+    @overload
+    def sample(self, size: Iterable, replace=True, batch_size=1, p=None): ...
+
+    @overload
+    def sample(self, *size, replace=True, batch_size=1, p=None): ...
+
     def sample(self, *args, replace=True, batch_size=1, p=None):
         """sample.
 
@@ -1748,10 +1791,16 @@ class vector(list):
             return (self + self.sample(batch_size - self.length % batch_size)).batch(batch_size=batch_size, drop=True)
 
     def shuffle(self):
+        """
+        shuffle the vector
+        """
         index_mapping = IndexMapping(vector.range(self.length).sample(self.length, replace=False))
         return self.map_index(index_mapping)
 
     def shuffle_(self):
+        """
+        **Inplace function:** shuffle the vector
+        """
         index_mapping = IndexMapping(vector.range(self.length).sample(self.length, replace=False))
         self.map_index_(index_mapping)
 
@@ -1802,6 +1851,23 @@ class vector(list):
         return ret
 
     def map_index(self, index_mapping: "IndexMapping"):
+        """
+        change the index_mapping of the current vector.
+        for example:
+        t is a vector and t[1] = "apple". And im is an index_mapping which map index 1 to 3. Then for new vector t_new = t.map_index(im), t_new[3] = "apple"
+
+        more example:
+        for a vector t = vector(3,2,1). t.sort() will have index_mapping which map:
+        index   ->    to
+        0       ->    2
+        1       ->    1
+        2       ->    0
+
+        for another vector p = vector("apple", "banana", "peach")
+        p.map_index(t.index_mapping)
+        will generate:
+        vector("peach", "banana", "apple")
+        """
         assert isinstance(index_mapping, IndexMapping)
         if index_mapping.isidentity:
             return self
@@ -1815,6 +1881,9 @@ class vector(list):
             return ret
 
     def map_index_(self, index_mapping: "IndexMapping"):
+        """
+        inplacement implementation of map_index
+        """
         assert isinstance(index_mapping, IndexMapping)
         if index_mapping.isidentity:
             return self
