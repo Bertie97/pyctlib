@@ -2122,6 +2122,9 @@ class vector(list):
                                 stdscr.addstr(error_nu, 0, line)
                                 stdscr.clrtoeol()
                                 error_nu += 1
+                    for index in range(error_nu, rows):
+                        stdscr.addstr(index, 0, "")
+                        stdscr.clrtoeol()
 
                     for index in range(len(result)):
                         if index == select_number:
