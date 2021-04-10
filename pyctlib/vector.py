@@ -2024,7 +2024,7 @@ class vector(list):
                 stdscr.addstr(0, 0, "token to search: ")
                 search_k = max_k
                 if search_k is NoDefault:
-                    search_k = int(rows * 0.8)
+                    search_k = int(rows * 0.7)
                 display_bias = 0
                 selected = search_func(candidate, "")
                 result = self.map_index_from(selected)[display_bias:display_bias + search_k]
@@ -2117,8 +2117,11 @@ class vector(list):
                             stdscr.clrtoeol()
                             error_nu += 1
                     if error_info:
-                        stdscr.addstr(error_nu, 0, error_info)
-                        stdscr.clrtoeol()
+                        if error_nu < rows:
+                            for line in error_info.split("\n"):
+                                stdscr.addstr(error_nu, 0, line)
+                                stdscr.clrtoeol()
+                                error_nu += 1
 
                     for index in range(len(result)):
                         if index == select_number:
