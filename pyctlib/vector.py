@@ -2053,7 +2053,9 @@ class vector(list):
                     stdscr.clrtoeol()
                     stdscr.addstr(question)
 
-                    stdscr.addstr(0, x_init + x_bias, "")
+                    new_len = lambda x: (ord(x)>>8 > 0) + 1
+                    new_x_bias = sum([new_len(t) for t in question[:x_bias]])
+                    stdscr.addstr(0, x_init + new_x_bias, "")
                     search_flag = False
                     char = stdscr.get_wch()
                     if isinstance(char, str) and char.isprintable():
