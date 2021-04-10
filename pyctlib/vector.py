@@ -736,9 +736,14 @@ class vector(list):
             return vector(zip(self, other))
 
     @staticmethod
-    def zip(*args):
+    def zip(*args, index_mapping=NoDefault):
         args = totuple(args)
-        return vector(zip(*args)).map(lambda x: totuple(x))
+        ret = vector(zip(*args)).map(lambda x: totuple(x))
+        if isinstance(index_mapping, EmptyClass):
+            ret._index_mapping = args[0].index_mapping
+        else:
+            ret._index_mapping = index_mapping
+        return ret
 
     def __pow__(self, other):
         """__pow__.
@@ -1848,6 +1853,9 @@ class vector(list):
             ret._index_mapping = self.index_mapping.copy()
         else:
             ret._index_mapping = IndexMapping()
+        ret.allow_undefined_value = self.allow_undefined_value
+        ret._recursive = self._recursive
+        ret.content_type = self.content_type
         return ret
 
     def map_index(self, index_mapping: "IndexMapping"):
@@ -1898,6 +1906,14 @@ class vector(list):
         super().extend(ret)
         self._index_mapping = ret.index_mapping
 
+    def register_index_mapping(self, index_mapping=IndexMapping()):
+        ret = self.copy()
+        ret._index_mapping = index_mapping
+        return ret
+
+    def register_index_mapping_(self, index_mapping=IndexMapping()):
+        self._index_mapping = index_mapping
+
     def map_index_from(self, x):
         assert isinstance(x, vector)
         return self.map_index(x.index_mapping)
@@ -1914,13 +1930,11 @@ class vector(list):
         assert isinstance(reverse_index_mapping, IndexMapping)
         self.map_index(reverse_index_mapping.reverse())
 
-    def clear_map_index(self):
-        ret = self.copy()
-        ret._index_mapping = IndexMapping()
-        return ret
+    def clear_index_mapping(self):
+        return self.register_index_mapping(index_mapping=IndexMapping())
 
-    def clear_map_index_(self):
-        self._index_mapping = IndexMapping()
+    def clear_index_mapping_(self):
+        self.register_index_mapping_(index_mapping=IndexMapping())
 
     def unmap_index(self):
         if self.index_mapping.isidentity:
@@ -1929,7 +1943,7 @@ class vector(list):
         if self.index_mapping.domain_size > self.index_mapping.range_size:
             self.allow_undefined_value = True
         ret = self.map_index(self.index_mapping.reverse())
-        ret.clear_map_index_()
+        ret.clear_index_mapping_()
         self.allow_undefined_value = temp_flag
         return ret
 
@@ -1939,7 +1953,7 @@ class vector(list):
         if self.index_mapping.domain_size > self.index_mapping.range_size:
             self.allow_undefined_value = True
         self.map_index_(self.index_mapping.reverse())
-        self.clear_map_index_()
+        self.clear_index_mapping_()
 
     def __str__(self):
         if self.shape != "undefined" and len(self.shape) > 1:
@@ -1988,19 +2002,18 @@ class vector(list):
             return item in self.set()
         return super().__contains__(item)
 
-    def function_search(self, search_func, question="", max_k=NoDefault, str_func=str, display_info=None):
+    def function_search(self, search_func, question="", max_k=NoDefault, str_func=str, str_display=str, display_info=None):
         if len(question) > 0:
-            candidate = self.clear_map_index().map(str_func)
+            candidate = self.clear_index_mapping().map(str_func)
             selected = search_func(candidate, question)
             return self.map_index_from(selected)
         else:
-            candidate = self.clear_map_index().map(str_func)
+            candidate = self.clear_index_mapping().map(str_func)
             def c_main(stdscr: "curses._CursesWindow"):
                 stdscr.clear()
                 question = ""
                 question_done = False
                 select_number = 0
-                result = candidate
                 rows, cols = stdscr.getmaxyx()
                 x_init = len("token to search: ")
                 x_bias = 0
@@ -2009,11 +2022,20 @@ class vector(list):
                 search_k = max_k
                 if search_k is NoDefault:
                     search_k = int(rows * 0.8)
+                display_bias = 0
+                selected = search_func(candidate, "")
+                result = self.map_index_from(selected)[display_bias:display_bias + search_k]
                 for index in range(len(self[:search_k])):
                     if index == 0:
-                        stdscr.addstr(index + 1, 0, "* " + self[index][:cols-2])
+                        stdscr.addstr(index + 1, 0, "* " + str_display(result[index])[:cols-2])
                     else:
-                        stdscr.addstr(index + 1, 0, self[index][:cols])
+                        stdscr.addstr(index + 1, 0, str_display(result[index])[:cols])
+
+                stdscr.addstr(search_k + 1, 0, "-" * int(0.8 * cols))
+                stdscr.addstr(search_k + 2, 0, "# match: " + str(selected.length))
+                stdscr.clrtoeol()
+                stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
+                stdscr.clrtoeol()
 
                 while True:
                     stdscr.addstr(0, 0, "token to search: ")
@@ -2021,25 +2043,38 @@ class vector(list):
                     stdscr.addstr(question)
 
                     stdscr.addstr(0, x_init + x_bias, "")
+                    search_flag = False
                     char = stdscr.get_wch()
                     if isinstance(char, str) and char.isprintable():
                         question = question[:x_bias] + char + question[x_bias:]
                         select_number = 0
+                        display_bias = 0
                         x_bias += 1
+                        search_flag = True
                     elif char == curses.KEY_BACKSPACE or char == "\x7f":
                         question = question[:max(x_bias-1, 0)] + question[x_bias:]
                         select_number = 0
+                        display_bias = 0
                         x_bias = max(x_bias - 1, 0)
+                        search_flag = True
                     elif char == "\n":
                         if len(result) > 0:
-                            return self.map_index_from(result)[select_number]
+                            return result[select_number]
                         return None
                     elif char == "\x1b":
                         return None
                     elif char == curses.KEY_UP:
-                        select_number = max(select_number - 1, 0)
+                        if select_number == 2 and display_bias > 0:
+                            display_bias -= 1
+                            result = self.map_index_from(selected)[display_bias:display_bias + search_k]
+                        else:
+                            select_number = max(select_number - 1, 0)
                     elif char == curses.KEY_DOWN:
-                        select_number = max(min(select_number + 1, len(result) - 1), 0)
+                        if select_number == search_k - 3 and display_bias + search_k < selected.length:
+                            display_bias += 1
+                            result = self.map_index_from(selected)[display_bias:display_bias + search_k]
+                        else:
+                            select_number = max(min(select_number + 1, len(result) - 1), 0)
                     elif char == curses.KEY_LEFT:
                         x_bias = max(x_bias - 1, 0)
                         continue
@@ -2049,15 +2084,16 @@ class vector(list):
                         continue
 
                     try:
-                        selected = search_func(candidate, question)
-                        result = candidate.map_index_from(selected)[:search_k]
+                        if search_flag:
+                            selected = search_func(candidate, question)
+                            result = self.map_index_from(selected)[display_bias:display_bias + search_k]
                     except Exception as e:
                         error_info = str(e)
                     else:
                         error_info = ""
 
-                    stdscr.addstr(search_k + 1, 0, "-" * int(0.8 * cols))
                     stdscr.addstr(search_k + 2, 0, "# match: " + str(selected.length))
+                    stdscr.clrtoeol()
                     stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
                     stdscr.clrtoeol()
                     error_nu = search_k + 4
@@ -2070,12 +2106,11 @@ class vector(list):
                         stdscr.addstr(error_nu, 0, error_info)
                         stdscr.clrtoeol()
 
-                    temp = self.map_index_from(result)
                     for index in range(len(result)):
                         if index == select_number:
-                            stdscr.addstr(1 + index, 0, "* " + str(temp[index])[:cols-2])
+                            stdscr.addstr(1 + index, 0, "* " + str_display(result[index])[:cols-2])
                         else:
-                            stdscr.addstr(1 + index, 0, str(temp[index])[:cols])
+                            stdscr.addstr(1 + index, 0, str_display(result[index])[:cols])
                         stdscr.clrtoeol()
                     for index in range(len(result), search_k):
                         stdscr.addstr(1 + index, 0, "")
@@ -2099,8 +2134,10 @@ class vector(list):
         def fuzzy_function(candidate, question):
             if len(question) == 0:
                 return candidate
-            selected = candidate.map(lambda x: fuzz.partial_ratio(x.lower(), question.lower()) * min(1, len(x) / len(question)) * min(1, len(question) / len(x)) ** 0.3).map(lambda x: round(x * 10) / 10).sort(lambda x: -x)
-            return selected
+            partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), question.lower()), x))
+            selected = partial_ratio.filter(lambda x: x[0] > 50)
+            score = selected.map(lambda x: x[0] * min(1, len(x[1]) / len(question)) * min(1, len(question) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            return score
 
         return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, display_info=None)
 
