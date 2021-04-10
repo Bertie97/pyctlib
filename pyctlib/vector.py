@@ -2156,7 +2156,7 @@ class vector(list):
                 return candidate
             partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), question.lower()), x))
             selected = partial_ratio.filter(lambda x: x[0] > 50)
-            score = selected.map(lambda x: x[0] * min(1, len(x[1]) / len(question)) * min(1, len(question) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(question)) * min(1, len(question) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
         return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
