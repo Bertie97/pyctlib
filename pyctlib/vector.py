@@ -2063,7 +2063,7 @@ class vector(list):
                 stdscr.addstr(0, 0, "token to search: ")
                 search_k = max_k
                 if search_k is NoDefault:
-                    search_k = int(rows * 0.7)
+                    search_k = int(rows * 0.8)
                 display_bias = 0
                 selected = search_func(candidate, "")
                 result = self.map_index_from(selected)[display_bias:display_bias + search_k]
