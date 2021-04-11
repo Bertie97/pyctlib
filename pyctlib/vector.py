@@ -2216,6 +2216,9 @@ class vector(list):
             func = vector().__dir__().filter(lambda x: len(x) > 0 and x[0] != "_").fuzzy_search()
             if func:
                 help(eval("vector().{}".format(func)))
+                vector.help(obj)
+            else:
+                return
         else:
             temp = vector(dir(obj)).filter(lambda x: len(x) > 0 and x[0] != "_")
             if len(temp) == 0:
@@ -2228,6 +2231,7 @@ class vector(list):
                         vector.help(searched)
                     else:
                         help(searched)
+                    vector.help(obj)
                 else:
                     return
 
