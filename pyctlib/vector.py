@@ -2132,8 +2132,13 @@ class vector(list):
                         continue
                     elif char == curses.KEY_RIGHT:
                         x_bias = min(x_bias+1, len(question))
+                    elif char == '\x01':
+                        x_bias = 0
+                    elif char == '\x05':
+                        x_bias = len(question)
                     else:
-                        continue
+                        pass
+                        # stdscr.addstr(rows - 1, 0, str(char))
 
                     try:
                         if search_flag:
@@ -2208,7 +2213,8 @@ class vector(list):
     @staticmethod
     def help():
         func = vector().__dir__().filter(lambda x: len(x) > 0 and x[0]!="_").fuzzy_search()
-        help(eval("vector().{}".format(func)))
+        if func:
+            help(eval("vector().{}".format(func)))
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
