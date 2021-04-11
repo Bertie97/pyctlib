@@ -2217,16 +2217,20 @@ class vector(list):
             if func:
                 help(eval("vector().{}".format(func)))
         else:
-            func = vector(obj.__dir__()).filter(lambda x: len(x) > 0 and x[0] != "_").fuzzy_search()
-            if func:
-                searched = eval("obj.{}".format(func))
-                print(searched, type(searched))
-                if "module" in str(type(searched)):
-                    vector.help(searched)
-                else:
-                    help(searched)
+            temp = vector(dir(obj)).filter(lambda x: len(x) > 0 and x[0] != "_")
+            if len(temp) == 0:
+                help(obj)
             else:
-                return
+                func = temp.fuzzy_search()
+                if func:
+                    searched = eval("obj.{}".format(func))
+                    print(searched, type(searched))
+                    if "module" in str(type(searched)):
+                        vector.help(searched)
+                    else:
+                        help(searched)
+                else:
+                    return
 
 
 def generator_wrapper(*args, **kwargs):
