@@ -3,6 +3,7 @@ import os
 
 sys.path.append(os.path.abspath("."))
 import pyctlib
+import numpy as np
 from pyctlib import vector, IndexMapping, scope
 from pyctlib.vector import chain_function
 with scope("import"):

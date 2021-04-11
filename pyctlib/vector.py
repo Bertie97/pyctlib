@@ -2211,10 +2211,23 @@ class vector(list):
         return vector(super().__dir__())
 
     @staticmethod
-    def help():
-        func = vector().__dir__().filter(lambda x: len(x) > 0 and x[0]!="_").fuzzy_search()
-        if func:
-            help(eval("vector().{}".format(func)))
+    def help(obj=None):
+        if obj is None:
+            func = vector().__dir__().filter(lambda x: len(x) > 0 and x[0] != "_").fuzzy_search()
+            if func:
+                help(eval("vector().{}".format(func)))
+        else:
+            func = vector(obj.__dir__()).filter(lambda x: len(x) > 0 and x[0] != "_").fuzzy_search()
+            if func:
+                searched = eval("obj.{}".format(func))
+                print(searched, type(searched))
+                if "module" in str(type(searched)):
+                    vector.help(searched)
+                else:
+                    help(searched)
+            else:
+                return
+
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
