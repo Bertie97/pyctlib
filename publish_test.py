@@ -4,6 +4,7 @@ import os
 sys.path.append(os.path.abspath("."))
 import pyctlib
 from pyctlib import vector, IndexMapping, scope
+from pyctlib.vector import chain_function
 with scope("import"):
     from pyctlib import path, get_relative_path
     from pyctlib import touch
@@ -38,3 +39,4 @@ with scope("all"):
     x = vector.range(100).sample(10, replace=False)
     assert x == vector.range(100).map_index_from(x)
     assert repr(vector.range(10).filter(lambda x: x < 5).unmap_index()) == "[0, 1, 2, 3, 4, Not Defined, Not Defined, Not Defined, Not Defined, Not Defined]"
+    vector.range(5).map(lambda x, y: x / y, func_self=lambda x: x.sum())

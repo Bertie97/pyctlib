@@ -15,6 +15,7 @@ __all__ = """
     NoDefault
     UnDefined
     OutBoundary
+    chain_function
 """.split()
 
 from types import GeneratorType
@@ -122,6 +123,8 @@ def chain_function(*funcs):
                 x = func(x)
         return x
     funcs = totuple(funcs)
+    if len(funcs) == 0:
+        return funcs[0]
     return partial(ret, funcs)
 
 class IndexMapping:
@@ -353,7 +356,7 @@ class vector(list):
         """
         return touch(lambda: self._index_mapping, IndexMapping())
 
-    def filter(self, func=None, ignore_error=True):
+    def filter(self, func=None, func_self=None, ignore_error=True):
         """
         filter element in the vector with which func(x) is True
 
@@ -371,19 +374,25 @@ class vector(list):
         """
         if func is None:
             return self
+        if func_self is None:
+            new_func = func
+        else:
+            input_from_self = func_self(self)
+            def new_func(x):
+                return func(x, input_from_self)
         try:
             if ignore_error:
-                filtered_index = [index for index, a in enumerate(self) if touch(lambda: func(a), False)]
+                filtered_index = [index for index, a in enumerate(self) if touch(lambda: new_func(a), False)]
                 index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
                 return self.map_index(index_mapping)
-            filtered_index = [index for index, a in enumerate(self) if func(a)]
+            filtered_index = [index for index, a in enumerate(self) if new_func(a)]
             index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
             return self.map_index(index_mapping)
         except Exception as e:
             error_info = str(e)
             error_trace = traceback.format_exc()
         for index, a in enumerate(self):
-            if touch(lambda: func(a)) is None:
+            if touch(lambda: new_func(a)) is None:
                 try:
                     error_information = "Error info: {}. \nException raised in filter function at location {} for element {}".format(error_info, index, a)
                 except:
@@ -407,15 +416,19 @@ class vector(list):
         vector([1,2,3,4,5,6]).filter(lambda x: x>3)
         will produce [4,5,6]
         """
-        if func is None:
-            return
+        if func_self is None:
+            new_func = func
+        else:
+            input_from_self = func_self(self)
+            def new_func(x):
+                return func(x, input_from_self)
         try:
             if ignore_error:
-                filtered_index = [index for index, a in enumerate(self) if touch(lambda: func(a), False)]
+                filtered_index = [index for index, a in enumerate(self) if touch(lambda: new_func(a), False)]
                 index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
                 self.map_index_(index_mapping)
                 return
-            filtered_index = [index for index, a in enumerate(self) if func(a)]
+            filtered_index = [index for index, a in enumerate(self) if new_func(a)]
             index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
             self.map_index_(index_mapping)
             return
@@ -423,7 +436,7 @@ class vector(list):
             error_info = str(e)
             error_trace = traceback.format_exc()
         for index, a in enumerate(self):
-            if touch(lambda: func(a)) is None:
+            if touch(lambda: new_func(a)) is None:
                 try:
                     error_information = "Error info: {}. \nException raised in filter function at location {} for element {}".format(error_info, index, a)
                 except:
@@ -501,7 +514,7 @@ class vector(list):
                 new_func = chain_function((func, *args))
             else:
                 new_func = func
-        if func_self is not None:
+        else:
             input_from_self = func_self(self)
             func = chain_function((func, *args))
             def new_func(x):
@@ -529,7 +542,7 @@ class vector(list):
 
                 raise RuntimeError(error_information)
 
-    def map_(self, func: Callable, *args, default=NoDefault, processing_bar=False):
+    def map_(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False):
         """
         **Inplace function**: generate a new vector with each element x are replaced with func(x)
 
@@ -547,34 +560,42 @@ class vector(list):
         will produce [0,1,4]
         """
         if func is None:
-            return
-        if len(args) > 0:
+            return self
+        if func_self is None:
+            if len(args) > 0:
+                new_func = chain_function((func, *args))
+            else:
+                new_func = func
+        if func_self is not None:
+            input_from_self = func_self(self)
             func = chain_function((func, *args))
+            def new_func(x):
+                return func(x, input_from_self)
         if not isinstance(default, EmptyClass):
             if processing_bar:
                 for index in trange(self.length):
-                    self[index] = touch(lambda: func(self[index]), default=default)
+                    self[index] = touch(lambda: new_func(self[index]), default=default)
             else:
                 for index in range(self.length):
-                    self[index] = touch(lambda: func(self[index]), default=default)
+                    self[index] = touch(lambda: new_func(self[index]), default=default)
             return
         try:
             if processing_bar:
                 for index in trange(self.length):
-                    self[index] = func(self[index])
+                    self[index] = new_func(self[index])
             else:
                 for index in range(self.length):
-                    self[index] = func(self[index])
+                    self[index] = new_func(self[index])
             return
         except Exception as e:
             error_info = str(e)
             error_trace = traceback.format_exc()
         for index, a in self.enumerate():
-            if touch(lambda: func(a)) is None:
+            if touch(lambda: new_func(a)) is None:
                 try:
-                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
+                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, new_func, default)
                 except:
-                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
+                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", new_func, default)
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
 
@@ -2169,7 +2190,7 @@ class vector(list):
 
         return self.function_search(regex_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
-    def fuzzy_search(self, question="", max_k=NoDefault, str_func=str, str_display=str):
+    def fuzzy_search(self, question="", max_k=NoDefault, str_func=str, str_display=str, display_info=None):
 
         def fuzzy_function(candidate, question):
             if len(question) == 0:
@@ -2181,6 +2202,13 @@ class vector(list):
 
         return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
+    def __dir__(self):
+        return vector(super().__dir__())
+
+    @staticmethod
+    def help():
+        func = vector().__dir__().filter(lambda x: len(x) > 0 and x[0]!="_").fuzzy_search()
+        help(eval("vector().{}".format(func)))
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
