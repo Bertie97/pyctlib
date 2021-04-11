@@ -109,8 +109,12 @@ class pathList(vector):
     def __mod__(self, k): return pathList([x % k for x in self])
     def __getitem__(self, i):
         ret = super().__getitem__(i)
-        if ret._main_folder is None:
+        if isinstance(ret, vector):
+            ret = pathList(ret, main_folder=self._main_folder)
+        elif isinstance(ret, path):
             ret.main_folder = self._main_folder
+        else:
+            raise RuntimeError("wired item in pathList: {}".format(ret))
         return ret
     def append(self, element):
         if element.main_folder == self.main_folder:

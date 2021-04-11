@@ -97,7 +97,7 @@ NoDefault = EmptyClass("No Default Value")
 OutBoundary = EmptyClass("Out of Boundary")
 UnDefined = EmptyClass("Not Defined")
 
-def chain_function(funcs):
+def chain_function(*funcs):
     """chain_function.
 
     Parameters
@@ -114,10 +114,14 @@ def chain_function(funcs):
     g = chain_function((f1, f2))
     then g = f2(f1)
     """
-    def ret(funcs, x):
-        for func in funcs:
-            x = func(x)
+    def ret(funcs, *args):
+        for index, func in enumerate(funcs):
+            if index == 0:
+                x = func(*args)
+            else:
+                x = func(x)
         return x
+    funcs = totuple(funcs)
     return partial(ret, funcs)
 
 class IndexMapping:
@@ -467,7 +471,13 @@ class vector(list):
             func = chain_function((func, *args))
         return self.filter(lambda x: not touch(lambda: (func(x), True)[-1], False))
 
-    def map(self, func: Callable, *args, default=NoDefault, processing_bar=False):
+    # def map_with_self(self, func: Callable, func_self=lambda x: x, default=NoDefault, processing_bar=False):
+    #     input_from_self = func_self(self)
+    #     def temp(x):
+    #         return func(x, input_from_self)
+    #     return self.map(temp, default=default, processing_bar=False)
+
+    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False):
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -486,27 +496,35 @@ class vector(list):
         """
         if func is None:
             return self
-        if len(args) > 0:
+        if func_self is None:
+            if len(args) > 0:
+                new_func = chain_function((func, *args))
+            else:
+                new_func = func
+        if func_self is not None:
+            input_from_self = func_self(self)
             func = chain_function((func, *args))
+            def new_func(x):
+                return func(x, input_from_self)
         if not isinstance(default, EmptyClass):
             if processing_bar:
-                return vector([touch(lambda: func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                return vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
-                return vector([touch(lambda: func(a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                return vector([touch(lambda: new_func(a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
         try:
             if processing_bar:
-                return vector([func(a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                return vector([new_func(a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
-                return vector([func(a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                return vector([new_func(a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
         except Exception as e:
             error_info = str(e)
             error_trace = traceback.format_exc()
         for index, a in self.enumerate():
-            if touch(lambda: func(a)) is None:
+            if touch(lambda: new_func(a)) is None:
                 try:
-                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, func, default)
+                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, new_func, default)
                 except:
-                    error_information = "Error info: {}. ".format(error_info) +"\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", func, default)
+                    error_information = "Error info: {}. ".format(error_info) +"\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", new_func, default)
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
 
                 raise RuntimeError(error_information)
