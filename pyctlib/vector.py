@@ -2224,7 +2224,6 @@ class vector(list):
                 func = temp.fuzzy_search()
                 if func:
                     searched = eval("obj.{}".format(func))
-                    print(searched, type(searched))
                     if "module" in str(type(searched)):
                         vector.help(searched)
                     else:
