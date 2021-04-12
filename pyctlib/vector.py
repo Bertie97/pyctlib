@@ -1041,7 +1041,7 @@ class vector(list):
                 pushfunc(x)
         return vector(unique_elements, recursive=False)
 
-    def count_all(self):
+    def count_all(self) -> Counter:
         """count_all.
         count all the elements in the vector, sorted by occurance time
 
@@ -1051,12 +1051,12 @@ class vector(list):
         will produce Counter({1: 2, 2: 2, 3: 2})
         """
         if len(self) == 0:
-            return dict()
+            return Counter()
         hashable = self.ishashable()
         if hashable:
-            return dict(Counter(self))
+            return Counter(self)
         else:
-            return dict(self.unique().map(lambda x: (x, self.count(x))))
+            return Counter(dict(self.unique().map(lambda x: (x, self.count(x)))))
 
     def count(self, *args):
         """count.
