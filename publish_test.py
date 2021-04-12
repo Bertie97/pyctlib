@@ -37,4 +37,4 @@ x = vector.range(100).shuffle()
 assert x == vector.range(100).map_index_from(x)
 x = vector.range(100).sample(10, replace=False)
 assert x == vector.range(100).map_index_from(x)
-
+assert vector.range(10) == vector.range(10).sort()
