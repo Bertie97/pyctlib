@@ -1051,10 +1051,10 @@ class vector(list):
         will produce Counter({1: 2, 2: 2, 3: 2})
         """
         if len(self) == 0:
-            return vector([], recursive=False)
+            return dict()
         hashable = self.ishashable()
         if hashable:
-            return Counter(self)
+            return dict(Counter(self))
         else:
             return dict(self.unique().map(lambda x: (x, self.count(x))))
 
@@ -1240,15 +1240,32 @@ class vector(list):
         return self._sum
 
     def cumsum(self):
+        """
+        cumulation summation of vector
+        [a_1, a_2, \ldots, a_n]
+        ->
+        [a_1, a_1+a_2, \ldots, a_1+a_2+\ldots+a_n]
+        """
         return self.cumulative_reduce(lambda x, y: x + y)
 
     def norm(self, p=2):
+        """
+        norm of vector
+        is equivalent to
+        self.map(lambda x: abs(x) ** p).sum() ** (1/p)
+        """
         if touch(lambda: self._norm[p], None):
             return self._norm[p]
         self._norm[p] = math.pow(self.map(lambda x: math.pow(abs(x), p)).sum(), 1/p)
         return self._norm[p]
 
     def normalization(self, p=1):
+        """
+        normaize the vector using p-norm
+        is equivalent to self.map(lambda x: x / self.norm(p))
+
+        result is $\frac{x}{\|x\|_p}$
+        """
         norm_p = self.norm(p)
         return self.map(lambda x: x / self.norm(p))
 
@@ -2279,9 +2296,9 @@ class vector(list):
                 def display_info(me, query, selected):
                     result = me.map_index_from(selected).map(lambda x: sorted_key[x]).count_all()
                     ret = vector()
-                    ret.append("# new: {}".format(result[0]))
-                    ret.append("# overridden: {}".format(result[1]))
-                    ret.append("# inherited: {}".format(result[2]))
+                    ret.append("# new: {}".format(result.get(0,0)))
+                    ret.append("# overridden: {}".format(result.get(1,0)))
+                    ret.append("# inherited: {}".format(result.get(0,0)))
                     return ret
                 func = temp.fuzzy_search(str_func=lambda x: str_display[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info)
                 if func:
