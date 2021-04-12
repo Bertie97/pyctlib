@@ -33,6 +33,7 @@ import re
 import math
 from typing import overload, Callable, Iterable
 import traceback
+import inspect
 
 """
 Usage:
@@ -54,6 +55,11 @@ def totuple(x, depth=1):
     return temp.reduce(lambda x, y: x + y)
 
 def raw_function(func):
+    """
+    if "__func__" in dir(func):
+        return func.__func__
+    return func
+    """
     if "__func__" in dir(func):
         return func.__func__
     return func
@@ -1844,6 +1850,26 @@ class vector(list):
         index_mapping = IndexMapping(vector.range(self.length).sample(self.length, replace=False))
         return self.map_index(index_mapping)
 
+    def reverse(self):
+        """
+        reverse the vector
+        vector(0,1,2).reverse()
+        will get
+        [2,1,0]
+        """
+        index_mapping= IndexMapping(vector.range(self.length-1, -1, -1))
+        return self.map_index(index_mapping)
+
+    def reverse_(self):
+        """
+        **inplace function:** reverse the vector
+        vector(0,1,2).reverse()
+        will get
+        [2,1,0]
+        """
+        index_mapping= IndexMapping(vector.range(self.length-1, -1, -1))
+        return self.map_index_(index_mapping)
+
     def shuffle_(self):
         """
         **Inplace function:** shuffle the vector
@@ -2044,17 +2070,19 @@ class vector(list):
             return item in self.set()
         return super().__contains__(item)
 
-    def function_search(self, search_func, question="", max_k=NoDefault, str_func=str, str_display=str, display_info=None):
-        if len(question) > 0:
+    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None):
+        if str_display is None:
+            str_display = str_func
+        if len(query) > 0:
             candidate = self.clear_index_mapping().map(str_func)
-            selected = search_func(candidate, question)
-            return self.map_index_from(selected)
+            selected = search_func(candidate, query)
+            return self.map_index_from(selected).sort(sorted_function)
         else:
             candidate = self.clear_index_mapping().map(str_func)
             def c_main(stdscr: "curses._CursesWindow"):
                 stdscr.clear()
-                question = ""
-                question_done = False
+                query = ""
+                query_done = False
                 select_number = 0
                 rows, cols = stdscr.getmaxyx()
                 x_init = len("token to search: ")
@@ -2066,7 +2094,7 @@ class vector(list):
                     search_k = int(rows * 0.8)
                 display_bias = 0
                 selected = search_func(candidate, "")
-                result = self.map_index_from(selected)[display_bias:display_bias + search_k]
+                result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                 for index in range(len(self[:search_k])):
                     if index == 0:
                         stdscr.addstr(index + 1, 0, "* " + str_display(result[index])[:cols-2])
@@ -2080,31 +2108,34 @@ class vector(list):
                 stdscr.clrtoeol()
 
                 if display_info is not None:
-                    info = display_info(self, question)
+                    info = display_info(self, query, selected)
                     if isinstance(info, str):
                         info = vector([info])
                     for index in range(len(info)):
-                        stdscr.addstr(search_k+4+index, 0, info[index])
-                        stdscr.clrtoeol()
+                        if search_k + 4 + index < rows:
+                            stdscr.addstr(search_k+4+index, 0, info[index])
+                            stdscr.clrtoeol()
+                        else:
+                            break
 
                 while True:
                     stdscr.addstr(0, 0, "token to search: ")
                     stdscr.clrtoeol()
-                    stdscr.addstr(question)
+                    stdscr.addstr(query)
 
                     new_len = lambda x: (ord(x)>>8 > 0) + 1
-                    new_x_bias = sum([new_len(t) for t in question[:x_bias]])
+                    new_x_bias = sum([new_len(t) for t in query[:x_bias]])
                     stdscr.addstr(0, x_init + new_x_bias, "")
                     search_flag = False
                     char = stdscr.get_wch()
                     if isinstance(char, str) and char.isprintable():
-                        question = question[:x_bias] + char + question[x_bias:]
+                        query = query[:x_bias] + char + query[x_bias:]
                         select_number = 0
                         display_bias = 0
                         x_bias += 1
                         search_flag = True
                     elif char == curses.KEY_BACKSPACE or char == "\x7f":
-                        question = question[:max(x_bias-1, 0)] + question[x_bias:]
+                        query = query[:max(x_bias-1, 0)] + query[x_bias:]
                         select_number = 0
                         display_bias = 0
                         x_bias = max(x_bias - 1, 0)
@@ -2118,32 +2149,32 @@ class vector(list):
                     elif char == curses.KEY_UP:
                         if select_number == 2 and display_bias > 0:
                             display_bias -= 1
-                            result = self.map_index_from(selected)[display_bias:display_bias + search_k]
+                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                         else:
                             select_number = max(select_number - 1, 0)
                     elif char == curses.KEY_DOWN:
                         if select_number == search_k - 3 and display_bias + search_k < selected.length:
                             display_bias += 1
-                            result = self.map_index_from(selected)[display_bias:display_bias + search_k]
+                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                         else:
                             select_number = max(min(select_number + 1, len(result) - 1), 0)
                     elif char == curses.KEY_LEFT:
                         x_bias = max(x_bias - 1, 0)
                         continue
                     elif char == curses.KEY_RIGHT:
-                        x_bias = min(x_bias+1, len(question))
+                        x_bias = min(x_bias+1, len(query))
                     elif char == '\x01':
                         x_bias = 0
                     elif char == '\x05':
-                        x_bias = len(question)
+                        x_bias = len(query)
                     else:
                         pass
                         # stdscr.addstr(rows - 1, 0, str(char))
 
                     try:
                         if search_flag:
-                            selected = search_func(candidate, question)
-                            result = self.map_index_from(selected)[display_bias:display_bias + search_k]
+                            selected = search_func(candidate, query)
+                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     except Exception as e:
                         error_info = str(e)
                     else:
@@ -2155,17 +2186,20 @@ class vector(list):
                     stdscr.clrtoeol()
                     error_nu = search_k + 4
                     if display_info is not None:
-                        info = display_info(self, question)
+                        info = display_info(self, query, selected)
                         if isinstance(info, str):
                             info = vector([info])
                         for index in range(len(info)):
-                            stdscr.addstr(search_k+4+index, 0, info[index])
-                            stdscr.clrtoeol()
-                            error_nu += 1
+                            if search_k + 4 + index < rows:
+                                stdscr.addstr(search_k + 4 + index, 0, info[index][:cols])
+                                stdscr.clrtoeol()
+                                error_nu += 1
+                            else:
+                                break
                     if error_info:
                         if error_nu < rows:
                             for line in error_info.split("\n"):
-                                stdscr.addstr(error_nu, 0, line)
+                                stdscr.addstr(error_nu, 0, line[:cols])
                                 stdscr.clrtoeol()
                                 error_nu += 1
                     for index in range(error_nu, rows):
@@ -2184,28 +2218,28 @@ class vector(list):
 
             return curses.wrapper(c_main)
 
-    def regex_search(self, question="", max_k=NoDefault, str_func=str, str_display=str, display_info=None):
+    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None):
 
-        def regex_function(candidate, question):
-            if len(question) == 0:
+        def regex_function(candidate, query):
+            if len(query) == 0:
                 return candidate
-            regex = re.compile(question)
+            regex = re.compile(query)
             selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
             return selected
 
-        return self.function_search(regex_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
+        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function)
 
-    def fuzzy_search(self, question="", max_k=NoDefault, str_func=str, str_display=str, display_info=None):
+    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None):
 
-        def fuzzy_function(candidate, question):
-            if len(question) == 0:
+        def fuzzy_function(candidate, query):
+            if len(query) == 0:
                 return candidate
-            partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), question.lower()), x))
+            partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), query.lower()), x))
             selected = partial_ratio.filter(lambda x: x[0] > 50)
-            score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(question)) * min(1, len(question) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
-        return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
+        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function)
 
     def __dir__(self):
         return vector(super().__dir__())
@@ -2213,18 +2247,43 @@ class vector(list):
     @staticmethod
     def help(obj=None):
         if obj is None:
-            func = vector().__dir__().filter(lambda x: len(x) > 0 and x[0] != "_").fuzzy_search()
-            if func:
-                help(eval("vector().{}".format(func)))
-                vector.help(obj)
-            else:
-                return
+            vector.help(vector)
         else:
+            if not inspect.isfunction(obj) and not inspect.ismethod(obj) and not inspect.ismodule(obj) and not inspect.isclass(obj):
+                obj = obj.__class__
             temp = vector(dir(obj)).filter(lambda x: len(x) > 0 and x[0] != "_")
             if len(temp) == 0:
                 help(obj)
             else:
-                func = temp.fuzzy_search()
+                str_display = dict()
+                sorted_key = dict()
+                parent = touch(lambda: obj.__mro__[1], None)
+                parent_dir = vector(dir(parent) if parent else [])
+                def is_overridden(obj, parent, func_name):
+                    if parent is None:
+                        return False
+                    if raw_function(eval("obj.{}".format(func_name))) != raw_function(eval("parent.{}".format(func_name))):
+                        return True
+                    return False
+                for item in temp:
+                    if item in parent_dir:
+                        if is_overridden(obj, parent, item):
+                            str_display[item] = "[overridden] " + item
+                            sorted_key[item] = 1
+                        else:
+                            str_display[item] = "[inherited] " + item
+                            sorted_key[item] = 2
+                    else:
+                        str_display[item] = "[new] " + item
+                        sorted_key[item] = 0
+                def display_info(me, query, selected):
+                    result = me.map_index_from(selected).map(lambda x: sorted_key[x]).count_all()
+                    ret = vector()
+                    ret.append("# new: {}".format(result[0]))
+                    ret.append("# overridden: {}".format(result[1]))
+                    ret.append("# inherited: {}".format(result[2]))
+                    return ret
+                func = temp.fuzzy_search(str_func=lambda x: str_display[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info)
                 if func:
                     searched = eval("obj.{}".format(func))
                     if "module" in str(type(searched)):
