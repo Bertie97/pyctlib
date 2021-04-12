@@ -93,7 +93,7 @@ def display_relative_path(p):
     else:
         return str(p.main_folder).rstrip(path.sep) + "/<{}>".format(get_relative_path(p))
 
-def get_main_folder(p, question):
+def get_main_folder(p, query, selected):
     return "main folder: " + str(p.main_folder)
 
 class pathList(vector):
@@ -120,6 +120,7 @@ class pathList(vector):
         if element.main_folder == self.main_folder:
             element.main_folder = None
         super().append(element)
+        return self
 
     @property
     def main_folder(self):
@@ -150,28 +151,28 @@ class pathList(vector):
             main_folder = self._main_folder
         self.map_(lambda x: x.assign_mainfolder(main_folder))
 
-    def regex_search(self, question="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+    def regex_search(self, query="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
 
-        def regex_function(candidate, question):
-            if len(question) == 0:
+        def regex_function(candidate, query):
+            if len(query) == 0:
                 return candidate
-            regex = re.compile(question)
+            regex = re.compile(query)
             selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
             return selected
 
-        return self.function_search(regex_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
+        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
-    def fuzzy_search(self, question="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+    def fuzzy_search(self, query="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
 
-        def fuzzy_function(candidate, question):
-            if len(question) == 0:
+        def fuzzy_function(candidate, query):
+            if len(query) == 0:
                 return candidate
-            partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), question.lower()), x))
+            partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), query.lower()), x))
             selected = partial_ratio.filter(lambda x: x[0] > 50)
-            score = selected.map(lambda x: x[0] * min(1, len(x[1]) / len(question)) * min(1, len(question) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            score = selected.map(lambda x: x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
-        return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, display_info=display_info, str_display=str_display)
+        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, display_info=display_info, str_display=str_display)
 
     def filter(self, func=None, ignore_error=True) -> "pathList":
         if func is None:
@@ -332,29 +333,58 @@ class path(str):
 
     @property
     def ext(self):
+        if touch(lambda: self._ext, None):
+            return self._ext
+        if self.isdir():
+            self._ext = ""
+            return ""
         file_name = self@path.File
         parts = file_name.split(path.extsep)
         if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2: brk = -2
         elif len(parts) > 1: brk = -1
         else: brk = 1
-        return path.extsep.join(parts[brk:])
+        self._ext = path.extsep.join(parts[brk:])
+        return self._ext
+
     @property
     def name(self):
-        file_name = self@path.File
+        if touch(lambda: self._name, None):
+            return self._name
+        file_name = self.fullname
+        if self.isdir():
+            self._name = file_name
+            return file_name
         parts = file_name.split(path.extsep)
         if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2: brk = -2
         elif len(parts) > 1: brk = -1
         else: brk = 1
-        return path.extsep.join(parts[:brk])
+        self._name = path.extsep.join(parts[:brk])
+        return self._name
+
+    def with_name(self, name):
+        if not "/" in self:
+            return self.abs().with_name(name)
+        return (self @ Folder) / path.extsep.join(vector(["name", self.ext]).filter(len))
+    def with_ext(self, ext: str):
+        assert "/" in self
+        return (self @ Folder) / path.extsep.join([self.name, ext])
 
     @property
     def fullname(self):
-        return self.abs()[-1]
+        if touch(lambda: self._fullname, None):
+            return self._fullname
+        if "/" in self:
+            self._fullname = self[-1]
+        else:
+            self._fullname = self.abs()[-1]
+        return self._fullname
 
     def split(self, *args):
         if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
         else: return str(self).split(*args)
+
     def abs(self): return path(os.path.abspath(self))
+
     def listdir(self, recursive=False, all_files=False):
         if recursive:
             ret = self.recursive_search(all_files=all_files)
@@ -365,6 +395,7 @@ class path(str):
                 return pathList([self / x for x in os.listdir(str(self))], main_folder=self)
             else:
                 return pathList([self / x for x in os.listdir(str(self)) if not x.startswith(".")], main_folder=self)
+
     # changed by zhangyiteng
     def ls(self, recursive=False, all_files=False, func=None):
         return self.listdir(recursive=recursive, all_files=all_files).filter(func)
@@ -845,11 +876,11 @@ class filepath_generator(ctgenerator):
     def vector(self):
         return pathList(self, main_folder=self.main_folder)
 
-    def fuzzy_search(self, question="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
-        return self.vector().fuzzy_search(question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
+    def fuzzy_search(self, query="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+        return self.vector().fuzzy_search(query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
-    def regex_search(self, question="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
-        return self.vector().regex_search(question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
+    def regex_search(self, query="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+        return self.vector().regex_search(query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
 rootdir = (~path(os.path.curdir))[0] + path.sep
 curdir = path(os.path.curdir)

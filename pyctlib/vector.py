@@ -1477,12 +1477,16 @@ class vector(list):
         return temp_list.map(lambda x: create_onehot_vector(x, max_length))
 
     def sort(self, key=lambda x: x):
+        if key == None:
+            return self
         temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
         index_mapping_reverse = [x[1] for x in temp]
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
         return self.map_index(index_mapping)
 
     def sort_(self, key=lambda x: x):
+        if key == None:
+            return
         temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
         index_mapping_reverse = [x[1] for x in temp]
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
@@ -2161,7 +2165,7 @@ class vector(list):
                         if len(result) > 0:
                             return result[select_number]
                         return None
-                    elif char == "\x1b":
+                    elif char == "\x1b" or char == curses.KEY_EXIT:
                         return None
                     elif char == curses.KEY_UP:
                         if select_number == 2 and display_bias > 0:
@@ -2282,17 +2286,39 @@ class vector(list):
                     if raw_function(eval("obj.{}".format(func_name))) != raw_function(eval("parent.{}".format(func_name))):
                         return True
                     return False
+                def is_property(func):
+                    if isinstance(raw_function(func), property):
+                        return True
+                    return False
                 for item in temp:
                     if item in parent_dir:
                         if is_overridden(obj, parent, item):
-                            str_display[item] = "[overridden] " + item
+                            str_display[item] = "[overridden] "
                             sorted_key[item] = 1
                         else:
-                            str_display[item] = "[inherited] " + item
+                            str_display[item] = "[inherited] "
                             sorted_key[item] = 2
                     else:
-                        str_display[item] = "[new] " + item
+                        str_display[item] = "[new] "
                         sorted_key[item] = 0
+                    func = eval("obj.{}".format(item))
+                    if is_property(func):
+                        str_display[item] = str_display[item] + "[P] "
+                    elif inspect.ismethod(func):
+                        str_display[item] = str_display[item] + "[M] "
+                    elif inspect.isfunction(func):
+                        str_display[item] = str_display[item] + "[F] "
+                    elif inspect.isroutine(func):
+                        str_display[item] = str_display[item] + "[F] "
+                    elif inspect.isclass(func):
+                        str_display[item] = str_display[item] + "[C] "
+                    elif inspect.ismodule(func):
+                        str_display[item] = str_display[item] + "[Module] "
+                    elif inspect.isgenerator(func):
+                        str_display[item] = str_display[item] + "[G] "
+                    else:
+                        str_display[item] = str_display[item] + "[A] "
+                    str_display[item] = str_display[item] + item
                 def display_info(me, query, selected):
                     result = me.map_index_from(selected).map(lambda x: sorted_key[x]).count_all()
                     ret = vector()
@@ -2304,6 +2330,8 @@ class vector(list):
                 if func:
                     searched = eval("obj.{}".format(func))
                     if "module" in str(type(searched)):
+                        vector.help(searched)
+                    elif inspect.isclass(searched):
                         vector.help(searched)
                     else:
                         help(searched)
