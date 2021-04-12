@@ -8,26 +8,31 @@
 
 __all__ = """
     path
+    pathList
     file
     pwd
     ls
     cp
     get_search_blacklist
     set_search_blacklist
+    get_relative_path
 """.split()
 
 import os, re, struct, shutil
-from pyctlib import touch, vector, generator_wrapper, ctgenerator
+from pyctlib import touch
 from pyoverload import *
 from pyctlib import raw_function
 from functools import wraps, reduce, partial
+import typing
 from typing import TextIO
+from .vector import NoDefault, UnDefined, OutBoundary, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass
+from fuzzywuzzy import fuzz
 
 """
 from pyinout import *
 """
 
-Search_BlackList = [".DS_Store", ".git"]
+Search_BlackList = vector([".DS_Store", ".git"])
 
 def get_search_blacklist():
     global Search_BlackList
@@ -36,6 +41,10 @@ def get_search_blacklist():
 def set_search_blacklist(blacklist):
     global Search_BlackList
     Search_BlackList = blacklist
+
+def append_search_blacklist(item):
+    global Search_BlackList
+    Search_BlackList.append(item)
 
 def totuple(num):
     if isinstance(num, str): return (num,)
@@ -63,10 +72,115 @@ def filepath_generator_wrapper(*args, **kwargs):
         @wraps(func)
         def wrapper(*args, **kwargs):
             ret = func(*args, **kwargs)
-            return filepath_generator(ret)
+            main_folder = None
+            if len(args) > 0 and isinstance(args[0], filepath_generator):
+                main_folder = args[0]._main_folder
+            if len(args) > 0 and isinstance(args[0], pathList):
+                main_folder = args[0]._main_folder
+            return filepath_generator(ret, main_folder=main_folder)
         return wrapper
     else:
         raise TypeError("function is not callable")
+
+def get_relative_path(p):
+    if p._main_folder is None:
+        return p
+    return str(p - p._main_folder)
+
+def display_relative_path(p):
+    if not p.main_folder:
+        return str(p)
+    else:
+        return str(p.main_folder).rstrip(path.sep) + "/<{}>".format(get_relative_path(p))
+
+def get_main_folder(p, question):
+    return "main folder: " + str(p.main_folder)
+
+class pathList(vector):
+
+    def __init__(self, *args, index_mapping=IndexMapping(), main_folder = None):
+        super().__init__(*args, index_mapping=index_mapping, content_type=path)
+        self.main_folder = main_folder
+
+    def __or__(self, k): return self[[x|k for x in self]]
+    def __sub__(self, y): return pathList([x - y for x in self])
+    def __neg__(self): return self - self.main_folder
+    def __matmul__(self, k): return pathList([x @ k for x in self])
+    def __mod__(self, k): return pathList([x % k for x in self])
+    def __getitem__(self, i):
+        ret = super().__getitem__(i)
+        if isinstance(ret, vector):
+            ret = pathList(ret, main_folder=self._main_folder)
+        elif isinstance(ret, path):
+            ret.main_folder = self._main_folder
+        else:
+            raise RuntimeError("wired item in pathList: {}".format(ret))
+        return ret
+    def append(self, element):
+        if element.main_folder == self.main_folder:
+            element.main_folder = None
+        super().append(element)
+
+    @property
+    def main_folder(self):
+        if self._main_folder is None:
+            return None
+        else:
+            return self._main_folder.abs()
+
+    @main_folder.setter
+    def main_folder(self, mf):
+        self._main_folder = mf
+
+    def map(self, *args, **kwargs):
+        ret = super().map(*args, **kwargs)
+        if ret.check_type(path):
+            return pathList(ret, main_folder=self._main_folder)
+        else:
+            return ret
+
+    def assign_mainfolder(self, main_folder=UnDefined):
+        if isinstance(main_folder, EmptyClass):
+            main_folder = self._main_folder
+        ret = self.map(lambda x: x.assign_mainfolder(main_folder))
+        return ret
+
+    def assign_mainfolder_(self, main_folder=UnDefined):
+        if isinstance(main_folder, EmptyClass):
+            main_folder = self._main_folder
+        self.map_(lambda x: x.assign_mainfolder(main_folder))
+
+    def regex_search(self, question="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+
+        def regex_function(candidate, question):
+            if len(question) == 0:
+                return candidate
+            regex = re.compile(question)
+            selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
+            return selected
+
+        return self.function_search(regex_function, question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
+
+    def fuzzy_search(self, question="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+
+        def fuzzy_function(candidate, question):
+            if len(question) == 0:
+                return candidate
+            partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), question.lower()), x))
+            selected = partial_ratio.filter(lambda x: x[0] > 50)
+            score = selected.map(lambda x: x[0] * min(1, len(x[1]) / len(question)) * min(1, len(question) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            return score
+
+        return self.function_search(fuzzy_function, question=question, max_k=max_k, str_func=str_func, display_info=display_info, str_display=str_display)
+
+    def filter(self, func=None, ignore_error=True) -> "pathList":
+        if func is None:
+            return self
+        if isinstance(func, str):
+            func = lambda x: x | func
+        if isinstance(func, bytes):
+            func = lambda x: x | func
+        return pathList(super().filter(func, ignore_error=ignore_error), main_folder=self._main_folder)
 
 class path(str):
 
@@ -78,21 +192,6 @@ class path(str):
     Folder = b'\x07'
     homedir = os.path.expanduser("~")
 
-    class pathList(vector):
-
-        def __init__(self, lst, main_folder = os.curdir):
-            super().__init__(lst)
-            self.main_folder = main_folder
-
-        def __or__(self, k): return self[[x|k for x in self]]
-        def __sub__(self, y): return path.pathList([x - y for x in self])
-        def __neg__(self): return self - self.main_folder
-        def __matmul__(self, k): return path.pathList([x @ k for x in self])
-        def __mod__(self, k): return path.pathList([x % k for x in self])
-        def __getitem__(self, i):
-            if callable(i): return self[[i(x) for x in self]]
-            if isinstance(i, list) and len(i) == len(self): return path.pathList([x for x, b in zip(self, i) if b])
-            return super().__getitem__(i)
 
     @filepath_generator_wrapper
     @staticmethod
@@ -112,25 +211,28 @@ class path(str):
         if tofolder and not file_list and filter(folder) and (folder | ext):
             file_list.append(folder)
             yield folder
-        file_list = path.pathList(file_list, main_folder=folder)
+        file_list = pathList(file_list, main_folder=folder)
         if relative: file_list = -file_list
         if ext: file_list = file_list[file_list|ext]
         return file_list[filter]
 
     @filepath_generator_wrapper
-    def recursive_search(self):
+    def recursive_search(self, all_files=False):
         for f in os.listdir(self):
             if f in get_search_blacklist():
+                continue
+            if not all_files and f.startswith("."):
                 continue
             p = self / f
             if p.isdir():
                 yield p
-                for cp in p.recursive_search():
+                for cp in p.recursive_search(all_files=all_files):
                     yield cp
             if p.isfile():
                 yield p
 
-    def __new__(cls, *init_texts):
+
+    def __new__(cls, *init_texts, main_folder=""):
         if len(init_texts) <= 0 or len(init_texts[0]) <= 0:
             self = super().__new__(cls, "")
         elif len(init_texts) == 1 and init_texts[0] == "~":
@@ -141,10 +243,29 @@ class path(str):
         return self
 
     def init(self): pass
+    def __init__(self, *init_texts, main_folder=None):
+        self.main_folder = main_folder
+
+    @property
+    def main_folder(self):
+        if self._main_folder is None:
+            return None
+        else:
+            return self._main_folder.abs()
+
+    @main_folder.setter
+    def main_folder(self, mf):
+        self._main_folder = mf
+
     def __and__(x, y): return path(path.pathsep.join((str(x).rstrip(path.pathsep), str(y).lstrip(path.pathsep))))
     def __mul__(x, y): return path(x).mkdir(y)
     def __mod__(x, y): return path(str(x) % totuple(y))
-    def __sub__(x, y): return path(os.path.relpath(str(x), str(y)))
+    def __sub__(x, y):
+        if y is None:
+            return x
+        return path(os.path.relpath(x, y))
+
+
     def __add__(x, y):
         y = str(y)
         if x.isfilepath():
@@ -175,10 +296,10 @@ class path(str):
             if p == q: output /= p
             else: break
         return output - curdir
-    def __floordiv__(x, y): return path(path.extsep.join((str(x).rstrip(path.extsep), str(y).lstrip(path.extsep))))
+    def __floordiv__(x, y): return path(path.extsep.join((str(x).rstrip(path.extsep), str(y).lstrip(path.extsep))), main_folderx.main_folder)
     def __invert__(self): return path(os.path.abspath(str(self)))
     def __abs__(self): return path(os.path.abspath(str(self)))
-    def __truediv__(x, y): return path(os.path.join(str(x), str(y)))
+    def __truediv__(x, y): return path(os.path.join(str(x), str(y)), main_folder=x.main_folder)
     def __or__(x, y):
         if y == "": return True
         if y == path.File: return x.isfile()
@@ -234,11 +355,24 @@ class path(str):
         if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
         else: return str(self).split(*args)
     def abs(self): return path(os.path.abspath(self))
-    def listdir(self, recursive=False):
-        return self.recursive_search() if recursive else path.pathList([self / x for x in os.listdir(str(self))], main_folder=self)
+    def listdir(self, recursive=False, all_files=False):
+        if recursive:
+            ret = self.recursive_search(all_files=all_files)
+            ret.main_folder = self
+            return ret
+        else:
+            if all_files:
+                return pathList([self / x for x in os.listdir(str(self))], main_folder=self)
+            else:
+                return pathList([self / x for x in os.listdir(str(self)) if not x.startswith(".")], main_folder=self)
     # changed by zhangyiteng
-    def ls(self, recursive=False, func=None):
-        return self.listdir(recursive=recursive).filter(func)
+    def ls(self, recursive=False, all_files=False, func=None):
+        return self.listdir(recursive=recursive, all_files=all_files).filter(func)
+
+    def assign_mainfolder(self,  main_folder):
+        self.main_folder = main_folder
+        return self
+
     def cd(self, folder_name=None):
         if folder_name:
             folder_name = path(folder_name)
@@ -313,6 +447,11 @@ class path(str):
                 shutil.copy2(src, self)
             else:
                 shutil.copy2(src, self.name)
+
+    def get_relative_path(self, main_folder=None):
+        if not main_folder:
+            main_folder = self._main_folder
+        return self - main_folder
 
 class file(path):
 
@@ -665,8 +804,11 @@ class file(path):
         with open(self, "rb") as _input:
             return len(_input.read())
 
-
 class filepath_generator(ctgenerator):
+
+    def __init__(self, generator, main_folder=None):
+        ctgenerator.__init__(self, generator)
+        self.main_folder = main_folder
 
     @filepath_generator_wrapper
     def filter(self, func=None) -> "filepath_generator":
@@ -685,7 +827,29 @@ class filepath_generator(ctgenerator):
             if func(x):
                 yield x
 
+    @filepath_generator_wrapper
+    def map(self, *args, **kwargs):
+        return super().map(*arags, **kwargs)
 
+    @property
+    def main_folder(self):
+        if self._main_folder is None:
+            return None
+        else:
+            return self._main_folder.abs()
+
+    @main_folder.setter
+    def main_folder(self, mf):
+        self._main_folder = mf
+
+    def vector(self):
+        return pathList(self, main_folder=self.main_folder)
+
+    def fuzzy_search(self, question="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+        return self.vector().fuzzy_search(question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
+
+    def regex_search(self, question="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+        return self.vector().regex_search(question=question, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
 rootdir = (~path(os.path.curdir))[0] + path.sep
 curdir = path(os.path.curdir)
