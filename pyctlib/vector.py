@@ -2108,13 +2108,13 @@ class vector(list):
                 stdscr.addstr(0, 0, "token to search: ")
                 search_k = max_k
                 if search_k is NoDefault:
-                    search_k = int(rows * 0.8)
+                    search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5))
                 display_bias = 0
                 selected = search_func(candidate, "")
                 result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                 for index in range(len(self[:search_k])):
                     if index == 0:
-                        stdscr.addstr(index + 1, 0, "* " + str_display(result[index])[:cols-2])
+                        stdscr.addstr(index + 1, 0, "* " + str_display(result[index])[:cols - 2])
                     else:
                         stdscr.addstr(index + 1, 0, str_display(result[index])[:cols])
 
@@ -2130,7 +2130,7 @@ class vector(list):
                         info = vector([info])
                     for index in range(len(info)):
                         if search_k + 4 + index < rows:
-                            stdscr.addstr(search_k+4+index, 0, info[index])
+                            stdscr.addstr(search_k + 4 + index, 0, info[index])
                             stdscr.clrtoeol()
                         else:
                             break
@@ -2140,7 +2140,7 @@ class vector(list):
                     stdscr.clrtoeol()
                     stdscr.addstr(query)
 
-                    new_len = lambda x: (ord(x)>>8 > 0) + 1
+                    def new_len(x): return (ord(x) >> 8 > 0) + 1
                     new_x_bias = sum([new_len(t) for t in query[:x_bias]])
                     stdscr.addstr(0, x_init + new_x_bias, "")
                     search_flag = False
@@ -2152,7 +2152,7 @@ class vector(list):
                         x_bias += 1
                         search_flag = True
                     elif char == curses.KEY_BACKSPACE or char == "\x7f":
-                        query = query[:max(x_bias-1, 0)] + query[x_bias:]
+                        query = query[:max(x_bias - 1, 0)] + query[x_bias:]
                         select_number = 0
                         display_bias = 0
                         x_bias = max(x_bias - 1, 0)
@@ -2179,7 +2179,7 @@ class vector(list):
                         x_bias = max(x_bias - 1, 0)
                         continue
                     elif char == curses.KEY_RIGHT:
-                        x_bias = min(x_bias+1, len(query))
+                        x_bias = min(x_bias + 1, len(query))
                     elif char == '\x01':
                         x_bias = 0
                     elif char == '\x05':
@@ -2225,7 +2225,7 @@ class vector(list):
 
                     for index in range(len(result)):
                         if index == select_number:
-                            stdscr.addstr(1 + index, 0, "* " + str_display(result[index])[:cols-2])
+                            stdscr.addstr(1 + index, 0, "* " + str_display(result[index])[:cols - 2])
                         else:
                             stdscr.addstr(1 + index, 0, str_display(result[index])[:cols])
                         stdscr.clrtoeol()
