@@ -469,6 +469,24 @@ class path(str):
             cumpath /= p
             if not cumpath.exists(): os.mkdir(cumpath)
         return self
+    def search(self, query="", filter=None, method="fuzzy"):
+        """
+        search all files in the directory
+
+        Paramemters:
+        ------------
+        method: str
+            which kind of method to search files, it can be:
+                "fuzzy": fuzzy search which means it can tolerate minor input error.
+                "regex": search files with regex repression.
+        """
+        if method == "fuzzy":
+            return self.ls(True).filter(filter).fuzzy_search(query)
+        elif method == "regex":
+            return self.ls(True).filter(filter).regex_search(query)
+        else:
+            raise TypeError("usage: search(['fuzzy'|'regex'])")
+
     def copyfrom(self, src):
         if isinstance(src, str):
             src = path(src)
