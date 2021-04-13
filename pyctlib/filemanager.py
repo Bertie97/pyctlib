@@ -484,6 +484,10 @@ class path(str):
             main_folder = self._main_folder
         return self - main_folder
 
+    def readlines(self):
+        assert self.isfile()
+        return file(self).readlines()
+
 class file(path):
 
     endl = "\n"

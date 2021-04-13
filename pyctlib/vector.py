@@ -2048,7 +2048,10 @@ class vector(list):
         if self.shape != "undefined" and len(self.shape) > 1:
             ret: List[str] = vector()
             for index, child in self.enumerate():
-                contents = str(child).split("\n")
+                if isinstance(child, str):
+                    contents = ['\'{}\''.format(child)]
+                else:
+                    contents = str(child).split("\n")
                 for j, content in enumerate(contents):
                     temp = ""
                     if index == 0 and j == 0:
@@ -2066,7 +2069,10 @@ class vector(list):
         else:
             ret = "["
             for index, child in self.enumerate():
-                ret += str(child)
+                if isinstance(child, str):
+                    ret += "'{}'".format(child)
+                else:
+                    ret += str(child)
                 if index < self.length - 1:
                     ret += ", "
             ret += "]"
