@@ -1269,6 +1269,16 @@ class vector(list):
         norm_p = self.norm(p)
         return self.map(lambda x: x / self.norm(p))
 
+    def normalization_(self, p=1):
+        """
+        **inplace function:** normaize the vector using p-norm
+        is equivalent to self.map(lambda x: x / self.norm(p))
+
+        result is $\frac{x}{\|x\|_p}$
+        """
+        norm_p = self.norm(p)
+        return self.map_(lambda x: x / self.norm(p))
+
     def prod(self, default=None):
         """prod.
 
@@ -1303,14 +1313,20 @@ class vector(list):
 
     def reduce(self, func, default=None):
         """reduce.
-        reduce the vector will func (refer to map-reduce)
+        reduce the vector with func (refer to map-reduce)
+        for vector(a_1, a_2, \ldots, a_n)
+        define:
+            $$b_1 = a_1$$
+
+            $$b_i = func(b_{i-1}, a_i)$$
+        then the result is $b_n$
 
         Parameters
         ----------
         func :
             func
         default :
-            default
+            default value will be returned if the vector is empty
 
         Example
         ----------
