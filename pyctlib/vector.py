@@ -362,7 +362,7 @@ class vector(list):
         """
         return touch(lambda: self._index_mapping, IndexMapping())
 
-    def filter(self, func=None, func_self=None, ignore_error=True):
+    def filter(self, func=None, ignore_error=True, func_self=None):
         """
         filter element in the vector with which func(x) is True
 
