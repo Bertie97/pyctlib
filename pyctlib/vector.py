@@ -1311,7 +1311,7 @@ class vector(list):
                 result[k_x].append(x)
         return result
 
-    def reduce(self, func, default=None):
+    def reduce(self, func, default=NoDefault, first=NoDefault, recursive=False):
         """reduce.
         reduce the vector with func (refer to map-reduce)
         for vector(a_1, a_2, \ldots, a_n)
@@ -1334,11 +1334,40 @@ class vector(list):
         will produce 10
         """
         if len(self) == 0:
-            return default
-        temp = self[0]
-        for x in self[1:]:
-            temp = func(temp, x)
-        return temp
+            if not isinstance(default, EmptyClass):
+                return default
+            if not isinstance(first, EmptyClass):
+                return first
+            return None
+        if not recursive:
+            if not isinstance(first, EmptyClass):
+                temp = first
+                for x in self:
+                    temp = func(temp, x)
+            else:
+                temp = self[0]
+                for x in self[1:]:
+                    temp = func(temp, x)
+            return temp
+        else:
+            if isinstance(first, EmptyClass):
+                if isinstance(self[0], vector):
+                    temp = self[0].reduce(func, first=first, recursive=True)
+                else:
+                    temp = self[0]
+                for x in self[1:]:
+                    if isinstance(x, vector):
+                        temp = x.reduce(func, first=temp, recursive=True)
+                    else:
+                        temp = func(temp, x)
+            else:
+                temp = first
+                for x in self:
+                    if isinstance(x, vector):
+                        temp = x.reduce(func, first=temp, recursive=True)
+                    else:
+                        temp = func(temp, x)
+            return temp
 
     def cumulative_reduce(self, func):
         if self.length == 0:
