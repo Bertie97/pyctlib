@@ -30,6 +30,7 @@ from tqdm import tqdm, trange
 from fuzzywuzzy import fuzz
 import curses
 import re
+import sys
 import math
 from typing import overload, Callable, Iterable
 import traceback
@@ -2312,6 +2313,9 @@ class vector(list):
             return score
 
         return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function)
+
+    def get_size(self):
+        return self.rmap(sys.getsizeof).reduce(lambda x, y: x + y, first=0)
 
     def __dir__(self):
         return vector(super().__dir__())
