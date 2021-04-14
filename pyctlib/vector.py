@@ -1441,7 +1441,7 @@ class vector(list):
                 return self.flatten()
             args = vector(args)
             assert size % abs(reduce(lambda x, y: x*y, args)) == 0
-            args.replace(-1, size // abs(reduce(lambda x, y: x*y, args)))
+            args.replace_(-1, size // abs(reduce(lambda x, y: x*y, args)))
             args = tuple(args)
         assert reduce(lambda x, y: x * y, args) == reduce(lambda x, y: x * y, self.shape)
         if args == self.shape:
