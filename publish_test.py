@@ -4,6 +4,7 @@ from sys import getsizeof
 
 sys.path.append(os.path.abspath("."))
 import pyctlib
+import pathlib
 import numpy as np
 from pyctlib import vector, IndexMapping, scope
 from pyctlib.vector import chain_function
