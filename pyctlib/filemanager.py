@@ -24,7 +24,7 @@ from pyoverload import *
 from pyctlib import raw_function
 from functools import wraps, reduce, partial
 import typing
-from typing import TextIO
+from typing import TextIO, Optional
 from .vector import NoDefault, UnDefined, OutBoundary, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass
 from fuzzywuzzy import fuzz
 
@@ -466,7 +466,7 @@ class path(str):
     def isfolder(self): return self.isdir()
     def isfilepath(self): return True if os.path.isfile(self) else 0 < len(self.ext) < 7
     def isdirpath(self): return True if os.path.isdir(self) else (len(self.ext) == 0 or len(self.ext) >= 7)
-    def mkdir(self, return_new=False):
+    def mkdir(self, return_new: bool=False) -> Optional["path"]:
         """
         make directory
 
@@ -477,8 +477,15 @@ class path(str):
 
         is exists or not and make the corresponding directory.
 
+        Paramemters:
+        -------------------
+        return_new: bool
+            if return_new is True, the first make directory will be returned. If no dir is made, None will be returned
+            if return_new is False, self will be returned
         """
         p = self.abs()
+        if return_new:
+            ret = None
         if self.main_folder:
             cumpath = path(self.main_folder)
             fp = p - cumpath
@@ -488,7 +495,11 @@ class path(str):
         for p in fp.split():
             cumpath /= p
             if not cumpath.exists():
+                if return_new and ret is None:
+                    ret = cumpath
                 os.mkdir(cumpath)
+        if return_new:
+            return ret
         return self
 
     def search(self, query="", filter=None, method="fuzzy"):
