@@ -9,8 +9,11 @@ from tqdm import trange, tqdm
 from math import ceil, floor
 import requests
 import tarfile
+from pyctlib.vector import totuple
 
-class RawDataSet:
+__all__ = ["DataDownloader", "RawDataSet"]
+
+class DataDownloader:
 
     def __init__(self, root="", name=None, urls=NoDefault, download=False):
         if root:
@@ -133,3 +136,18 @@ class RawDataSet:
     def __repr__(self):
         fmt_str = "Dataset " + self.name
         fmt_str += "\n    Root location: " + self.root.abs()
+
+class RawDataSet:
+
+    def __init__(self, *data, split=("train", "test")):
+        data = totuple(data)
+        if not len(data) == len(split):
+            raise RuntimeError("# data: {} is incompatible with # split: {}".format(len(data), len(split)))
+
+        for index in range(len(split)):
+            self.__setattr__(split[index], data[index])
+
+    def __getitem__(self, name):
+        if name in split:
+            return self.__getattribute__(name)
+        raise RuntimeError("{} is not in [{}]".format(name, self.split))
