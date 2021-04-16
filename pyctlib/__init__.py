@@ -7,7 +7,7 @@
 ##############################
 
 from .touch import *
-from .vector import totuple, recursive_apply, vector, generator_wrapper, ctgenerator, IndexMapping
+from .vector import totuple, recursive_apply, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass
 from .basicwrapper import *
 from .wrapper import *
 from .filemanager import *
