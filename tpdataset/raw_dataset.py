@@ -1,4 +1,5 @@
-from pyctlib import vector, path, EmptyClass, NoDefault
+from pyctlib import vector, path, EmptyClass
+from pyctlib.vector import NoDefault
 import urllib
 import gzip
 
