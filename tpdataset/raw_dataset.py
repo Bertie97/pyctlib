@@ -1,7 +1,10 @@
-from pyctlib import vector, path, EmptyClass
+from pyctlib import vector, path, EmptyClass, touch
 from pyctlib.vector import NoDefault
 import urllib
 import gzip
+from torchvision.datasets import MNIST
+
+minist = MNIST(path("."), download=True)
 
 class RawDataSet:
 
@@ -10,11 +13,18 @@ class RawDataSet:
 
     def __init__(root="", url=NoDefault, download=True):
         if root:
-            self.root = path(root).abs()
+            self.root = path(root).abs().mkdir()
         else:
-            self.root = path("./dataset").abs()
+            self.root = path("./dataset").abs().mkdir()
+
         self.url = vector(url)
         self.download = download
+
+    @property
+    def name(self):
+        if touch(lambda: self._name):
+            return self._name
+        return self.__class__.name
 
     def download(self):
 

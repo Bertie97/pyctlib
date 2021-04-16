@@ -466,7 +466,7 @@ class path(str):
     def isfolder(self): return self.isdir()
     def isfilepath(self): return True if os.path.isfile(self) else 0 < len(self.ext) < 7
     def isdirpath(self): return True if os.path.isdir(self) else (len(self.ext) == 0 or len(self.ext) >= 7)
-    def mkdir(self, to: str='Auto'):
+    def mkdir(self, return_new=False):
         """
         make directory
 
@@ -476,6 +476,7 @@ class path(str):
         will recursive check if "/Users", "/Users/username", "/Users/username/code", "/Users/username/code", "/Users/username/code/dataset"
 
         is exists or not and make the corresponding directory.
+
         """
         p = self.abs()
         if self.main_folder:
