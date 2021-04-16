@@ -2153,7 +2153,10 @@ class vector(list):
         if len(query) > 0:
             candidate = self.clear_index_mapping().map(str_func)
             selected = search_func(candidate, query)
-            return self.map_index_from(selected).sort(sorted_function)
+            if isinstance(max_k, EmptyClass):
+                return self.map_index_from(selected).sort(sorted_function)[0]
+            else:
+                return self.map_index_from(selected).sort(sorted_function)[:max_k]
         else:
             candidate = self.clear_index_mapping().map(str_func)
             def c_main(stdscr: "curses._CursesWindow"):

@@ -47,7 +47,7 @@ class RawDataSet:
                     RawDataSet.unzip(obj, self.processed_folder)
 
         if not self.check():
-            print("Dataset not found. You can use down=True to download it.")
+            print("Dataset not found. You can use download=True to download it.")
             mk_dirs.apply(lambda x: x.rm())
 
     @property
@@ -119,8 +119,13 @@ class RawDataSet:
         if touch(lambda: self._processed_files, None):
             return self._processed_files
         if self.processed_folder.isdir():
-            self._processed_files = self.processed_folder.ls()
-            return self._processed_files
+            temp = self.processed_folder.ls()
+            while len(temp) == 1 and temp[0].isdir():
+                temp = temp[0].ls()
+            self._processed_files = temp
+        else:
+            self._processed_files = vector()
+        return self._processed_files
 
     def remove_raw_data(self):
         self.raw_folder.ls().map(lambda x: x.rm(False))

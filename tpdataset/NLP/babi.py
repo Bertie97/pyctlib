@@ -9,3 +9,12 @@ class BABI(RawDataSet):
 
         RawDataSet.untar(self.raw_files[0], self.root / self.processed_folder)
 
+        self._processed_files = self.processed_files.fuzzy_search("en-10k").ls()
+
+    @property
+    def train(self):
+        pass
+
+    @property
+    def test(self):
+        pass
