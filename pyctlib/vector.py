@@ -16,6 +16,7 @@ __all__ = """
     UnDefined
     OutBoundary
     chain_function
+    EmptyClass
 """.split()
 
 from types import GeneratorType
@@ -2143,13 +2144,19 @@ class vector(list):
             return item in self.set()
         return super().__contains__(item)
 
+    def __bool__(self):
+        return self.length > 0
+
     def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None):
         if str_display is None:
             str_display = str_func
         if len(query) > 0:
             candidate = self.clear_index_mapping().map(str_func)
             selected = search_func(candidate, query)
-            return self.map_index_from(selected).sort(sorted_function)
+            if isinstance(max_k, EmptyClass):
+                return self.map_index_from(selected).sort(sorted_function)[0]
+            else:
+                return self.map_index_from(selected).sort(sorted_function)[:max_k]
         else:
             candidate = self.clear_index_mapping().map(str_func)
             def c_main(stdscr: "curses._CursesWindow"):
