@@ -45,9 +45,9 @@ class DataDownloader:
             if self.raw_files.length == 1:
                 obj = self.raw_files[0]
                 if obj.endswith("tar.gz"):
-                    RawDataSet.untar(obj, self.processed_folder)
+                    self.untar(obj, self.processed_folder)
                 elif obj.endswith("zip"):
-                    RawDataSet.unzip(obj, self.processed_folder)
+                    self.unzip(obj, self.processed_folder)
 
         if not self.check():
             print("Dataset not found. You can use download=True to download it.")
@@ -68,7 +68,7 @@ class DataDownloader:
             data = urllib.request.urlopen(url)
             filename = url.rpartition('/')[2]
             file_path = self.raw_folder / filename
-            RawDataSet.download_data(file_path, url)
+            self.download_data(file_path, url)
 
     @staticmethod
     def download_data(file, url):
@@ -95,11 +95,13 @@ class DataDownloader:
 
     @staticmethod
     def untar(file, dirs):
+        print("untar {} with target dir {}".format(file, dirs))
         with tarfile.open(file) as t:
             t.extractall(path=dirs)
 
     @staticmethod
     def unzip(file, dirs):
+        print("unzip {} with target dir {}".format(file, dirs))
         import zipfile
         with zipfile.ZipFile(file, "r") as zip_input:
             zip_input.extractall(dirs)
@@ -136,11 +138,15 @@ class DataDownloader:
     def __repr__(self):
         fmt_str = "Dataset " + self.name
         fmt_str += "\n    Root location: " + self.root.abs()
+        return fmt_str
 
 class RawDataSet:
 
-    def __init__(self, *data, split=("train", "test")):
+    def __init__(self, *data, split=("train", "test"), name=None):
         data = totuple(data)
+        self._name = name
+        self.split = split
+        self.data = data
         if not len(data) == len(split):
             raise RuntimeError("# data: {} is incompatible with # split: {}".format(len(data), len(split)))
 
@@ -151,3 +157,16 @@ class RawDataSet:
         if name in split:
             return self.__getattribute__(name)
         raise RuntimeError("{} is not in [{}]".format(name, self.split))
+
+    @property
+    def name(self):
+        if touch(lambda: self._name):
+            return self._name
+        return self.__class__.__name__
+
+    def __repr__(self):
+        fmt_str = "Dataset: {}\n".format(self.name)
+        fmt_str += "    split: {}\n".format(self.split)
+        for index in range(len(self.split)):
+            fmt_str += "    # {}: {}\n".format(self.split[index], len(self.data[index]))
+        return fmt_str
