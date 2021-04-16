@@ -28,13 +28,23 @@ class RawDataSet:
             mk_dirs.append(temp)
 
         self.urls = vector(urls)
-        self.raw_files = vector()
 
         if download:
             mk_dirs.extend(vector(self.raw_folder, self.processed_folder).map(lambda x: x.mkdir(True)).filter())
             self.download()
             if not self.check(only_raw=True):
                 print("Download failed")
+
+        self._raw_files = None
+        self._processed_files = None
+
+        if bool(self.raw_files) and not bool(self.processed_files):
+            if self.raw_files.length == 1:
+                obj = self.raw_files[0]
+                if obj.endswith("tar.gz"):
+                    RawDataSet.untar(obj, self.processed_folder)
+                elif obj.endswith("zip"):
+                    RawDataSet.unzip(obj, self.processed_folder)
 
         if not self.check():
             print("Dataset not found. You can use down=True to download it.")
@@ -84,6 +94,12 @@ class RawDataSet:
     def untar(file, dirs):
         with tarfile.open(file) as t:
             t.extractall(path=dirs)
+
+    @staticmethod
+    def unzip(file, dirs):
+        import zipfile
+        with zipfile.ZipFile(file, "r") as zip_input:
+            zip_input.extractall(dirs)
 
     def check(self, only_raw=False):
         if only_raw:
