@@ -2334,7 +2334,9 @@ class vector(list):
         else:
             if not inspect.isfunction(obj) and not inspect.ismethod(obj) and not inspect.ismodule(obj) and not inspect.isclass(obj):
                 obj = obj.__class__
-            temp = vector(dir(obj)).filter(lambda x: len(x) > 0 and x[0] != "_")
+            def testfunc(obj, x):
+                eval("obj.{}".format(x))
+            temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
             if len(temp) == 0:
                 help(obj)
             else:
