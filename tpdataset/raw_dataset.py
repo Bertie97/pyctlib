@@ -1,4 +1,6 @@
 from pyctlib import vector, path, EmptyClass, NoDefault
+import urllib
+import gzip
 
 class RawDataSet:
 
@@ -18,7 +20,17 @@ class RawDataSet:
         if self.check():
             return
 
-        if 
+        for url in self.urls:
+            print('Downloading ' + url)
+            data = urllib.request.urlopen(url)
+            filename = url.rpartition('/')[2]
+            file_path = os.path.join(self.root, self.raw_folder, filename)
+            with open(file_path, 'wb') as f:
+                f.write(data.read())
+            with open(file_path.replace('.gz', ''), 'wb') as out_f, \
+                    gzip.GzipFile(file_path) as zip_f:
+                out_f.write(zip_f.read())
+            os.unlink(file_path)
 
     def check(self):
         if len((self.root / self.raw).ls()) > 0 and len((self.root / self.processed).ls()) > 0:
