@@ -16,6 +16,7 @@ __all__ = """
     UnDefined
     OutBoundary
     chain_function
+    EmptyClass
 """.split()
 
 from types import GeneratorType
@@ -2142,6 +2143,9 @@ class vector(list):
         if self.ishashable():
             return item in self.set()
         return super().__contains__(item)
+
+    def __bool__(self):
+        return self.length > 0
 
     def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None):
         if str_display is None:

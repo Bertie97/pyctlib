@@ -422,11 +422,19 @@ class path(str):
             candidate = self.ls().filter(lambda x: x.isdir()).map(lambda x: x.abs()).append(self.parent.abs())
             return candidate.fuzzy_search(str_func=lambda x: x.fullname)
 
-    def rm(self):
+    def rm(self, remind=True):
         if self.isdir():
+            if remind and self.ls():
+                print("You want to delete directory: {}".format(self))
+                print("with following files inside it:")
+                print(self.ls(recursive=True).vector())
+                choice = input("Do you want to continue delete? [Y/n]: ")
+                if choice.lower() != "y":
+                    return
             self.parent.cmd(f"rm -r {self[-1]}")
         elif self.isfile():
             self.parent.cmd(f"rm {self[-1]}")
+
     def cmd(self, command):
         try:
             if self.isdir():
@@ -459,16 +467,29 @@ class path(str):
     def isfilepath(self): return True if os.path.isfile(self) else 0 < len(self.ext) < 7
     def isdirpath(self): return True if os.path.isdir(self) else (len(self.ext) == 0 or len(self.ext) >= 7)
     def mkdir(self, to: str='Auto'):
-        cumpath = path(os.path.curdir)
-        if self.isabs(): cumpath = cumpath.abs()
-        fp = self - cumpath
-        if to == path.Folder: fp = fp@path.Folder
-        elif to == path.File: pass
-        elif self.isfilepath(): fp = fp@path.Folder
+        """
+        make directory
+
+        for example, p = "/Users/username/code/dataset"
+        p.mkdir()
+
+        will recursive check if "/Users", "/Users/username", "/Users/username/code", "/Users/username/code", "/Users/username/code/dataset"
+
+        is exists or not and make the corresponding directory.
+        """
+        p = self.abs()
+        if self.main_folder:
+            cumpath = path(self.main_folder)
+            fp = p - cumpath
+        else:
+            cumpath = path("/")
+            fp = p
         for p in fp.split():
             cumpath /= p
-            if not cumpath.exists(): os.mkdir(cumpath)
+            if not cumpath.exists():
+                os.mkdir(cumpath)
         return self
+
     def search(self, query="", filter=None, method="fuzzy"):
         """
         search all files in the directory
