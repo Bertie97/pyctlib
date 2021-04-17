@@ -36,6 +36,7 @@ import math
 from typing import overload, Callable, Iterable
 import traceback
 import inspect
+import os
 
 """
 Usage:
@@ -2399,6 +2400,8 @@ class vector(list):
                         vector.help(searched)
                     else:
                         help(searched)
+                        if os.name == "nt":
+                            return
                     vector.help(obj)
                 else:
                     return
