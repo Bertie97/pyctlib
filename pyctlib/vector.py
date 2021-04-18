@@ -2148,7 +2148,7 @@ class vector(list):
     def __bool__(self):
         return self.length > 0
 
-    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None):
+    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None):
         if str_display is None:
             str_display = str_func
         if len(query) > 0:
@@ -2164,22 +2164,30 @@ class vector(list):
             candidate = self.clear_index_mapping().map(str_func)
             def c_main(stdscr: "curses._CursesWindow"):
                 stdscr.clear()
-                query = ""
                 query_done = False
                 select_number = 0
                 rows, cols = stdscr.getmaxyx()
                 x_init = len("token to search: ")
-                x_bias = 0
 
                 stdscr.addstr(0, 0, "token to search: ")
                 search_k = max_k
                 if search_k is NoDefault:
                     search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5))
+
                 display_bias = 0
-                selected = search_func(candidate, "")
+                select_number = 0
+                query = ""
+                x_bias = 0
+                if isinstance(history, dict):
+                    display_bias = history.get("display_bias", 0)
+                    select_number = history.get("select_number", 0)
+                    query = history.get("query", "")
+                    x_bias = history.get("x_bias", 0)
+
+                selected = search_func(candidate, query)
                 result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                for index in range(len(self[:search_k])):
-                    if index == 0:
+                for index in range(len(result[:search_k])):
+                    if index == select_number:
                         stdscr.addstr(index + 1, 0, "* " + str_display(result[index])[:cols - 2])
                     else:
                         stdscr.addstr(index + 1, 0, str_display(result[index])[:cols])
@@ -2224,6 +2232,12 @@ class vector(list):
                         x_bias = max(x_bias - 1, 0)
                         search_flag = True
                     elif char == "\n":
+                        if history is not None:
+                            assert isinstance(history, dict)
+                            history["select_number"] = select_number
+                            history["display_bias"] = display_bias
+                            history["query"] = query
+                            history["x_bias"] = x_bias
                         if len(result) > 0:
                             return result[select_number]
                         return None
@@ -2301,7 +2315,7 @@ class vector(list):
 
             return curses.wrapper(c_main)
 
-    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None):
+    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None):
 
         def regex_function(candidate, query):
             if len(query) == 0:
@@ -2310,9 +2324,9 @@ class vector(list):
             selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
             return selected
 
-        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function)
+        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, history=history)
 
-    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None):
+    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None):
 
         def fuzzy_function(candidate, query):
             if len(query) == 0:
@@ -2322,7 +2336,7 @@ class vector(list):
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
-        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function)
+        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, history=history)
 
     def get_size(self):
         return self.rmap(sys.getsizeof).reduce(lambda x, y: x + y, first=0)
@@ -2331,7 +2345,7 @@ class vector(list):
         return vector(super().__dir__())
 
     @staticmethod
-    def help(obj=None):
+    def help(obj=None, history=None):
         if obj is None:
             vector.help(vector)
         else:
@@ -2364,30 +2378,38 @@ class vector(list):
                     if item in parent_dir:
                         if is_overridden(obj, parent, item):
                             str_display[item] = "[overridden] "
-                            sorted_key[item] = 1
+                            sorted_key[item] = 10
                         else:
                             str_display[item] = "[inherited] "
-                            sorted_key[item] = 2
+                            sorted_key[item] = 20
                     else:
                         str_display[item] = "[new] "
                         sorted_key[item] = 0
                     func = eval("obj.{}".format(item))
                     if is_property(func):
                         str_display[item] = str_display[item] + "[P] "
+                        sorted_key[item] += 0
                     elif inspect.ismethod(func):
                         str_display[item] = str_display[item] + "[M] "
+                        sorted_key[item] += 1
                     elif inspect.isfunction(func):
                         str_display[item] = str_display[item] + "[F] "
+                        sorted_key[item] += 2
                     elif inspect.isroutine(func):
                         str_display[item] = str_display[item] + "[F] "
+                        sorted_key[item] += 2
                     elif inspect.isclass(func):
                         str_display[item] = str_display[item] + "[C] "
+                        sorted_key[item] += 3
                     elif inspect.ismodule(func):
                         str_display[item] = str_display[item] + "[Module] "
+                        sorted_key[item] += 4
                     elif inspect.isgenerator(func):
                         str_display[item] = str_display[item] + "[G] "
+                        sorted_key[item] += 5
                     else:
                         str_display[item] = str_display[item] + "[A] "
+                        sorted_key[item] += 6
                     str_display[item] = str_display[item] + item
                     if original_obj is not None and is_property(func):
                         try:
@@ -2401,7 +2423,9 @@ class vector(list):
                     ret.append("# overridden: {}".format(result.get(1,0)))
                     ret.append("# inherited: {}".format(result.get(0,0)))
                     return ret
-                func = temp.fuzzy_search(str_func=lambda x: str_display[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info)
+                if history is None:
+                    history = dict()
+                func = temp.fuzzy_search(str_func=lambda x: str_display[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info, history=history)
                 if func:
                     searched = eval("obj.{}".format(func))
                     if "module" in str(type(searched)):
@@ -2412,7 +2436,10 @@ class vector(list):
                         help(searched)
                         if os.name == "nt":
                             return
-                    vector.help(obj)
+                    if original_obj is not None:
+                        vector.help(original_obj, history=history)
+                    else:
+                        vector.help(obj, history=history)
                 else:
                     return
 
