@@ -256,7 +256,14 @@ class path(str):
 
     @main_folder.setter
     def main_folder(self, mf):
-        self._main_folder = mf
+        if mf is None:
+            self._main_folder = None
+        elif isinstance(mf, str) and not isinstance(mf, path):
+            self._main_folder = path(mf)
+        elif isinstance(mf, str):
+            self._main_folder = mf
+        else:
+            raise TypeError("main_folder = [None|str|path]")
 
     def __and__(x, y): return path(path.pathsep.join((str(x).rstrip(path.pathsep), str(y).lstrip(path.pathsep))))
     def __mul__(x, y): return path(x).mkdir(y)
@@ -297,9 +304,9 @@ class path(str):
             if p == q: output /= p
             else: break
         return output - curdir
-    def __floordiv__(x, y): return path(path.extsep.join((str(x).rstrip(path.extsep), str(y).lstrip(path.extsep))), main_folderx.main_folder)
+    def __floordiv__(x, y): return path(path.extsep.join((str(x).rstrip(path.extsep), str(y).lstrip(path.extsep))), main_folder=x.main_folder)
     def __invert__(self): return path(os.path.abspath(str(self)))
-    def __abs__(self): return path(os.path.abspath(str(self)))
+    def __abs__(self): return path(os.path.abspath(str(self)), main_folder=self.main_folder)
     def __truediv__(x, y): return path(os.path.join(str(x), str(y)), main_folder=x.main_folder)
     def __or__(x, y):
         if y == "": return True
@@ -401,7 +408,7 @@ class path(str):
         return self.listdir(recursive=recursive, all_files=all_files).filter(func)
 
     def assign_mainfolder(self,  main_folder):
-        self.main_folder = main_folder
+        self.main_folder = path(main_folder)
         return self
 
     def cd(self, folder_name=None):
@@ -529,6 +536,10 @@ class path(str):
                 shutil.copy2(src, self)
             else:
                 shutil.copy2(src, self.name)
+
+    @property
+    def relative_path(self):
+        return self - self.main_folder
 
     def get_relative_path(self, main_folder=None):
         if not main_folder:

@@ -1,7 +1,6 @@
 from tpdataset import RawDataSet, DataDownloader
 from pyctlib import vector
 import tarfile
-from torchtext.datasets import AG_NEWS
 import re
 
 class BABI:

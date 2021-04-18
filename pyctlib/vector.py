@@ -2154,6 +2154,8 @@ class vector(list):
         if len(query) > 0:
             candidate = self.clear_index_mapping().map(str_func)
             selected = search_func(candidate, query)
+            if not selected:
+                return None
             if isinstance(max_k, EmptyClass):
                 return self.map_index_from(selected).sort(sorted_function)[0]
             else:
@@ -2334,7 +2336,10 @@ class vector(list):
             vector.help(vector)
         else:
             if not inspect.isfunction(obj) and not inspect.ismethod(obj) and not inspect.ismodule(obj) and not inspect.isclass(obj):
+                original_obj = obj
                 obj = obj.__class__
+            else:
+                original_obj = None
             def testfunc(obj, x):
                 eval("obj.{}".format(x))
             temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
@@ -2384,6 +2389,11 @@ class vector(list):
                     else:
                         str_display[item] = str_display[item] + "[A] "
                     str_display[item] = str_display[item] + item
+                    if original_obj is not None and is_property(func):
+                        try:
+                            str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| " + str(eval("original_obj.{}".format(item)))
+                        except:
+                            str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| <err>"
                 def display_info(me, query, selected):
                     result = me.map_index_from(selected).map(lambda x: sorted_key[x]).count_all()
                     ret = vector()

@@ -16,12 +16,14 @@ __all__ = ["DataDownloader", "RawDataSet"]
 class DataDownloader:
 
     def __init__(self, root="", name=None, urls=NoDefault, download=False):
+        self._name = name
         if root:
             self.root = (path(root) / "dataset" / self.name).abs()
+            self.root.assign_mainfolder(path(root).abs())
         else:
             self.root = path("./dataset/{}".format(self.name)).abs()
+            self.root.assign_mainfolder(path(".").abs())
 
-        self._name = name
         self.raw_folder = self.root / "raw"
         self.processed_folder = self.root / "processed"
 
@@ -81,7 +83,7 @@ class DataDownloader:
                     length = int(length)
                     blocksize = 1024
 
-                    for chunk in tqdm(r.iter_content(chunk_size=blocksize), total=ceil(length / blocksize), unit="KB", leave=True, desc=file):
+                    for chunk in tqdm(r.iter_content(chunk_size=blocksize), total=ceil(length / blocksize), unit="KB", leave=True, desc=file.relative_path):
                         f.write(chunk)
                 else:
                     data = urllib.request.urlopen(url)
