@@ -18,7 +18,13 @@ class BABI:
         self.id = dict(self.downloader.processed_files.map(lambda x: x.name).filter(lambda x: "train" in x).map(lambda x: x.rpartition("_")[0]).map(lambda x: tuple(x.split("_"))).sort(lambda x: int(x[0][2:])))
 
     def __getitem__(self, item):
-        if not re.match("qa\d{1,2}", item):
+        if not isinstance(item, str) or not re.match("qa\d{1,2}", item):
             print(self.id)
             print("usage: babi[qa{index}]")
         return self.rawdata[int(item[2:])]
+
+    def __dir__(self):
+        ret = super().__dir__()
+        for index in range(1, 21):
+            ret.append("qa{}".format(index))
+        return ret

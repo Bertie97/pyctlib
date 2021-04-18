@@ -37,6 +37,7 @@ from typing import overload, Callable, Iterable
 import traceback
 import inspect
 import os
+from .strtools import delete_surround
 
 """
 Usage:
@@ -2191,8 +2192,13 @@ class vector(list):
                         stdscr.addstr(index + 1, 0, "* " + str_display(result[index])[:cols - 2])
                     else:
                         stdscr.addstr(index + 1, 0, str_display(result[index])[:cols])
+                    stdscr.clrtoeol()
+                for index in range(len(result[:search_k]), search_k):
+                    stdscr.addstr(index+1, 0, "")
+                    stdscr.clrtoeol()
 
                 stdscr.addstr(search_k + 1, 0, "-" * int(0.8 * cols))
+                stdscr.clrtoeol()
                 stdscr.addstr(search_k + 2, 0, "# match: " + str(selected.length))
                 stdscr.clrtoeol()
                 stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
@@ -2345,10 +2351,62 @@ class vector(list):
         return vector(super().__dir__())
 
     @staticmethod
-    def help(obj=None, history=None):
+    def search_content(obj, history=None):
+        assert isinstance(obj, (list, vector, set, dict, tuple))
+        if isinstance(obj, (list, vector, set, tuple)):
+            vector_obj = vector(obj)
+            selected = vector_obj.fuzzy_search(history=history)
+            return selected
+        elif isinstance(obj, dict):
+            vector_obj = vector(obj.keys())
+            selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history)
+            return obj.get(selected, None)
+
+    @staticmethod
+    def help(obj=None, history=None, only_content=False):
         if obj is None:
             vector.help(vector)
         else:
+            if only_content:
+                if isinstance(obj, (list, vector, set, tuple, dict)):
+                    if history is None:
+                        history = history
+                    selected = vector.search_content(obj, history=history)
+                    if selected:
+                        vector.help(selected, only_content=True)
+                        vector.help(obj, history=history, only_content=True)
+                    return
+                if isinstance(obj, (int, str, float)):
+                    display_str = str(obj)
+                    def c_main(stdscr: "curses._CursesWindow"):
+                        stdscr.clear()
+                        rows, cols = stdscr.getmaxyx()
+                        for index in range(rows):
+                            stdscr.addstr(index, 0, "")
+                            stdscr.clrtoeol()
+                        display_str = vector(display_str.split("\n"))
+                        def split_len(s, l):
+                            ret = vector()
+                            while s:
+                                if lens(s) > l
+                                    ret.append(s[:l-1] + "\\")
+                                else:
+                                    ret.append(s[:l])
+                                s = s[l:]
+                            return ret
+                        display_str = display_str.map(lambda x: split_len(x, cols)).flatten()
+                        for index in range(len(display_str)):
+                            if index >= rows:
+                                break
+                            stdscr.add(display_str[index])
+                            stdscr.clrtoeol()
+                        while True:
+                            char = stdscr.get_wch()
+                            if char == "\x1b" or char == curses.KEY_EXIT or char == "q":
+                                return
+                    curses.wrapper(c_main)
+                    return
+
             if not inspect.isfunction(obj) and not inspect.ismethod(obj) and not inspect.ismodule(obj) and not inspect.isclass(obj):
                 original_obj = obj
                 obj = obj.__class__
@@ -2356,7 +2414,16 @@ class vector(list):
                 original_obj = None
             def testfunc(obj, x):
                 eval("obj.{}".format(x))
-            temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
+            if original_obj:
+                class_temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
+                extra_temp = vector(dir(original_obj)).unique().filter(lambda x: not x.startswith("_")).test(lambda x: original_obj.__getattribute__(x)) - class_temp
+                if isinstance(original_obj, vector):
+                    temp = vector(["content"]) + class_temp + extra_temp
+                else:
+                    temp = class_temp + extra_temp
+            else:
+                extra_temp = vector()
+                temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
             if len(temp) == 0:
                 help(obj)
             else:
@@ -2375,6 +2442,10 @@ class vector(list):
                         return True
                     return False
                 for item in temp:
+                    if isinstance(original_obj, vector) and item == "content":
+                        str_display[item] = "[new] [*] content" + " " * max(1, 15 - len("content")) + "| " + str(original_obj).replace("\n", " ")[:500]
+                        sorted_key[item] = -1
+                        continue
                     if item in parent_dir:
                         if is_overridden(obj, parent, item):
                             str_display[item] = "[overridden] "
@@ -2385,37 +2456,51 @@ class vector(list):
                     else:
                         str_display[item] = "[new] "
                         sorted_key[item] = 0
+
+                    if item in extra_temp:
+                        str_display[item] = str_display[item] + "[A] "
+                        sorted_key[item] += 0
+                        try:
+                            str_display[item] = str_display[item] + item + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                        except:
+                            try:
+                                str_display[item] = str_display[item] + item + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                            except:
+                                str_display[item] = str_display[item] + item
+                        continue
                     func = eval("obj.{}".format(item))
                     if is_property(func):
                         str_display[item] = str_display[item] + "[P] "
-                        sorted_key[item] += 0
+                        sorted_key[item] += 1
                     elif inspect.ismethod(func):
                         str_display[item] = str_display[item] + "[M] "
-                        sorted_key[item] += 1
+                        sorted_key[item] += 2
                     elif inspect.isfunction(func):
                         str_display[item] = str_display[item] + "[F] "
-                        sorted_key[item] += 2
+                        sorted_key[item] += 3
                     elif inspect.isroutine(func):
                         str_display[item] = str_display[item] + "[F] "
-                        sorted_key[item] += 2
+                        sorted_key[item] += 3
                     elif inspect.isclass(func):
                         str_display[item] = str_display[item] + "[C] "
-                        sorted_key[item] += 3
+                        sorted_key[item] += 4
                     elif inspect.ismodule(func):
                         str_display[item] = str_display[item] + "[Module] "
-                        sorted_key[item] += 4
+                        sorted_key[item] += 5
                     elif inspect.isgenerator(func):
                         str_display[item] = str_display[item] + "[G] "
-                        sorted_key[item] += 5
-                    else:
-                        str_display[item] = str_display[item] + "[A] "
                         sorted_key[item] += 6
                     str_display[item] = str_display[item] + item
                     if original_obj is not None and is_property(func):
                         try:
-                            str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| " + str(eval("original_obj.{}".format(item)))
+                            str_display[item] = str_display[item] + item + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                         except:
-                            str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| <err>"
+                            try:
+                                str_display[item] = str_display[item] + item + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                            except:
+                                str_display[item] = str_display[item] + item
+                for item in temp:
+                    str_display[item] = str_display[item].replace("\n", " ")[:500]
                 def display_info(me, query, selected):
                     result = me.map_index_from(selected).map(lambda x: sorted_key[x]).count_all()
                     ret = vector()
@@ -2427,19 +2512,32 @@ class vector(list):
                     history = dict()
                 func = temp.fuzzy_search(str_func=lambda x: str_display[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info, history=history)
                 if func:
-                    searched = eval("obj.{}".format(func))
-                    if "module" in str(type(searched)):
-                        vector.help(searched)
+                    if func == "content" and isinstance(original_obj, vector):
+                        vector.help(original_obj, only_content=True)
+                        vector.help(original_obj, history=history, only_content=False)
+                        return
+                    if func in extra_temp:
+                        searched = original_obj.__getattribute__(func)
+                    else:
+                        searched = eval("obj.{}".format(func))
+                    if isinstance(searched, (list, vector, tuple, set, dict)):
+                        vector.help(searched, only_content=True)
+                    if func in extra_temp:
+                        vector.help(searched, only_content=True)
+                    elif "module" in str(type(searched)):
+                        vector.help(searched, only_content=True)
                     elif inspect.isclass(searched):
-                        vector.help(searched)
+                        vector.help(searched, only_content=True)
+                    elif isinstance(searched, vector):
+                        vector.help(searched, only_content=True)
                     else:
                         help(searched)
                         if os.name == "nt":
                             return
                     if original_obj is not None:
-                        vector.help(original_obj, history=history)
+                        vector.help(original_obj, history=history, only_content=only_content)
                     else:
-                        vector.help(obj, history=history)
+                        vector.help(obj, history=history, only_content=only_content)
                 else:
                     return
 
