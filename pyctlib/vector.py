@@ -2225,13 +2225,15 @@ class vector(list):
                     stdscr.addstr(0, x_init + new_x_bias, "")
                     search_flag = False
                     char = stdscr.get_wch()
-                    if isinstance(char, str) and char.isprintable():
+                    if char == "\x1b" or char == curses.KEY_EXIT or char == "`":
+                        return None
+                    elif isinstance(char, str) and char.isprintable():
                         query = query[:x_bias] + char + query[x_bias:]
                         select_number = 0
                         display_bias = 0
                         x_bias += 1
                         search_flag = True
-                    elif char == curses.KEY_BACKSPACE or char == "\x7f":
+                    elif char == curses.KEY_BACKSPACE or char == "\x7f" or touch(lambda: ord(char), 0) == 8:
                         query = query[:max(x_bias - 1, 0)] + query[x_bias:]
                         select_number = 0
                         display_bias = 0
@@ -2246,8 +2248,6 @@ class vector(list):
                             history["x_bias"] = x_bias
                         if len(result) > 0:
                             return result[select_number]
-                        return None
-                    elif char == "\x1b" or char == curses.KEY_EXIT:
                         return None
                     elif char == curses.KEY_UP:
                         if select_number == 2 and display_bias > 0:
@@ -2272,7 +2272,6 @@ class vector(list):
                         x_bias = len(query)
                     else:
                         pass
-                        # stdscr.addstr(rows - 1, 0, str(char))
 
                     try:
                         if search_flag:
@@ -2367,8 +2366,9 @@ class vector(list):
         if obj is None:
             vector.help(vector)
         else:
+            content_type = (list, vector, set, tuple, dict)
             if only_content:
-                if isinstance(obj, (list, vector, set, tuple, dict)):
+                if isinstance(obj, content_type):
                     if history is None:
                         history = history
                     selected = vector.search_content(obj, history=history)
@@ -2377,33 +2377,72 @@ class vector(list):
                         vector.help(obj, history=history, only_content=True)
                     return
                 if isinstance(obj, (int, str, float)):
-                    display_str = str(obj)
+                    raw_display_str = str(obj)
+                    str_length = len(raw_display_str)
+                    line_number = raw_display_str.count("\n") + 1
                     def c_main(stdscr: "curses._CursesWindow"):
                         stdscr.clear()
                         rows, cols = stdscr.getmaxyx()
                         for index in range(rows):
                             stdscr.addstr(index, 0, "")
                             stdscr.clrtoeol()
-                        display_str = vector(display_str.split("\n"))
+                        display_str = vector(raw_display_str.split("\n"))
+                        for index in range(len(display_str)):
+                            display_str[index] = "[{}] ".format(index+1) + display_str[index]
                         def split_len(s, l):
+                            if len(s) <= l:
+                                return s
                             ret = vector()
                             while s:
-                                if lens(s) > l
+                                if len(s) > l:
                                     ret.append(s[:l-1] + "\\")
                                 else:
                                     ret.append(s[:l])
                                 s = s[l:]
                             return ret
                         display_str = display_str.map(lambda x: split_len(x, cols)).flatten()
-                        for index in range(len(display_str)):
-                            if index >= rows:
-                                break
-                            stdscr.add(display_str[index])
-                            stdscr.clrtoeol()
+                        line_bias = 0
+                        search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5)) + 1
                         while True:
+                            display = display_str[line_bias: line_bias + search_k]
+                            for index in range(len(display)):
+                                stdscr.addstr(index, 0, display[index])
+                                stdscr.clrtoeol()
+                            for index in range(len(display), search_k):
+                                stdscr.addstr(index, 0, "")
+                                stdscr.clrtoeol()
+                            stdscr.addstr(search_k, 0, "-" * int(0.8 * cols))
+                            stdscr.clrtoeol()
+                            stdscr.addstr(search_k+1, 0, "# char: {}".format(str_length))
+                            stdscr.addstr(search_k+2, 0, "# line: {}".format(line_number))
                             char = stdscr.get_wch()
-                            if char == "\x1b" or char == curses.KEY_EXIT or char == "q":
+                            if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
                                 return
+                            elif char == curses.KEY_DOWN:
+                                line_bias = max(min(line_bias + 1, len(display_str) - search_k), 0)
+                            elif char == curses.KEY_UP:
+                                line_bias = max(line_bias - 1, 0)
+                            elif char == "G":
+                                line_bias = max(0, len(display_str) - search_k)
+                            elif char == "g":
+                                char == stdscr.get_wch()
+                                if char == "g":
+                                    line_bias = 0
+                                if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
+                                    return
+                                else:
+                                    continue
+                            elif isinstance(char, str) and char.isdigit():
+                                num = 0
+                                while isinstance(char, str) and char.isdigit():
+                                    num = num * 10 + int(char)
+                                    char = stdscr.get_wch()
+                                if char == "G":
+                                    line_bias = max(min(num - search_k // 6, len(display_str) - search_k), 0)
+                                else:
+                                    continue
+                            else:
+                                continue
                     curses.wrapper(c_main)
                     return
 
@@ -2417,7 +2456,7 @@ class vector(list):
             if original_obj:
                 class_temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
                 extra_temp = vector(dir(original_obj)).unique().filter(lambda x: not x.startswith("_")).test(lambda x: original_obj.__getattribute__(x)) - class_temp
-                if isinstance(original_obj, vector):
+                if isinstance(original_obj, (list, vector, tuple, set, dict)):
                     temp = vector(["content"]) + class_temp + extra_temp
                 else:
                     temp = class_temp + extra_temp
@@ -2442,8 +2481,8 @@ class vector(list):
                         return True
                     return False
                 for item in temp:
-                    if isinstance(original_obj, vector) and item == "content":
-                        str_display[item] = "[new] [*] content" + " " * max(1, 15 - len("content")) + "| " + str(original_obj).replace("\n", " ")[:500]
+                    if isinstance(original_obj, content_type) and item == "content":
+                        str_display[item] = "[new] [*] content" + " " *  max(1, 15 - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
                         sorted_key[item] = -1
                         continue
                     if item in parent_dir:
@@ -2493,26 +2532,26 @@ class vector(list):
                     str_display[item] = str_display[item] + item
                     if original_obj is not None and is_property(func):
                         try:
-                            str_display[item] = str_display[item] + item + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                            str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                         except:
                             try:
-                                str_display[item] = str_display[item] + item + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                                str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
                             except:
                                 str_display[item] = str_display[item] + item
                 for item in temp:
                     str_display[item] = str_display[item].replace("\n", " ")[:500]
                 def display_info(me, query, selected):
-                    result = me.map_index_from(selected).map(lambda x: sorted_key[x]).count_all()
+                    result = me.map_index_from(selected).map(lambda x: sorted_key[x]).filter(lambda x: x > 0).map(lambda x: x // 10).count_all()
                     ret = vector()
                     ret.append("# new: {}".format(result.get(0,0)))
                     ret.append("# overridden: {}".format(result.get(1,0)))
-                    ret.append("# inherited: {}".format(result.get(0,0)))
+                    ret.append("# inherited: {}".format(result.get(2,0)))
                     return ret
                 if history is None:
                     history = dict()
                 func = temp.fuzzy_search(str_func=lambda x: str_display[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info, history=history)
                 if func:
-                    if func == "content" and isinstance(original_obj, vector):
+                    if func == "content" and isinstance(original_obj, content_type):
                         vector.help(original_obj, only_content=True)
                         vector.help(original_obj, history=history, only_content=False)
                         return
@@ -2522,13 +2561,15 @@ class vector(list):
                         searched = eval("obj.{}".format(func))
                     if isinstance(searched, (list, vector, tuple, set, dict)):
                         vector.help(searched, only_content=True)
-                    if func in extra_temp:
+                    elif func in extra_temp:
                         vector.help(searched, only_content=True)
                     elif "module" in str(type(searched)):
                         vector.help(searched, only_content=True)
                     elif inspect.isclass(searched):
                         vector.help(searched, only_content=True)
                     elif isinstance(searched, vector):
+                        vector.help(searched, only_content=True)
+                    elif isinstance(searched, (int, float, str)):
                         vector.help(searched, only_content=True)
                     else:
                         help(searched)
