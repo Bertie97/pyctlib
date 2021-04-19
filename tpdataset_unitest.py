@@ -14,5 +14,6 @@ with scope("import"):
     from pyctlib.wrapper import generate_typehint_wrapper
 from tpdataset import RawDataSet
 from tpdataset.NLP.babi import BABI
+import inspect
 
 babi = BABI(download=True)

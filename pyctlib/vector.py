@@ -76,6 +76,42 @@ def raw_function(func):
         return func.__func__
     return func
 
+def get_args_str(raw_code: str):
+    raw_code = "\n".join(vector(raw_code.split("\n")).map(lambda x: x.strip()))
+    def_index = raw_code.index("def ")
+    depth = 0
+    j = def_index
+    start_index = def_index + 4
+    double_string = False
+    single_string = False
+    while j < len(raw_code):
+        if double_string:
+            if raw_code[j] == "\\":
+                j += 2
+                continue
+            if raw_code[j] == "\"":
+                double_string = False
+        elif single_string:
+            if raw_code[j] == "\\":
+                j += 2
+                continue
+            if raw_code[j] == "'":
+                single_string = False
+        elif raw_code[j] == "(":
+            if depth == 0:
+                start_index = j + 1
+            depth += 1
+        elif raw_code[j] == ")":
+            depth -= 1
+            if depth == 0:
+                return raw_code[start_index: j].replace("\n", " ")
+        elif raw_code[j] == "'":
+            single_string = True
+        elif raw_code[j] == "\"":
+            double_string = True
+        j += 1
+    return ""
+
 class _Vector_Dict(dict):
 
     def values(self):
@@ -2562,6 +2598,7 @@ class vector(list):
                 help(obj)
             else:
                 str_display = dict()
+                str_search = dict()
                 sorted_key = dict()
                 parent = touch(lambda: obj.__mro__[1], None)
                 parent_dir = vector(dir(parent) if parent else [])
@@ -2576,30 +2613,36 @@ class vector(list):
                         return True
                     return False
 
+                space_parameter = 20
                 for item in temp:
                     if isinstance(original_obj, content_type) and item == "content":
-                        str_display[item] = "[new] [*] content" + " " *  max(1, 15 - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
+                        str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
+                        str_search[item] = "[new] content"
                         sorted_key[item] = -1
                         continue
                     if item in parent_dir:
                         if is_overridden(obj, parent, item):
                             str_display[item] = "[overridden] "
+                            str_search[item] = "[overridden] "
                             sorted_key[item] = 10
                         else:
                             str_display[item] = "[inherited] "
+                            str_search[item] = "[inherited] "
                             sorted_key[item] = 20
                     else:
                         str_display[item] = "[new] "
+                        str_search[item] = "[new] "
                         sorted_key[item] = 0
 
                     if item in extra_temp:
                         str_display[item] = str_display[item] + "[A] "
+                        str_search[item] = str_search[item] + "[A] " + item
                         sorted_key[item] += 0
                         try:
-                            str_display[item] = str_display[item] + item + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                            str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                         except:
                             try:
-                                str_display[item] = str_display[item] + item + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                                str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
                             except:
                                 str_display[item] = str_display[item] + item
                         continue
@@ -2607,44 +2650,61 @@ class vector(list):
                     func = eval("obj.{}".format(item))
                     if is_property(func):
                         str_display[item] = str_display[item] + "[P] " + item
+                        str_search[item] = str_search[item] + "[P] " + item
                         sorted_key[item] += 1
                         if original_obj is not None:
                             try:
-                                str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                             except:
                                 try:
-                                    str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
                                 except:
-                                    str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [unk]"
+                                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [unk]"
                     elif inspect.ismethod(func):
                         str_display[item] = str_display[item] + "[M] " + item
+                        str_search[item] = str_search[item] + "[M] " + item
                         sorted_key[item] += 3
                     elif inspect.isfunction(func):
                         str_display[item] = str_display[item] + "[F] " + item
+                        str_search[item] = str_search[item] + "[F] " + item
+                        raw_code = inspect.getsource(func)
+                        str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| {}({})".format(item, get_args_str(raw_code))
                         sorted_key[item] += 4
                     elif inspect.isroutine(func):
                         str_display[item] = str_display[item] + "[F] " + item
+                        str_search[item] = str_search[item] + "[F] " + item
                         sorted_key[item] += 4
                     elif inspect.isclass(func):
                         str_display[item] = str_display[item] + "[C] " + item
+                        str_search[item] = str_search[item] + "[C] " + item
                         sorted_key[item] += 5
                     elif inspect.ismodule(func):
                         str_display[item] = str_display[item] + "[Module] " + item
+                        str_search[item] = str_search[item] + "[Module] " + item
                         sorted_key[item] += 6
                     elif inspect.isgenerator(func):
                         str_display[item] = str_display[item] + "[G] " + item
+                        str_search[item] = str_search[item] + "[G] " + item
                         sorted_key[item] += 7
                     elif original_obj is not None and item in class_temp:
                         str_display[item] = str_display[item] + "[D] " + item
+                        str_search[item] = str_search[item] + "[D] " + item
                         try:
-                            str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                            str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                         except:
                             try:
-                                str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
                             except:
                                 str_display[item] = str_display[item] + item
                         sorted_key[item] += 2
+                    elif isinstance(func, str):
+                        str_display[item] = str_display[item] + "[S] " + item + " " * max(1, space_parameter - len(item)) + "| \"{}\"".format(func)
+                    elif isinstance(func, (int, float)):
+                        str_display[item] = str_display[item] + "[N] " + item + " " * max(1, space_parameter - len(item)) + "| {}".format(func)
+                    else:
+                        str_display[item] = str_display[item] + "[U] " + item + " " * max(1, space_parameter - len(item)) + "| [{}]".format(delete_surround(str(type(func)), "<class '", "'>").split(".")[-1])
                     str_display[item] = str_display[item].replace("\n", " ")[:500]
+                    str_search[item] = str_search[item].replace("\n", " ")[:500]
 
                 def display_info(me, query, selected):
                     result = me.map_index_from(selected).map(lambda x: sorted_key[x]).filter(lambda x: x > 0).map(lambda x: x // 10).count_all()
@@ -2655,7 +2715,7 @@ class vector(list):
                     return ret
                 if history is None:
                     history = dict()
-                func = temp.fuzzy_search(str_func=lambda x: str_display[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info, history=history)
+                func = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info, history=history)
                 if func:
                     if func == "content" and isinstance(original_obj, content_type):
                         vector.help(original_obj, only_content=True)
