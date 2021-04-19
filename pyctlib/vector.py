@@ -61,7 +61,7 @@ def totuple(x, depth=1):
 
 def max_fuzz_score(x, y):
     def make_letter(index):
-        return chr(ord('1') + index)
+        return "a"
     qx = "".join(make_letter(index) for index in range(x))
     qy = "".join(make_letter(index) for index in range(y))
     return fuzz.ratio(qx, qy)
