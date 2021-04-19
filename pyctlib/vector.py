@@ -29,6 +29,7 @@ import numpy as np
 from pyoverload import iterable
 from tqdm import tqdm, trange
 from fuzzywuzzy import fuzz
+from fuzzywuzzy.fuzz import WRatio
 import curses
 import re
 import sys
@@ -57,6 +58,13 @@ def totuple(x, depth=1):
         return tuple(x)
     temp = vector(x).map(lambda t: totuple(t, depth=depth-1))
     return temp.reduce(lambda x, y: x + y)
+
+def max_fuzz_score(x, y):
+    def make_letter(index):
+        return chr(ord('1') + index)
+    qx = "".join(make_letter(index) for index in range(x))
+    qy = "".join(make_letter(index) for index in range(y))
+    return fuzz.ratio(qx, qy)
 
 def raw_function(func):
     """
@@ -2414,8 +2422,17 @@ class vector(list):
         def fuzzy_function(candidate, query):
             if len(query) == 0:
                 return candidate
-            partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), query.lower()), x))
-            selected = partial_ratio.filter(lambda x: x[0] > 50)
+            if len(candidate) < 1000:
+                partial_ratio = candidate.map(lambda x: (fuzz.WRatio(x.lower(), query.lower()), x))
+                selected = partial_ratio.filter(lambda x: x[0] > 50)
+            else:
+                if len(query) <= 3:
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x.lower(), query.lower()) * (len(x) / len(query)) ** 0.8, x))
+                elif len(query) <= 10:
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x.lower(), query.lower()) * (len(x) / len(query)) ** 0.6, x))
+                else:
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x.lower(), query.lower()) * (len(x) / len(query)) ** 0.5, x))
+                selected = partial_ratio.filter(lambda x: x[0] > 50)
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
@@ -2558,6 +2575,7 @@ class vector(list):
                     if isinstance(raw_function(func), property):
                         return True
                     return False
+
                 for item in temp:
                     if isinstance(original_obj, content_type) and item == "content":
                         str_display[item] = "[new] [*] content" + " " *  max(1, 15 - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
@@ -2585,30 +2603,39 @@ class vector(list):
                             except:
                                 str_display[item] = str_display[item] + item
                         continue
+
                     func = eval("obj.{}".format(item))
                     if is_property(func):
-                        str_display[item] = str_display[item] + "[P] "
+                        str_display[item] = str_display[item] + "[P] " + item
                         sorted_key[item] += 1
+                        if original_obj is not None:
+                            try:
+                                str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                            except:
+                                try:
+                                    str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                                except:
+                                    str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [unk]"
                     elif inspect.ismethod(func):
-                        str_display[item] = str_display[item] + "[M] "
-                        sorted_key[item] += 2
+                        str_display[item] = str_display[item] + "[M] " + item
+                        sorted_key[item] += 3
                     elif inspect.isfunction(func):
-                        str_display[item] = str_display[item] + "[F] "
-                        sorted_key[item] += 3
-                    elif inspect.isroutine(func):
-                        str_display[item] = str_display[item] + "[F] "
-                        sorted_key[item] += 3
-                    elif inspect.isclass(func):
-                        str_display[item] = str_display[item] + "[C] "
+                        str_display[item] = str_display[item] + "[F] " + item
                         sorted_key[item] += 4
-                    elif inspect.ismodule(func):
-                        str_display[item] = str_display[item] + "[Module] "
+                    elif inspect.isroutine(func):
+                        str_display[item] = str_display[item] + "[F] " + item
+                        sorted_key[item] += 4
+                    elif inspect.isclass(func):
+                        str_display[item] = str_display[item] + "[C] " + item
                         sorted_key[item] += 5
-                    elif inspect.isgenerator(func):
-                        str_display[item] = str_display[item] + "[G] "
+                    elif inspect.ismodule(func):
+                        str_display[item] = str_display[item] + "[Module] " + item
                         sorted_key[item] += 6
-                    str_display[item] = str_display[item] + item
-                    if original_obj is not None and is_property(func):
+                    elif inspect.isgenerator(func):
+                        str_display[item] = str_display[item] + "[G] " + item
+                        sorted_key[item] += 7
+                    elif original_obj is not None and item in class_temp:
+                        str_display[item] = str_display[item] + "[D] " + item
                         try:
                             str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                         except:
@@ -2616,8 +2643,9 @@ class vector(list):
                                 str_display[item] = str_display[item] + " " * max(1, 15 - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
                             except:
                                 str_display[item] = str_display[item] + item
-                for item in temp:
+                        sorted_key[item] += 2
                     str_display[item] = str_display[item].replace("\n", " ")[:500]
+
                 def display_info(me, query, selected):
                     result = me.map_index_from(selected).map(lambda x: sorted_key[x]).filter(lambda x: x > 0).map(lambda x: x // 10).count_all()
                     ret = vector()
