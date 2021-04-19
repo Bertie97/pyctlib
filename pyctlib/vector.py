@@ -33,7 +33,7 @@ import curses
 import re
 import sys
 import math
-from typing import overload, Callable, Iterable
+from typing import overload, Callable, Iterable, Union
 import traceback
 import inspect
 import os
@@ -139,22 +139,51 @@ def chain_function(*funcs):
 
 class IndexMapping:
 
-    def __init__(self, index_map=None, range_size=0, reverse=False):
+    def __init__(self, index_map: list=None, range_size: int=-1, reverse: bool=False):
+        """
+        Paramters:
+        -----------
+        index_map: list
+        range_size: int
+            if reverse is True, range_size means domain size
+                # domain: range_size
+                # range:  len(index_map)
+            else, range_size means range size
+                # domain: len(index_map)
+                # range:  range_size
+        reverse: bool
+        """
         if index_map is None:
-            self._index_map = None
-            self._index_map_reverse = None
+            assert range_size == -1
+            self.__index_map = None
+            self.__index_map_reverse = None
+            self.__range_size = 0
+            self.__domain_size = 0
             return
+        if range_size == -1:
+            if len(index_map) == 0:
+                range_size = 0
+            else:
+                range_size = max(index_map) + 1
         if not reverse:
-            self._index_map = index_map
-            self._index_map_reverse = self._reverse_mapping(index_map, range_size=range_size)
+            self.__range_size = range_size
+            self.__domain_size = len(index_map)
         else:
-            self._index_map_reverse = index_map
-            self._index_map = self._reverse_mapping(index_map, range_size=range_size)
+            self.__range_size = len(index_map)
+            self.__domain_size = range_size
+        if not reverse:
+            self.__index_map = index_map
+            self.__index_map_reverse = None
+        else:
+            self.__index_map_reverse = index_map
+            self.__index_map = None
 
     def reverse(self):
         ret = IndexMapping()
-        ret._index_map = self._index_map_reverse
-        ret._index_map_reverse = self._index_map
+        ret.__index_map = self._index_map_reverse
+        ret.__index_map_reverse = self._index_map
+        ret.__range_size = self.__domain_size
+        ret.__domain_size = self.__range_size
         return ret
 
     @staticmethod
@@ -178,36 +207,55 @@ class IndexMapping:
             step = index.step
         assert step != 0
         if start < 0 and stop <= 0:
-            return IndexMapping([-1] * length)
+            return IndexMapping(vector(), range_size=length, reverse=True)
         if start >= length and stop >= length - 1:
-            return IndexMapping([-1] * length)
+            return IndexMapping(vector(), range_size=length, reverse=True)
         if (stop - start) * step <= 0:
-            return IndexMapping([-1] * length)
-        temp = [-1] * length
+            return IndexMapping(vector(), range_size=length, reverse=True)
+        temp = list()
         current_index = start
         current_nu = 0
         while (stop - current_index) * step > 0:
             if 0 <= current_index < length:
-                temp[current_index] = current_nu
-                current_nu += 1
+                temp.append(current_index)
             current_index += step
-        return IndexMapping(temp)
+        return IndexMapping(temp, range_size=length, reverse=True)
 
     @property
     def domain_size(self) -> int:
-        return len(self.index_map)
+        return self.__domain_size
 
     @property
     def range_size(self) -> int:
-        return len(self.index_map_reverse)
+        return self.__range_size
 
     @property
-    def index_map(self) -> list:
-        return self._index_map
+    def _index_map(self):
+        return self.__index_map
 
     @property
-    def index_map_reverse(self) -> list:
-        return self._index_map_reverse
+    def _index_map_reverse(self):
+        return self.__index_map_reverse
+
+    @property
+    def index_map(self) -> Union[list, None]:
+        if self._index_map is None and self._index_map_reverse is None:
+            return None
+        if self._index_map is not None:
+            return self._index_map
+        else:
+            self.__index_map = self._reverse_mapping(self._index_map_reverse, range_size=self.domain_size)
+            return self._index_map
+
+    @property
+    def index_map_reverse(self) -> Union[list, None]:
+        if self._index_map is None and self._index_map_reverse is None:
+            return None
+        if self._index_map_reverse is not None:
+            return self._index_map_reverse
+        else:
+            self.__index_map_reverse = self._reverse_mapping(self._index_map, range_size=self.range_size)
+            return self._index_map_reverse
 
     def map(self, other):
         assert isinstance(other, IndexMapping)
@@ -215,16 +263,27 @@ class IndexMapping:
             return copy.deepcopy(other)
         if other.isidentity:
             return copy.deepcopy(self)
-        ret = IndexMapping()
-        ret._index_map = [-1] * self.domain_size
-        for index, to in enumerate(self.index_map):
-            if 0 <= to < other.domain_size:
-                ret._index_map[index] = other.index_map[to]
-        ret._index_map_reverse = [-1] * other.range_size
-        for index, to in enumerate(other.index_map_reverse):
-            if 0 <= to < self.range_size:
-                ret._index_map_reverse[index] = self.index_map_reverse[to]
-        return ret
+        if self._index_map is not None and other._index_map is not None:
+            forward = True
+        elif self._index_map_reverse is not None and other._index_map_reverse is not None:
+            forward = False
+        elif self._index_map is not None and other._index_map_reverse is not None:
+            forward = True
+        elif self._index_map_reverse is not None and other.index_map is not None:
+            forward = False
+
+        if forward:
+            temp = [-1] * self.domain_size
+            for index, to in enumerate(self.index_map):
+                if 0 <= to < other.domain_size:
+                    temp[index] = other.index_map[to]
+            return IndexMapping(temp, range_size=other.range_size, reverse=False)
+        else:
+            temp = [-1] * other.range_size
+            for index, to in enumerate(other.index_map_reverse):
+                if 0 <= to < self.range_size:
+                    temp[index] = self.index_map_reverse[to]
+            return IndexMapping(temp, range_size=self.domain_size, reverse=True)
 
     def copy(self):
         return copy.deepcopy(self)
@@ -244,26 +303,28 @@ class IndexMapping:
 
     @property
     def isidentity(self):
-        return self.index_map is None
+        return self._index_map is None and self._index_map_reverse is None
 
     def __str__(self):
         if self.isidentity:
             return "id()"
-        return "->: {}\n<-: {}".format(str(self.index_map), str(self.index_map_reverse))
+        return "->: {}\n<-: {}\n[{}] -> [{}]".format(str(self._index_map), str(self._index_map_reverse), self.domain_size, self.range_size)
 
     def __repr__(self):
         return self.__str__()
 
     def check_valid(self):
-        if self.index_map is None:
-            return self.index_map_reverse is None
-        for index, to in enumerate(self.index_map):
+        if self._index_map is None:
+            return True
+        if self._index_map_reverse is None:
+            return True
+        for index, to in enumerate(self._index_map):
             if to != -1:
-                if self.index_map_reverse[to] != index:
+                if self._index_map_reverse[to] != index:
                     return False
-        for index, to in enumerate(self.index_map):
+        for index, to in enumerate(self._index_map):
             if to != -1:
-                if self.index_map[to] != index:
+                if self._index_map[to] != index:
                     return False
         return True
 
@@ -271,6 +332,9 @@ class IndexMapping:
         assert isinstance(index, int)
         if self.isidentity:
             return index
+        if self._index_map is None:
+            if self.domain_size > self.range_size * 4:
+                return self._index_map_reverse.index(index)
         return self.index_map[index]
 
 class vector(list):
@@ -938,10 +1002,12 @@ class vector(list):
         return super().__getitem__(index)
 
     def getitem(self, index: int, index_mapping: IndexMapping=None, outboundary_value=OutBoundary):
-        if not index_mapping:
-            if 0 <= index < self.length:
-                return self[index]
+        if index < 0 or index >= self.length:
             return outboundary_value
+        if not index_mapping:
+            return super().__getitem__(index)
+        elif index_mapping.isidentity():
+            return super().__getitem__(index)
         else:
             return self.getitem(index_mapping.index_map_reverse[index], outboundary_value=outboundary_value)
 
@@ -1460,9 +1526,14 @@ class vector(list):
                 target_shape
             """
             if len(target_shape) == 1:
-                return value
+                if not isinstance(value, vector):
+                    return vector(value)
+                else:
+                    return value
             piece_length = len(value) // target_shape[0]
-            ret = vector(_reshape(value[piece_length * index: piece_length * (index + 1)], target_shape[1:]) for index in range(target_shape[0]))
+            next_target_shape = target_shape[1:]
+            # ret = vector(_reshape(super(vector, value).__getitem__(slice(piece_length * index, piece_length * (index + 1))), next_target_shape) for index in range(target_shape[0]))
+            ret = vector(_reshape(value[piece_length * index: piece_length * (index + 1)], next_target_shape) for index in range(target_shape[0]))
             return ret
         return _reshape(self.flatten(), args)
 
@@ -1528,6 +1599,8 @@ class vector(list):
     def sort(self, key=lambda x: x):
         if key == None:
             return self
+        if self.length == 0:
+            return self
         temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
         index_mapping_reverse = [x[1] for x in temp]
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
@@ -1535,6 +1608,8 @@ class vector(list):
 
     def sort_(self, key=lambda x: x):
         if key == None:
+            return
+        if self.length == 0:
             return
         temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
         index_mapping_reverse = [x[1] for x in temp]
@@ -1905,13 +1980,16 @@ class vector(list):
             return self.map_index(index_mapping)
         return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
 
-    def batch(self, batch_size=1, drop=True):
-        if self.length % batch_size == 0:
-            return self.sample(self.length // batch_size, batch_size, replace=False)
-        if drop:
-            return self.sample(self.length // batch_size, batch_size, replace=False)
+    def batch(self, batch_size=1, random=True, drop=True):
+        if random:
+            if self.length % batch_size == 0:
+                return self.sample(self.length // batch_size, batch_size, replace=False)
+            if drop:
+                return self.sample(self.length // batch_size, batch_size, replace=False)
+            else:
+                return (self + self.sample(batch_size - self.length % batch_size)).batch(batch_size=batch_size, drop=True)
         else:
-            return (self + self.sample(batch_size - self.length % batch_size)).batch(batch_size=batch_size, drop=True)
+            return self[:(self.length - self.length % batch_size)].reshape(-1, batch_size)
 
     def shuffle(self):
         """
@@ -2370,14 +2448,14 @@ class vector(list):
             if only_content:
                 if isinstance(obj, content_type):
                     if history is None:
-                        history = history
+                        history = {}
                     selected = vector.search_content(obj, history=history)
                     if selected:
                         vector.help(selected, only_content=True)
                         vector.help(obj, history=history, only_content=True)
                     return
                 if isinstance(obj, (int, str, float)):
-                    raw_display_str = str(obj)
+                    raw_display_str = str(obj).replace("\t", "    ")
                     str_length = len(raw_display_str)
                     line_number = raw_display_str.count("\n") + 1
                     def c_main(stdscr: "curses._CursesWindow"):
@@ -2400,7 +2478,7 @@ class vector(list):
                                     ret.append(s[:l])
                                 s = s[l:]
                             return ret
-                        display_str = display_str.map(lambda x: split_len(x, cols)).flatten()
+                        display_str = display_str.map(lambda x: split_len(x, cols-1)).flatten()
                         line_bias = 0
                         search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5)) + 1
                         while True:
