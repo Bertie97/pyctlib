@@ -66,6 +66,12 @@ def max_fuzz_score(x, y):
     qy = "".join(make_letter(index) for index in range(y))
     return fuzz.ratio(qx, qy)
 
+def class_name(x):
+    ret = delete_surround(str(type(x)), "<class '", "'>").rpartition(".")[-1]
+    if isinstance(x, (vector, set, list, tuple)):
+        ret = ret + "<{}>".format(len(x))
+    return ret
+
 def raw_function(func):
     """
     if "__func__" in dir(func):
@@ -2166,6 +2172,11 @@ class vector(list):
         super().extend(ret)
         self._index_mapping = ret.index_mapping
 
+    def original_index(self, index):
+        if self.index_mapping.isidentity:
+            return index
+        return self.index_mapping.index_map_reverse[index]
+
     def register_index_mapping(self, index_mapping=IndexMapping()):
         ret = self.copy()
         ret._index_mapping = index_mapping
@@ -2271,7 +2282,7 @@ class vector(list):
     def __bool__(self):
         return self.length > 0
 
-    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None):
+    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None, show_line_number=False):
         if str_display is None:
             str_display = str_func
         if len(query) > 0:
@@ -2301,6 +2312,7 @@ class vector(list):
                 select_number = 0
                 query = ""
                 x_bias = 0
+                error_info = ""
                 if isinstance(history, dict):
                     display_bias = history.get("display_bias", 0)
                     select_number = history.get("select_number", 0)
@@ -2308,39 +2320,56 @@ class vector(list):
                     x_bias = history.get("x_bias", 0)
 
                 selected = search_func(candidate, query)
-                result = self.map_index_from(selected).sort(key=str_func).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                for index in range(len(result[:search_k])):
-                    if index == select_number:
-                        stdscr.addstr(index + 1, 0, "* " + str_display(result[index])[:cols - 2])
-                    else:
-                        stdscr.addstr(index + 1, 0, str_display(result[index])[:cols])
-                    stdscr.clrtoeol()
-                for index in range(len(result[:search_k]), search_k):
-                    stdscr.addstr(index+1, 0, "")
-                    stdscr.clrtoeol()
-
-                stdscr.addstr(search_k + 1, 0, "-" * int(0.8 * cols))
-                stdscr.clrtoeol()
-                stdscr.addstr(search_k + 2, 0, "# match: " + str(selected.length))
-                stdscr.clrtoeol()
-                stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
-                stdscr.clrtoeol()
-
-                if display_info is not None:
-                    info = display_info(self, query, selected)
-                    if isinstance(info, str):
-                        info = vector([info])
-                    for index in range(len(info)):
-                        if search_k + 4 + index < rows:
-                            stdscr.addstr(search_k + 4 + index, 0, info[index])
-                            stdscr.clrtoeol()
-                        else:
-                            break
+                result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
 
                 while True:
                     stdscr.addstr(0, 0, "token to search: ")
                     stdscr.clrtoeol()
                     stdscr.addstr(query)
+
+                    stdscr.addstr(search_k + 1, 0, "-" * int(0.8 * cols))
+                    stdscr.clrtoeol()
+
+                    stdscr.addstr(search_k + 2, 0, "# match: " + str(selected.length))
+                    stdscr.clrtoeol()
+                    stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
+                    stdscr.clrtoeol()
+                    error_nu = search_k + 4
+                    if display_info is not None:
+                        info = display_info(self, query, selected)
+                        if isinstance(info, str):
+                            info = vector([info])
+                        for index in range(len(info)):
+                            if search_k + 4 + index < rows:
+                                stdscr.addstr(search_k + 4 + index, 0, info[index][:cols])
+                                stdscr.clrtoeol()
+                                error_nu += 1
+                            else:
+                                break
+                    if error_info:
+                        if error_nu < rows:
+                            for line in error_info.split("\n"):
+                                stdscr.addstr(error_nu, 0, line[:cols])
+                                stdscr.clrtoeol()
+                                error_nu += 1
+                    for index in range(error_nu, rows):
+                        stdscr.addstr(index, 0, "")
+                        stdscr.clrtoeol()
+
+                    for index in range(len(result)):
+                        if show_line_number:
+                            display_str = "[{}] {}".format(result.original_index(index), str_display(result[index]))
+                        else:
+                            display_str = str_display(result[index])
+                        if index == select_number:
+                            stdscr.addstr(1 + index, 0, "* " + display_str[:cols - 2])
+                        else:
+                            stdscr.addstr(1 + index, 0, display_str[:cols])
+                        assert index < search_k
+                        stdscr.clrtoeol()
+                    for index in range(len(result), search_k):
+                        stdscr.addstr(1 + index, 0, "")
+                        stdscr.clrtoeol()
 
                     def new_len(x): return (ord(x) >> 8 > 0) + 1
                     new_x_bias = sum([new_len(t) for t in query[:x_bias]])
@@ -2374,13 +2403,13 @@ class vector(list):
                     elif char == curses.KEY_UP:
                         if select_number == 2 and display_bias > 0:
                             display_bias -= 1
-                            result = self.map_index_from(selected).sort(key=str_func).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                         else:
                             select_number = max(select_number - 1, 0)
                     elif char == curses.KEY_DOWN:
                         if select_number == search_k - 3 and display_bias + search_k < selected.length:
                             display_bias += 1
-                            result = self.map_index_from(selected).sort(key=str_func).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                         else:
                             select_number = max(min(select_number + 1, len(result) - 1), 0)
                     elif char == curses.KEY_LEFT:
@@ -2398,51 +2427,16 @@ class vector(list):
                     try:
                         if search_flag:
                             selected = search_func(candidate, query)
-                            result = self.map_index_from(selected).sort(key=str_func).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     except Exception as e:
                         error_info = str(e)
                     else:
                         error_info = ""
 
-                    stdscr.addstr(search_k + 2, 0, "# match: " + str(selected.length))
-                    stdscr.clrtoeol()
-                    stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
-                    stdscr.clrtoeol()
-                    error_nu = search_k + 4
-                    if display_info is not None:
-                        info = display_info(self, query, selected)
-                        if isinstance(info, str):
-                            info = vector([info])
-                        for index in range(len(info)):
-                            if search_k + 4 + index < rows:
-                                stdscr.addstr(search_k + 4 + index, 0, info[index][:cols])
-                                stdscr.clrtoeol()
-                                error_nu += 1
-                            else:
-                                break
-                    if error_info:
-                        if error_nu < rows:
-                            for line in error_info.split("\n"):
-                                stdscr.addstr(error_nu, 0, line[:cols])
-                                stdscr.clrtoeol()
-                                error_nu += 1
-                    for index in range(error_nu, rows):
-                        stdscr.addstr(index, 0, "")
-                        stdscr.clrtoeol()
-
-                    for index in range(len(result)):
-                        if index == select_number:
-                            stdscr.addstr(1 + index, 0, "* " + str_display(result[index])[:cols - 2])
-                        else:
-                            stdscr.addstr(1 + index, 0, str_display(result[index])[:cols])
-                        stdscr.clrtoeol()
-                    for index in range(len(result), search_k):
-                        stdscr.addstr(1 + index, 0, "")
-                        stdscr.clrtoeol()
 
             return curses.wrapper(c_main)
 
-    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None):
+    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None, show_line_number=False):
 
         def regex_function(candidate, query):
             if len(query) == 0:
@@ -2451,9 +2445,9 @@ class vector(list):
             selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
             return selected
 
-        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, history=history)
+        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, history=history, show_line_number=show_line_number)
 
-    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None):
+    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, history=None, show_line_number=False):
 
         def fuzzy_function(candidate, query):
             if len(query) == 0:
@@ -2462,6 +2456,12 @@ class vector(list):
                 partial_ratio = candidate.map(lambda x: (fuzz.WRatio(x.lower(), query.lower()), x))
                 selected = partial_ratio.filter(lambda x: x[0] > 50)
             else:
+                if len(query) == 1:
+                    return candidate.filter(lambda x: query in x).map(lambda x: 100)
+                if len(candidate) > 5000:
+                    candidate = candidate.filter(lambda x: query[:2] in x)
+                else:
+                    candidate = candidate.filter(lambda x: query[0] in x and query[1] in x)
                 if len(query) <= 3:
                     partial_ratio = candidate.map(lambda x: (fuzz.ratio(x.lower(), query.lower()) * (len(x) / len(query)) ** 0.8, x))
                 elif len(query) <= 10:
@@ -2472,7 +2472,7 @@ class vector(list):
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
-        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, history=history)
+        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, history=history, show_line_number=show_line_number)
 
     def get_size(self):
         return self.rmap(sys.getsizeof).reduce(lambda x, y: x + y, first=0)
@@ -2485,7 +2485,7 @@ class vector(list):
         assert isinstance(obj, (list, vector, set, dict, tuple))
         if isinstance(obj, (list, vector, set, tuple)):
             vector_obj = vector(obj)
-            selected = vector_obj.fuzzy_search(history=history)
+            selected = vector_obj.fuzzy_search(history=history, show_line_number=True)
             return selected
         elif isinstance(obj, dict):
             vector_obj = vector(obj.keys())
@@ -2639,10 +2639,10 @@ class vector(list):
                         str_search[item] = str_search[item] + "[A] " + item
                         sorted_key[item] += 0
                         try:
-                            str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                            str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                         except:
                             try:
-                                str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                                str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
                             except:
                                 str_display[item] = str_display[item] + item
                         continue
@@ -2654,10 +2654,10 @@ class vector(list):
                         sorted_key[item] += 1
                         if original_obj is not None:
                             try:
-                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                             except:
                                 try:
-                                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
                                 except:
                                     str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [unk]"
                     elif inspect.ismethod(func):
@@ -2690,10 +2690,10 @@ class vector(list):
                         str_display[item] = str_display[item] + "[D] " + item
                         str_search[item] = str_search[item] + "[D] " + item
                         try:
-                            str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1]) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                            str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                         except:
                             try:
-                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(delete_surround(str(type(original_obj.__getattribute__(item))), "<class '", "'>").rpartition(".")[-1])
+                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
                             except:
                                 str_display[item] = str_display[item] + item
                         sorted_key[item] += 2
@@ -2702,7 +2702,7 @@ class vector(list):
                     elif isinstance(func, (int, float)):
                         str_display[item] = str_display[item] + "[N] " + item + " " * max(1, space_parameter - len(item)) + "| {}".format(func)
                     else:
-                        str_display[item] = str_display[item] + "[U] " + item + " " * max(1, space_parameter - len(item)) + "| [{}]".format(delete_surround(str(type(func)), "<class '", "'>").split(".")[-1])
+                        str_display[item] = str_display[item] + "[U] " + item + " " * max(1, space_parameter - len(item)) + "| [{}]".format(class_name(func))
                     str_display[item] = str_display[item].replace("\n", " ")[:500]
                     str_search[item] = str_search[item].replace("\n", " ")[:500]
 
@@ -2715,7 +2715,7 @@ class vector(list):
                     return ret
                 if history is None:
                     history = dict()
-                func = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], sorted_function=lambda x: sorted_key[x], display_info=display_info, history=history)
+                func = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], sorted_function=lambda x: (sorted_key[x], x), display_info=display_info, history=history)
                 if func:
                     if func == "content" and isinstance(original_obj, content_type):
                         vector.help(original_obj, only_content=True)
