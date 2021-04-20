@@ -82,40 +82,51 @@ def raw_function(func):
         return func.__func__
     return func
 
-def get_args_str(raw_code: str):
-    raw_code = "\n".join(vector(raw_code.split("\n")).map(lambda x: x.strip()))
-    def_index = raw_code.index("def ")
-    depth = 0
-    j = def_index
-    start_index = def_index + 4
-    double_string = False
-    single_string = False
-    while j < len(raw_code):
-        if double_string:
-            if raw_code[j] == "\\":
-                j += 2
-                continue
-            if raw_code[j] == "\"":
-                double_string = False
-        elif single_string:
-            if raw_code[j] == "\\":
-                j += 2
-                continue
-            if raw_code[j] == "'":
-                single_string = False
-        elif raw_code[j] == "(":
-            if depth == 0:
-                start_index = j + 1
-            depth += 1
-        elif raw_code[j] == ")":
-            depth -= 1
-            if depth == 0:
-                return raw_code[start_index: j].replace("\n", " ")
-        elif raw_code[j] == "'":
-            single_string = True
-        elif raw_code[j] == "\"":
-            double_string = True
-        j += 1
+def get_args_str(func, func_name):
+    try:
+        raw_code = inspect.getsource(func)
+        raw_code = "\n".join(vector(raw_code.split("\n")).map(lambda x: x.strip()))
+        def_index = raw_code.index("def ")
+        depth = 0
+        j = def_index
+        start_index = def_index + 4
+        double_string = False
+        single_string = False
+        while j < len(raw_code):
+            if double_string:
+                if raw_code[j] == "\\":
+                    j += 2
+                    continue
+                if raw_code[j] == "\"":
+                    double_string = False
+            elif single_string:
+                if raw_code[j] == "\\":
+                    j += 2
+                    continue
+                if raw_code[j] == "'":
+                    single_string = False
+            elif raw_code[j] == "(":
+                if depth == 0:
+                    start_index = j + 1
+                depth += 1
+            elif raw_code[j] == ")":
+                depth -= 1
+                if depth == 0:
+                    return "{}({})".format(func_name, raw_code[start_index: j].replace("\n", " "))
+            elif raw_code[j] == "'":
+                single_string = True
+            elif raw_code[j] == "\"":
+                double_string = True
+            j += 1
+        return ""
+    except:
+        pass
+    try:
+        doc = inspect.getdoc(func)
+        assert doc != ""
+        return doc.split("\n")[0]
+    except:
+        pass
     return ""
 
 class _Vector_Dict(dict):
@@ -2664,16 +2675,15 @@ class vector(list):
                         str_display[item] = str_display[item] + "[M] " + item
                         str_search[item] = str_search[item] + "[M] " + item
                         sorted_key[item] += 3
-                    elif inspect.isfunction(func):
+                    elif inspect.isfunction(func) or inspect.isroutine(func):
                         str_display[item] = str_display[item] + "[F] " + item
                         str_search[item] = str_search[item] + "[F] " + item
-                        raw_code = inspect.getsource(func)
-                        str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| {}({})".format(item, get_args_str(raw_code))
+                        str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| {}".format(get_args_str(func, item))
                         sorted_key[item] += 4
-                    elif inspect.isroutine(func):
-                        str_display[item] = str_display[item] + "[F] " + item
-                        str_search[item] = str_search[item] + "[F] " + item
-                        sorted_key[item] += 4
+                    # elif inspect.isroutine(func):
+                    #     str_display[item] = str_display[item] + "[F] " + item
+                    #     str_search[item] = str_search[item] + "[F] " + item
+                    #     sorted_key[item] += 4
                     elif inspect.isclass(func):
                         str_display[item] = str_display[item] + "[C] " + item
                         str_search[item] = str_search[item] + "[C] " + item

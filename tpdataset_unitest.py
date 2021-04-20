@@ -15,5 +15,6 @@ with scope("import"):
 from tpdataset import RawDataSet
 from tpdataset.NLP.babi import BABI
 import inspect
+import torch
 
 babi = BABI(download=True)
