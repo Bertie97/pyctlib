@@ -19,3 +19,4 @@ import torch
 from fuzzywuzzy import fuzz
 
 babi = BABI(download=True)
+vhelp(babi)

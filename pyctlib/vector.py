@@ -2310,7 +2310,8 @@ class vector(list):
         else:
             candidate = self.clear_index_mapping().map(str_func)
             def c_main(stdscr: "curses._CursesWindow"):
-                def write_line(row, col, content):
+                def write_line(row, col=0, content=""):
+                    content = " ".join(vector(content.split("\n")).map(lambda x: x.strip()))
                     if len(content) >= cols:
                         stdscr.addstr(row, col, content[:cols])
                     else:
@@ -2320,6 +2321,8 @@ class vector(list):
                 query_done = False
                 select_number = 0
                 rows, cols = stdscr.getmaxyx()
+                for index in range(rows):
+                    write_line(index, 0, "")
                 x_init = len("token to search: ")
 
                 stdscr.addstr(0, 0, "token to search: ")
@@ -2343,7 +2346,7 @@ class vector(list):
 
                 while True:
                     write_line(0, 0, "token to search: ")
-                    stdscr.addstr(query)
+                    stdscr.addstr(0, len("token to search: "), query)
 
                     write_line(search_k + 1, 0, "-" * int(0.8 * cols))
 
@@ -2374,9 +2377,9 @@ class vector(list):
                         else:
                             display_str = str_display(result[index])
                         if index == select_number:
-                            write_line(1 + index, 0, "* " + display_str[:cols - 2])
+                            write_line(1 + index, 0, "* " + display_str)
                         else:
-                            write_line(1 + index, 0, display_str[:cols])
+                            write_line(1 + index, 0, display_str)
                         assert index < search_k
                     for index in range(len(result), search_k):
                         write_line(1 + index, 0, "")
