@@ -2309,6 +2309,12 @@ class vector(list):
         else:
             candidate = self.clear_index_mapping().map(str_func)
             def c_main(stdscr: "curses._CursesWindow"):
+                def write_line(row, col, content):
+                    if len(content) >= cols:
+                        stdscr.addstr(row, col, content[:cols])
+                    else:
+                        stdscr.addstr(row, col, content)
+                        stdscr.clrtoeol()
                 stdscr.clear()
                 query_done = False
                 select_number = 0
@@ -2335,17 +2341,13 @@ class vector(list):
                 result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
 
                 while True:
-                    stdscr.addstr(0, 0, "token to search: ")
-                    stdscr.clrtoeol()
+                    write_line(0, 0, "token to search: ")
                     stdscr.addstr(query)
 
-                    stdscr.addstr(search_k + 1, 0, "-" * int(0.8 * cols))
-                    stdscr.clrtoeol()
+                    write_line(search_k + 1, 0, "-" * int(0.8 * cols))
 
-                    stdscr.addstr(search_k + 2, 0, "# match: " + str(selected.length))
-                    stdscr.clrtoeol()
-                    stdscr.addstr(search_k + 3, 0, "# dispaly: " + str(result.length))
-                    stdscr.clrtoeol()
+                    write_line(search_k + 2, 0, "# match: " + str(selected.length))
+                    write_line(search_k + 3, 0, "# dispaly: " + str(result.length))
                     error_nu = search_k + 4
                     if display_info is not None:
                         info = display_info(self, query, selected)
@@ -2353,20 +2355,17 @@ class vector(list):
                             info = vector([info])
                         for index in range(len(info)):
                             if search_k + 4 + index < rows:
-                                stdscr.addstr(search_k + 4 + index, 0, info[index][:cols])
-                                stdscr.clrtoeol()
+                                write_line(search_k + 4 + index, 0, info[index][:cols])
                                 error_nu += 1
                             else:
                                 break
                     if error_info:
                         if error_nu < rows:
                             for line in error_info.split("\n"):
-                                stdscr.addstr(error_nu, 0, line[:cols])
-                                stdscr.clrtoeol()
+                                write_line(error_nu, 0, line[:cols])
                                 error_nu += 1
                     for index in range(error_nu, rows):
-                        stdscr.addstr(index, 0, "")
-                        stdscr.clrtoeol()
+                        write_line(index, 0, "")
 
                     for index in range(len(result)):
                         if show_line_number:
@@ -2374,14 +2373,12 @@ class vector(list):
                         else:
                             display_str = str_display(result[index])
                         if index == select_number:
-                            stdscr.addstr(1 + index, 0, "* " + display_str[:cols - 2])
+                            write_line(1 + index, 0, "* " + display_str[:cols - 2])
                         else:
-                            stdscr.addstr(1 + index, 0, display_str[:cols])
+                            write_line(1 + index, 0, display_str[:cols])
                         assert index < search_k
-                        stdscr.clrtoeol()
                     for index in range(len(result), search_k):
-                        stdscr.addstr(1 + index, 0, "")
-                        stdscr.clrtoeol()
+                        write_line(1 + index, 0, "")
 
                     def new_len(x): return (ord(x) >> 8 > 0) + 1
                     new_x_bias = sum([new_len(t) for t in query[:x_bias]])
@@ -2524,7 +2521,13 @@ class vector(list):
                     str_length = len(raw_display_str)
                     line_number = raw_display_str.count("\n") + 1
                     def c_main(stdscr: "curses._CursesWindow"):
-                        stdscr.clear()
+                        def write_line(row, col, content):
+                            if len(content) >= cols:
+                                stdscr.addstr(row, col, content[:cols])
+                            else:
+                                stdscr.addstr(row, col, content)
+                                stdscr.clrtoeol()
+                                stdscr.clear()
                         rows, cols = stdscr.getmaxyx()
                         for index in range(rows):
                             stdscr.addstr(index, 0, "")
@@ -2549,15 +2552,13 @@ class vector(list):
                         while True:
                             display = display_str[line_bias: line_bias + search_k]
                             for index in range(len(display)):
-                                stdscr.addstr(index, 0, display[index])
-                                stdscr.clrtoeol()
+                                write_line(index, 0, display[index])
                             for index in range(len(display), search_k):
                                 stdscr.addstr(index, 0, "")
                                 stdscr.clrtoeol()
-                            stdscr.addstr(search_k, 0, "-" * int(0.8 * cols))
-                            stdscr.clrtoeol()
-                            stdscr.addstr(search_k+1, 0, "# char: {}".format(str_length))
-                            stdscr.addstr(search_k+2, 0, "# line: {}".format(line_number))
+                            write_line(search_k, 0, "-" * int(0.8 * cols))
+                            write_line(search_k+1, 0, "# char: {}".format(str_length))
+                            write_line(search_k+2, 0, "# line: {}".format(line_number))
                             char = stdscr.get_wch()
                             if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
                                 return
@@ -2596,7 +2597,7 @@ class vector(list):
                 original_obj = None
             def testfunc(obj, x):
                 eval("obj.{}".format(x))
-            if original_obj:
+            if original_obj is not None:
                 class_temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
                 extra_temp = vector(dir(original_obj)).unique().filter(lambda x: not x.startswith("_")).test(lambda x: original_obj.__getattribute__(x)) - class_temp
                 if isinstance(original_obj, (list, vector, tuple, set, dict)):
@@ -2625,7 +2626,7 @@ class vector(list):
                         return True
                     return False
 
-                space_parameter = 20
+                space_parameter = 15
                 for item in temp:
                     if isinstance(original_obj, content_type) and item == "content":
                         str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
