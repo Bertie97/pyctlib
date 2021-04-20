@@ -2308,7 +2308,7 @@ class vector(list):
                     x_bias = history.get("x_bias", 0)
 
                 selected = search_func(candidate, query)
-                result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                result = self.map_index_from(selected).sort(key=str_func).sort(key=sorted_function)[display_bias:display_bias + search_k]
                 for index in range(len(result[:search_k])):
                     if index == select_number:
                         stdscr.addstr(index + 1, 0, "* " + str_display(result[index])[:cols - 2])
@@ -2374,13 +2374,13 @@ class vector(list):
                     elif char == curses.KEY_UP:
                         if select_number == 2 and display_bias > 0:
                             display_bias -= 1
-                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = self.map_index_from(selected).sort(key=str_func).sort(key=sorted_function)[display_bias:display_bias + search_k]
                         else:
                             select_number = max(select_number - 1, 0)
                     elif char == curses.KEY_DOWN:
                         if select_number == search_k - 3 and display_bias + search_k < selected.length:
                             display_bias += 1
-                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = self.map_index_from(selected).sort(key=str_func).sort(key=sorted_function)[display_bias:display_bias + search_k]
                         else:
                             select_number = max(min(select_number + 1, len(result) - 1), 0)
                     elif char == curses.KEY_LEFT:
@@ -2398,7 +2398,7 @@ class vector(list):
                     try:
                         if search_flag:
                             selected = search_func(candidate, query)
-                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = self.map_index_from(selected).sort(key=str_func).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     except Exception as e:
                         error_info = str(e)
                     else:
