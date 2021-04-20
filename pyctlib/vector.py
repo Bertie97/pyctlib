@@ -2463,7 +2463,7 @@ class vector(list):
             if len(query) == 0:
                 return candidate
             if len(candidate) < 1000:
-                partial_ratio = candidate.map(lambda x: (fuzz.WRatio(x.lower(), query.lower()), x))
+                partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), query.lower()), x))
                 selected = partial_ratio.filter(lambda x: x[0] > 50)
             else:
                 if len(query) == 1:
@@ -2712,10 +2712,13 @@ class vector(list):
                         sorted_key[item] += 2
                     elif isinstance(func, str):
                         str_display[item] = str_display[item] + "[S] " + item + " " * max(1, space_parameter - len(item)) + "| \"{}\"".format(func)
+                        str_search[item] = str_search[item] + "[S] " + item
                     elif isinstance(func, (int, float)):
                         str_display[item] = str_display[item] + "[N] " + item + " " * max(1, space_parameter - len(item)) + "| {}".format(func)
+                        str_search[item] = str_search[item] + "[N] " + item
                     else:
                         str_display[item] = str_display[item] + "[U] " + item + " " * max(1, space_parameter - len(item)) + "| [{}]".format(class_name(func))
+                        str_search[item] = str_search[item] + "[U] " + item
                     str_display[item] = str_display[item].replace("\n", " ")[:500]
                     str_search[item] = str_search[item].replace("\n", " ")[:500]
 
