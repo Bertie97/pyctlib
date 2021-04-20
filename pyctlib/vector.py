@@ -17,6 +17,7 @@ __all__ = """
     OutBoundary
     chain_function
     EmptyClass
+    vhelp
 """.split()
 
 from types import GeneratorType
@@ -2847,3 +2848,5 @@ class ctgenerator:
 
     def sum(self, default=None):
         return self.reduce(lambda x, y: x+y, default)
+
+vhelp = vector.help
