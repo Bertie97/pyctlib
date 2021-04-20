@@ -2460,11 +2460,12 @@ class vector(list):
     def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False):
 
         def fuzzy_function(candidate, query):
+            upper = any(x.isupper() for x in query)
             if len(query) == 0:
                 return candidate
             if len(candidate) < 1000:
-                partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x.lower(), query.lower()), x))
-                selected = partial_ratio.filter(lambda x: x[0] > 50)
+                partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x if upper else x.lower(), query), x))
+                selected = partial_ratio.filter(lambda x: x[0] > 49)
             else:
                 if len(query) == 1:
                     return candidate.filter(lambda x: query in x).map(lambda x: 100)
@@ -2473,12 +2474,12 @@ class vector(list):
                 else:
                     candidate = candidate.filter(lambda x: query[0] in x and query[1] in x)
                 if len(query) <= 3:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x.lower(), query.lower()) * (len(x) / len(query)) ** 0.8, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x if upper else x.lower(), query) * (len(x) / len(query)) ** 0.8, x))
                 elif len(query) <= 10:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x.lower(), query.lower()) * (len(x) / len(query)) ** 0.6, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x if upper else x.lower(), query) * (len(x) / len(query)) ** 0.6, x))
                 else:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x.lower(), query.lower()) * (len(x) / len(query)) ** 0.5, x))
-                selected = partial_ratio.filter(lambda x: x[0] > 50)
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x if upper else x.lower(), query) * (len(x) / len(query)) ** 0.5, x))
+                selected = partial_ratio.filter(lambda x: x[0] > 49)
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
