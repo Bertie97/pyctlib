@@ -2294,7 +2294,7 @@ class vector(list):
     def __bool__(self):
         return self.length > 0
 
-    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False):
+    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False):
         self = self.sort(key=pre_sorted_function)
         if str_display is None:
             str_display = str_func
@@ -2423,7 +2423,10 @@ class vector(list):
                             history["query"] = query
                             history["x_bias"] = x_bias
                         if len(result) > 0:
-                            return (result.original_index(select_number), result[select_number])
+                            if return_tuple:
+                                return (result.original_index(select_number), result[select_number])
+                            else:
+                                return result[select_number]
                         return None
                     elif char == curses.KEY_UP:
                         if select_number == 2 and display_bias > 0:
@@ -2481,7 +2484,7 @@ class vector(list):
 
             return curses.wrapper(c_main)
 
-    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False):
+    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False):
 
         def regex_function(candidate, query):
             if len(query) == 0:
@@ -2490,9 +2493,9 @@ class vector(list):
             selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
             return selected
 
-        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number)
+        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple)
 
-    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False):
+    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False):
 
         def fuzzy_function(candidate, query):
             upper = any(x.isupper() for x in query)
@@ -2522,7 +2525,7 @@ class vector(list):
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
-        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number)
+        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple)
 
     def get_size(self):
         return self.rmap(sys.getsizeof).reduce(lambda x, y: x + y, first=0)
@@ -2535,11 +2538,11 @@ class vector(list):
         assert isinstance(obj, (list, vector, set, dict, tuple))
         if isinstance(obj, (list, vector, set, tuple)):
             vector_obj = vector(obj)
-            selected = vector_obj.fuzzy_search(history=history, show_line_number=True)
+            selected = vector_obj.fuzzy_search(history=history, show_line_number=True, return_tuple=True)
             return selected
         elif isinstance(obj, dict):
             vector_obj = vector(obj.keys())
-            selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history)
+            selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history, return_tuple=True)
             return selected
 
     @staticmethod
@@ -2567,7 +2570,6 @@ class vector(list):
                                     return ret
                             else:
                                 value = obj.get(selected[1], None)
-                                print(value)
                                 if value is None:
                                     return
                                 ret = vector.help(value, only_content=True)
@@ -2804,7 +2806,7 @@ class vector(list):
                     return ret
                 if history is None:
                     history = dict()
-                f_ret = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], pre_sorted_function=lambda x: (sorted_key[x], x), display_info=display_info, history=history)
+                f_ret = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], pre_sorted_function=lambda x: (sorted_key[x], x), display_info=display_info, history=history, return_tuple=True)
                 if f_ret is not None:
                     if len(f_ret) == 2:
                         func = f_ret[-1]
