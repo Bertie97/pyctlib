@@ -427,7 +427,9 @@ class path(str):
                 raise NotADirectoryError("%s doesn't exist" % new_folder)
         else:
             candidate = self.ls().filter(lambda x: x.isdir()).map(lambda x: x.abs()).append(self.parent.abs())
-            return candidate.fuzzy_search(str_func=lambda x: x.fullname)
+            ret = candidate.fuzzy_search(str_func=lambda x: x.fullname)
+            if ret:
+                return ret[-1]
 
     def rm(self, remind=True):
         if self.isdir():

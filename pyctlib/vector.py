@@ -2386,12 +2386,22 @@ class vector(list):
                         write_line(1 + index, 0, "")
                     write_line(rows-1, cols-5, content=str(char))
 
-                    def new_len(x): return (ord(x) >> 8 > 0) + 1
+                    def new_len(x): return 1 + int(u'\u4e00' < x < u'\u9fff')
                     new_x_bias = sum([new_len(t) for t in query[:x_bias]])
                     stdscr.addstr(0, x_init + new_x_bias, "")
                     search_flag = False
                     char = stdscr.get_wch()
                     if char == "\x1b" or char == curses.KEY_EXIT or char == "`":
+                        return None
+                    elif isinstance(char, str) and char == "π":
+                        if history is not None:
+                            assert isinstance(history, dict)
+                            history["select_number"] = select_number
+                            history["display_bias"] = display_bias
+                            history["query"] = query
+                            history["x_bias"] = x_bias
+                        if len(result) > 0:
+                            return ("p", result.original_index(select_number), result[select_number])
                         return None
                     elif isinstance(char, str) and char.isprintable():
                         query = query[:x_bias] + char + query[x_bias:]
@@ -2413,7 +2423,7 @@ class vector(list):
                             history["query"] = query
                             history["x_bias"] = x_bias
                         if len(result) > 0:
-                            return result[select_number]
+                            return (result.original_index(select_number), result[select_number])
                         return None
                     elif char == curses.KEY_UP:
                         if select_number == 2 and display_bias > 0:
@@ -2456,6 +2466,7 @@ class vector(list):
                         display_bias = max(selected.length - search_k, 0)
                         result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     else:
+                        raise RuntimeError()
                         pass
 
                     try:
@@ -2487,22 +2498,26 @@ class vector(list):
             upper = any(x.isupper() for x in query)
             if len(query) == 0:
                 return candidate
+            else:
+                candidate = candidate.filter(lambda x: query[0] in x)
+                if not upper:
+                    candidate = candidate.map(lambda x: x.lower())
             if len(candidate) < 1000:
-                partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x if upper else x.lower(), query), x))
+                partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x, query), x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
             else:
                 if len(query) == 1:
-                    return candidate.filter(lambda x: query in x).map(lambda x: 100)
+                    return candidate.map(lambda x: 100)
                 if len(candidate) > 5000:
                     candidate = candidate.filter(lambda x: query[:2] in x)
                 else:
                     candidate = candidate.filter(lambda x: query[0] in x and query[1] in x)
                 if len(query) <= 3:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x if upper else x.lower(), query) * (len(x) / len(query)) ** 0.8, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.8, x))
                 elif len(query) <= 10:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x if upper else x.lower(), query) * (len(x) / len(query)) ** 0.6, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.6, x))
                 else:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x if upper else x.lower(), query) * (len(x) / len(query)) ** 0.5, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.5, x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
@@ -2525,7 +2540,7 @@ class vector(list):
         elif isinstance(obj, dict):
             vector_obj = vector(obj.keys())
             selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history)
-            return obj.get(selected, None)
+            return selected
 
     @staticmethod
     def help(obj=None, history=None, only_content=False):
@@ -2539,15 +2554,45 @@ class vector(list):
                         history = {}
                     selected = vector.search_content(obj, history=history)
                     if selected:
-                        vector.help(selected, only_content=True)
-                        vector.help(obj, history=history, only_content=True)
+                        if len(selected) == 2:
+                            if isinstance(obj, (list, vector, set, tuple)):
+                                ret = vector.help(selected[1], only_content=True)
+                                if ret is not None:
+                                    if isinstance(obj, (list, vector, tuple)):
+                                        return "[{}]".format(selected[0]) + ret
+                                    else:
+                                        return ".set<{}>".format(selected[1]) + ret
+                                ret = vector.help(obj, history=history, only_content=True)
+                                if ret is not None:
+                                    return ret
+                            else:
+                                value = obj.get(selected[1], None)
+                                print(value)
+                                if value is None:
+                                    return
+                                ret = vector.help(value, only_content=True)
+                                if ret is not None:
+                                    return "[\"{}\"]".format(selected[1]) if isinstance(selected[1], str) else "[{}]".format(selected) + ret
+                                ret = vector.help(obj, history=history, only_content=True)
+                                if ret is not None:
+                                    return ret
+                        elif len(selected) == 3 and selected[0] == "p":
+                            if isinstance(obj, (list, vector, tuple)):
+                                return "[{}]".format(selected[1])
+                            elif isinstance(obj, dict):
+                                if isinstance(selected[2], str):
+                                    return "[\"{}\"]".format(selected[2])
+                                else:
+                                    return "[{}]".format(selected[2])
+                            else:
+                                return ".set<{}>".format(selected[1])
                     return
                 if isinstance(obj, (int, str, float)):
                     raw_display_str = str(obj).replace("\t", "    ")
                     str_length = len(raw_display_str)
                     line_number = raw_display_str.count("\n") + 1
                     def c_main(stdscr: "curses._CursesWindow"):
-                        def write_line(row, col, content):
+                        def write_line(row, col=0, content=""):
                             if col >= cols:
                                 return
                             if len(content) + col >= cols:
@@ -2555,7 +2600,7 @@ class vector(list):
                             else:
                                 stdscr.addstr(row, col, content)
                                 stdscr.clrtoeol()
-                                stdscr.clear()
+                        stdscr.clear()
                         rows, cols = stdscr.getmaxyx()
                         for index in range(rows):
                             stdscr.addstr(index, 0, "")
@@ -2577,6 +2622,9 @@ class vector(list):
                         display_str = display_str.map(lambda x: split_len(x, cols-1)).flatten()
                         line_bias = 0
                         search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5)) + 1
+                        write_line(search_k, 0, "-" * int(0.8 * cols))
+                        write_line(search_k+1, 0, "# char: {}".format(str_length))
+                        write_line(search_k+2, 0, "# line: {}".format(line_number))
                         while True:
                             display = display_str[line_bias: line_bias + search_k]
                             for index in range(len(display)):
@@ -2584,9 +2632,7 @@ class vector(list):
                             for index in range(len(display), search_k):
                                 stdscr.addstr(index, 0, "")
                                 stdscr.clrtoeol()
-                            write_line(search_k, 0, "-" * int(0.8 * cols))
-                            write_line(search_k+1, 0, "# char: {}".format(str_length))
-                            write_line(search_k+2, 0, "# line: {}".format(line_number))
+                            stdscr.addstr(0, 0, "")
                             char = stdscr.get_wch()
                             if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
                                 return
@@ -2758,39 +2804,50 @@ class vector(list):
                     return ret
                 if history is None:
                     history = dict()
-                func = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], pre_sorted_function=lambda x: (sorted_key[x], x), display_info=display_info, history=history)
-                if func:
-                    if func == "content" and isinstance(original_obj, content_type):
-                        vector.help(original_obj, only_content=True)
-                        vector.help(original_obj, history=history, only_content=False)
-                        return
-                    if func in extra_temp:
-                        searched = original_obj.__getattribute__(func)
-                    else:
-                        searched = eval("obj.{}".format(func))
-                    if isinstance(searched, (list, vector, tuple, set, dict)):
-                        vector.help(searched, only_content=True)
-                    elif func in extra_temp:
-                        vector.help(searched, only_content=True)
-                    elif "module" in str(type(searched)):
-                        vector.help(searched, only_content=True)
-                    elif inspect.isclass(searched):
-                        vector.help(searched, only_content=True)
-                    elif isinstance(searched, vector):
-                        vector.help(searched, only_content=True)
-                    elif isinstance(searched, (int, float, str)):
-                        vector.help(searched, only_content=True)
-                    else:
-                        help(searched)
-                        if os.name == "nt":
+                f_ret = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], pre_sorted_function=lambda x: (sorted_key[x], x), display_info=display_info, history=history)
+                if f_ret is not None:
+                    if len(f_ret) == 2:
+                        func = f_ret[-1]
+                        if func == "content" and isinstance(original_obj, content_type):
+                            ret = vector.help(original_obj, only_content=True)
+                            if ret is not None:
+                                return ret
+                            vector.help(original_obj, history=history, only_content=False)
                             return
-                    if original_obj is not None:
-                        vector.help(original_obj, history=history, only_content=only_content)
-                    else:
-                        vector.help(obj, history=history, only_content=only_content)
+                        ret = None
+                        if func in extra_temp:
+                            searched = original_obj.__getattribute__(func)
+                        else:
+                            searched = eval("obj.{}".format(func))
+                        if isinstance(searched, (list, vector, tuple, set, dict)):
+                            ret = vector.help(searched, only_content=True)
+                        elif func in extra_temp:
+                            ret = vector.help(searched, only_content=True)
+                        elif "module" in str(type(searched)):
+                            ret = vector.help(searched, only_content=True)
+                        elif inspect.isclass(searched):
+                            ret = vector.help(searched, only_content=True)
+                        elif isinstance(searched, vector):
+                            ret = vector.help(searched, only_content=True)
+                        elif isinstance(searched, (int, float, str)):
+                            vector.help(searched, only_content=True)
+                        else:
+                            help(searched)
+                            if os.name == "nt":
+                                return
+                        if ret:
+                            return ".{}".format(func) + ret
+                        if original_obj is not None:
+                            ret = vector.help(original_obj, history=history, only_content=only_content)
+                        else:
+                            ret = vector.help(obj, history=history, only_content=only_content)
+                        if ret:
+                            return ret
+                    elif len(f_ret) == 3:
+                        func = f_ret[-1]
+                        return ".{}".format(func)
                 else:
                     return
-
 
 def generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
