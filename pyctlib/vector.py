@@ -2333,6 +2333,7 @@ class vector(list):
                 display_bias = 0
                 select_number = 0
                 query = ""
+                char = ""
                 x_bias = 0
                 error_info = ""
                 if isinstance(history, dict):
@@ -2344,11 +2345,11 @@ class vector(list):
                 selected = search_func(candidate, query)
                 result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
 
+                write_line(search_k + 1, 0, "-" * int(0.8 * cols))
+
                 while True:
                     write_line(0, 0, "token to search: ")
                     stdscr.addstr(0, len("token to search: "), query)
-
-                    write_line(search_k + 1, 0, "-" * int(0.8 * cols))
 
                     write_line(search_k + 2, 0, "# match: " + str(selected.length))
                     write_line(search_k + 3, 0, "# dispaly: " + str(result.length))
@@ -2383,6 +2384,7 @@ class vector(list):
                         assert index < search_k
                     for index in range(len(result), search_k):
                         write_line(1 + index, 0, "")
+                    write_line(rows-1, cols-5, content=str(char))
 
                     def new_len(x): return (ord(x) >> 8 > 0) + 1
                     new_x_bias = sum([new_len(t) for t in query[:x_bias]])
@@ -2434,6 +2436,25 @@ class vector(list):
                         x_bias = 0
                     elif char == '\x05':
                         x_bias = len(query)
+                    elif char == 338:
+                        # page down
+                        increase_amount = max(min(search_k, selected.length - search_k - display_bias), 0)
+                        display_bias += increase_amount
+                        result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    elif char == 339:
+                        # page up
+                        decrease_amount = max(min(search_k, display_bias), 0)
+                        display_bias -= decrease_amount
+                        result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    elif char == 262:
+                        # home
+                        display_bias = 0
+                        select_number = 0
+                        result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    elif char == 360:
+                        # end
+                        display_bias = max(selected.length - search_k, 0)
+                        result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     else:
                         pass
 
@@ -2527,8 +2548,10 @@ class vector(list):
                     line_number = raw_display_str.count("\n") + 1
                     def c_main(stdscr: "curses._CursesWindow"):
                         def write_line(row, col, content):
-                            if len(content) >= cols:
-                                stdscr.addstr(row, col, content[:cols])
+                            if col >= cols:
+                                return
+                            if len(content) + col >= cols:
+                                stdscr.addstr(row, col, content[:cols - col])
                             else:
                                 stdscr.addstr(row, col, content)
                                 stdscr.clrtoeol()
