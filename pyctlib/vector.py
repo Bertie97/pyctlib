@@ -2295,10 +2295,10 @@ class vector(list):
         return self.length > 0
 
     def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False):
-        self = self.sort(key=pre_sorted_function)
         if str_display is None:
             str_display = str_func
         if len(query) > 0:
+            self = self.sort(key=pre_sorted_function)
             candidate = self.clear_index_mapping().map(str_func)
             selected = search_func(candidate, query)
             if not selected:
@@ -2308,7 +2308,6 @@ class vector(list):
             else:
                 return self.map_index_from(selected).sort(sorted_function)[:max_k]
         else:
-            candidate = self.clear_index_mapping().map(str_func)
             def c_main(stdscr: "curses._CursesWindow"):
                 def write_line(row, col=0, content=""):
                     content = " ".join(vector(content.split("\n")).map(lambda x: x.strip()))
@@ -2318,6 +2317,8 @@ class vector(list):
                         stdscr.addstr(row, col, content)
                         stdscr.clrtoeol()
                 stdscr.clear()
+                new_self = self.sort(key=pre_sorted_function).clear_index_mapping()
+                candidate = new_self.map(str_func)
                 query_done = False
                 select_number = 0
                 rows, cols = stdscr.getmaxyx()
@@ -2343,7 +2344,7 @@ class vector(list):
                     x_bias = history.get("x_bias", 0)
 
                 selected = search_func(candidate, query)
-                result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
 
                 write_line(search_k + 1, 0, "-" * int(0.8 * cols))
 
@@ -2355,7 +2356,7 @@ class vector(list):
                     write_line(search_k + 3, 0, "# dispaly: " + str(result.length))
                     error_nu = search_k + 4
                     if display_info is not None:
-                        info = display_info(self, query, selected)
+                        info = display_info(new_self, query, selected)
                         if isinstance(info, str):
                             info = vector([info])
                         for index in range(len(info)):
@@ -2431,13 +2432,13 @@ class vector(list):
                     elif char == curses.KEY_UP:
                         if select_number == 2 and display_bias > 0:
                             display_bias -= 1
-                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                         else:
                             select_number = max(select_number - 1, 0)
                     elif char == curses.KEY_DOWN:
                         if select_number == search_k - 3 and display_bias + search_k < selected.length:
                             display_bias += 1
-                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                         else:
                             select_number = max(min(select_number + 1, len(result) - 1), 0)
                     elif char == curses.KEY_LEFT:
@@ -2453,21 +2454,21 @@ class vector(list):
                         # page down
                         increase_amount = max(min(search_k, selected.length - search_k - display_bias), 0)
                         display_bias += increase_amount
-                        result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     elif char == 339:
                         # page up
                         decrease_amount = max(min(search_k, display_bias), 0)
                         display_bias -= decrease_amount
-                        result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     elif char == 262:
                         # home
                         display_bias = 0
                         select_number = 0
-                        result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     elif char == 360:
                         # end
                         display_bias = max(selected.length - search_k, 0)
-                        result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     else:
                         raise RuntimeError()
                         pass
@@ -2475,7 +2476,7 @@ class vector(list):
                     try:
                         if search_flag:
                             selected = search_func(candidate, query)
-                            result = self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                            result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
                     except Exception as e:
                         error_info = str(e)
                     else:
@@ -2534,19 +2535,19 @@ class vector(list):
         return vector(super().__dir__())
 
     @staticmethod
-    def search_content(obj, history=None):
+    def search_content(obj, history=None, prefix=""):
         assert isinstance(obj, (list, vector, set, dict, tuple))
         if isinstance(obj, (list, vector, set, tuple)):
             vector_obj = vector(obj)
-            selected = vector_obj.fuzzy_search(history=history, show_line_number=True, return_tuple=True)
+            selected = vector_obj.fuzzy_search(history=history, show_line_number=True, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]))
             return selected
         elif isinstance(obj, dict):
             vector_obj = vector(obj.keys())
-            selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history, return_tuple=True)
+            selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]))
             return selected
 
     @staticmethod
-    def help(obj=None, history=None, only_content=False):
+    def help(obj=None, history=None, only_content=False, prefix=""):
         if obj is None:
             vector.help(vector)
         else:
@@ -2555,27 +2556,31 @@ class vector(list):
                 if isinstance(obj, content_type):
                     if history is None:
                         history = {}
-                    selected = vector.search_content(obj, history=history)
+                    selected = vector.search_content(obj, history=history, prefix=prefix)
                     if selected:
                         if len(selected) == 2:
                             if isinstance(obj, (list, vector, set, tuple)):
-                                ret = vector.help(selected[1], only_content=True)
+                                ret = vector.help(selected[1], only_content=True, prefix=prefix + "[{}]".format(selected[0]))
                                 if ret is not None:
                                     if isinstance(obj, (list, vector, tuple)):
                                         return "[{}]".format(selected[0]) + ret
                                     else:
                                         return ".set<{}>".format(selected[1]) + ret
-                                ret = vector.help(obj, history=history, only_content=True)
+                                ret = vector.help(obj, history=history, only_content=True, prefix=prefix)
                                 if ret is not None:
                                     return ret
                             else:
                                 value = obj.get(selected[1], None)
                                 if value is None:
                                     return
-                                ret = vector.help(value, only_content=True)
+                                def get_dict_string_key(key):
+                                    if isinstance(key, str):
+                                        return "[\"{}\"]".format(key)
+                                    return "[{}]".format(key)
+                                ret = vector.help(value, only_content=True, prefix=prefix + get_dict_string_key(selected[1]))
                                 if ret is not None:
-                                    return "[\"{}\"]".format(selected[1]) if isinstance(selected[1], str) else "[{}]".format(selected) + ret
-                                ret = vector.help(obj, history=history, only_content=True)
+                                    return get_dict_string_key(selected[1])
+                                ret = vector.help(obj, history=history, only_content=True, prefix=prefix)
                                 if ret is not None:
                                     return ret
                         elif len(selected) == 3 and selected[0] == "p":
@@ -2596,6 +2601,8 @@ class vector(list):
                     def c_main(stdscr: "curses._CursesWindow"):
                         def write_line(row, col=0, content=""):
                             if col >= cols:
+                                return
+                            if row >= rows:
                                 return
                             if len(content) + col >= cols:
                                 stdscr.addstr(row, col, content[:cols - col])
@@ -2627,6 +2634,7 @@ class vector(list):
                         write_line(search_k, 0, "-" * int(0.8 * cols))
                         write_line(search_k+1, 0, "# char: {}".format(str_length))
                         write_line(search_k+2, 0, "# line: {}".format(line_number))
+                        write_line(search_k+3, 0, "prefix: " + prefix)
                         while True:
                             display = display_str[line_bias: line_bias + search_k]
                             for index in range(len(display)):
@@ -2686,123 +2694,130 @@ class vector(list):
             if len(temp) == 0:
                 help(obj)
             else:
-                str_display = dict()
-                str_search = dict()
-                sorted_key = dict()
-                parent = touch(lambda: obj.__mro__[1], None)
-                parent_dir = vector(dir(parent) if parent else [])
-                def is_overridden(obj, parent, func_name):
-                    if parent is None:
+                def temp_c_main(stdscr):
+                    stdscr.clear()
+                    str_display = dict()
+                    str_search = dict()
+                    sorted_key = dict()
+                    parent = touch(lambda: obj.__mro__[1], None)
+                    parent_dir = vector(dir(parent) if parent else [])
+                    def is_overridden(obj, parent, func_name):
+                        if parent is None:
+                            return False
+                        if raw_function(eval("obj.{}".format(func_name))) != raw_function(eval("parent.{}".format(func_name))):
+                            return True
                         return False
-                    if raw_function(eval("obj.{}".format(func_name))) != raw_function(eval("parent.{}".format(func_name))):
-                        return True
-                    return False
-                def is_property(func):
-                    if isinstance(raw_function(func), property):
-                        return True
-                    return False
+                    def is_property(func):
+                        if isinstance(raw_function(func), property):
+                            return True
+                        return False
 
-                space_parameter = 15
-                for item in temp:
-                    if isinstance(original_obj, content_type) and item == "content":
-                        str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
-                        str_search[item] = "[new] content"
-                        sorted_key[item] = -1
-                        continue
-                    if item in parent_dir:
-                        if is_overridden(obj, parent, item):
-                            str_display[item] = "[overridden] "
-                            str_search[item] = "[overridden] "
-                            sorted_key[item] = 10
+                    space_parameter = 15
+                    for item in temp:
+                        if isinstance(original_obj, content_type) and item == "content":
+                            str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
+                            str_search[item] = "[new] content"
+                            sorted_key[item] = -1
+                            continue
+                        if item in parent_dir:
+                            if is_overridden(obj, parent, item):
+                                str_display[item] = "[overridden] "
+                                str_search[item] = "[overridden] "
+                                sorted_key[item] = 10
+                            else:
+                                str_display[item] = "[inherited] "
+                                str_search[item] = "[inherited] "
+                                sorted_key[item] = 20
                         else:
-                            str_display[item] = "[inherited] "
-                            str_search[item] = "[inherited] "
-                            sorted_key[item] = 20
-                    else:
-                        str_display[item] = "[new] "
-                        str_search[item] = "[new] "
-                        sorted_key[item] = 0
+                            str_display[item] = "[new] "
+                            str_search[item] = "[new] "
+                            sorted_key[item] = 0
 
-                    if item in extra_temp:
-                        str_display[item] = str_display[item] + "[A] "
-                        str_search[item] = str_search[item] + "[A] " + item
-                        sorted_key[item] += 0
-                        try:
-                            str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
-                        except:
+                        if item in extra_temp:
+                            str_display[item] = str_display[item] + "[A] "
+                            str_search[item] = str_search[item] + "[A] " + item
+                            sorted_key[item] += 0
                             try:
-                                str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
+                                str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                             except:
-                                str_display[item] = str_display[item] + item
-                        continue
+                                try:
+                                    str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
+                                except:
+                                    str_display[item] = str_display[item] + item
+                            continue
 
-                    func = eval("obj.{}".format(item))
-                    if is_property(func):
-                        str_display[item] = str_display[item] + "[P] " + item
-                        str_search[item] = str_search[item] + "[P] " + item
-                        sorted_key[item] += 1
-                        if original_obj is not None:
+                        func = eval("obj.{}".format(item))
+                        if is_property(func):
+                            str_display[item] = str_display[item] + "[P] " + item
+                            str_search[item] = str_search[item] + "[P] " + item
+                            sorted_key[item] += 1
+                            if original_obj is not None:
+                                try:
+                                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                                except:
+                                    try:
+                                        str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
+                                    except:
+                                        str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [unk]"
+                        elif inspect.ismethod(func):
+                            str_display[item] = str_display[item] + "[M] " + item
+                            str_search[item] = str_search[item] + "[M] " + item
+                            sorted_key[item] += 3
+                        elif inspect.isfunction(func) or inspect.isroutine(func):
+                            str_display[item] = str_display[item] + "[F] " + item
+                            str_search[item] = str_search[item] + "[F] " + item
+                            str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| {}".format(get_args_str(func, item))
+                            sorted_key[item] += 4
+                        # elif inspect.isroutine(func):
+                        #     str_display[item] = str_display[item] + "[F] " + item
+                        #     str_search[item] = str_search[item] + "[F] " + item
+                        #     sorted_key[item] += 4
+                        elif inspect.isclass(func):
+                            str_display[item] = str_display[item] + "[C] " + item
+                            str_search[item] = str_search[item] + "[C] " + item
+                            sorted_key[item] += 5
+                        elif inspect.ismodule(func):
+                            str_display[item] = str_display[item] + "[Module] " + item
+                            str_search[item] = str_search[item] + "[Module] " + item
+                            sorted_key[item] += 6
+                        elif inspect.isgenerator(func):
+                            str_display[item] = str_display[item] + "[G] " + item
+                            str_search[item] = str_search[item] + "[G] " + item
+                            sorted_key[item] += 7
+                        elif original_obj is not None and item in class_temp:
+                            str_display[item] = str_display[item] + "[D] " + item
+                            str_search[item] = str_search[item] + "[D] " + item
                             try:
                                 str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                             except:
                                 try:
                                     str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
                                 except:
-                                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [unk]"
-                    elif inspect.ismethod(func):
-                        str_display[item] = str_display[item] + "[M] " + item
-                        str_search[item] = str_search[item] + "[M] " + item
-                        sorted_key[item] += 3
-                    elif inspect.isfunction(func) or inspect.isroutine(func):
-                        str_display[item] = str_display[item] + "[F] " + item
-                        str_search[item] = str_search[item] + "[F] " + item
-                        str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| {}".format(get_args_str(func, item))
-                        sorted_key[item] += 4
-                    # elif inspect.isroutine(func):
-                    #     str_display[item] = str_display[item] + "[F] " + item
-                    #     str_search[item] = str_search[item] + "[F] " + item
-                    #     sorted_key[item] += 4
-                    elif inspect.isclass(func):
-                        str_display[item] = str_display[item] + "[C] " + item
-                        str_search[item] = str_search[item] + "[C] " + item
-                        sorted_key[item] += 5
-                    elif inspect.ismodule(func):
-                        str_display[item] = str_display[item] + "[Module] " + item
-                        str_search[item] = str_search[item] + "[Module] " + item
-                        sorted_key[item] += 6
-                    elif inspect.isgenerator(func):
-                        str_display[item] = str_display[item] + "[G] " + item
-                        str_search[item] = str_search[item] + "[G] " + item
-                        sorted_key[item] += 7
-                    elif original_obj is not None and item in class_temp:
-                        str_display[item] = str_display[item] + "[D] " + item
-                        str_search[item] = str_search[item] + "[D] " + item
-                        try:
-                            str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
-                        except:
-                            try:
-                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
-                            except:
-                                str_display[item] = str_display[item] + item
-                        sorted_key[item] += 2
-                    elif isinstance(func, str):
-                        str_display[item] = str_display[item] + "[S] " + item + " " * max(1, space_parameter - len(item)) + "| \"{}\"".format(func)
-                        str_search[item] = str_search[item] + "[S] " + item
-                    elif isinstance(func, (int, float)):
-                        str_display[item] = str_display[item] + "[N] " + item + " " * max(1, space_parameter - len(item)) + "| {}".format(func)
-                        str_search[item] = str_search[item] + "[N] " + item
-                    else:
-                        str_display[item] = str_display[item] + "[U] " + item + " " * max(1, space_parameter - len(item)) + "| [{}]".format(class_name(func))
-                        str_search[item] = str_search[item] + "[U] " + item
-                    str_display[item] = str_display[item].replace("\n", " ")[:500]
-                    str_search[item] = str_search[item].replace("\n", " ")[:500]
+                                    str_display[item] = str_display[item] + item
+                            sorted_key[item] += 2
+                        elif isinstance(func, str):
+                            str_display[item] = str_display[item] + "[S] " + item + " " * max(1, space_parameter - len(item)) + "| \"{}\"".format(func)
+                            str_search[item] = str_search[item] + "[S] " + item
+                        elif isinstance(func, (int, float)):
+                            str_display[item] = str_display[item] + "[N] " + item + " " * max(1, space_parameter - len(item)) + "| {}".format(func)
+                            str_search[item] = str_search[item] + "[N] " + item
+                        else:
+                            str_display[item] = str_display[item] + "[U] " + item + " " * max(1, space_parameter - len(item)) + "| [{}]".format(class_name(func))
+                            str_search[item] = str_search[item] + "[U] " + item
+                        str_display[item] = str_display[item].replace("\n", " ")[:500]
+                        str_search[item] = str_search[item].replace("\n", " ")[:500]
 
-                def display_info(me, query, selected):
+                    return str_search, str_display, sorted_key
+
+                str_search, str_display, sorted_key = curses.wrapper(temp_c_main)
+
+                def display_info(me, query: str, selected: str):
                     result = me.map_index_from(selected).map(lambda x: sorted_key[x]).filter(lambda x: x > 0).map(lambda x: x // 10).count_all()
                     ret = vector()
                     ret.append("# new: {}".format(result.get(0,0)))
                     ret.append("# overridden: {}".format(result.get(1,0)))
                     ret.append("# inherited: {}".format(result.get(2,0)))
+                    ret.append("prefix: " + prefix)
                     return ret
                 if history is None:
                     history = dict()
@@ -2814,7 +2829,7 @@ class vector(list):
                             ret = vector.help(original_obj, only_content=True)
                             if ret is not None:
                                 return ret
-                            vector.help(original_obj, history=history, only_content=False)
+                            vector.help(original_obj, history=history, only_content=False, prefix=prefix)
                             return
                         ret = None
                         if func in extra_temp:
@@ -2822,17 +2837,17 @@ class vector(list):
                         else:
                             searched = eval("obj.{}".format(func))
                         if isinstance(searched, (list, vector, tuple, set, dict)):
-                            ret = vector.help(searched, only_content=True)
+                            ret = vector.help(searched, only_content=True, prefix=prefix + "." + func)
                         elif func in extra_temp:
-                            ret = vector.help(searched, only_content=True)
+                            ret = vector.help(searched, only_content=True, prefix=prefix + "." + func)
                         elif "module" in str(type(searched)):
-                            ret = vector.help(searched, only_content=True)
+                            ret = vector.help(searched, only_content=True, prefix=prefix + "." + func)
                         elif inspect.isclass(searched):
-                            ret = vector.help(searched, only_content=True)
+                            ret = vector.help(searched, only_content=True, prefix=prefix + "." + func)
                         elif isinstance(searched, vector):
-                            ret = vector.help(searched, only_content=True)
+                            ret = vector.help(searched, only_content=True, prefix=prefix + "." + func)
                         elif isinstance(searched, (int, float, str)):
-                            vector.help(searched, only_content=True)
+                            vector.help(searched, only_content=True, prefix=prefix + "." + func)
                         else:
                             help(searched)
                             if os.name == "nt":
@@ -2840,9 +2855,9 @@ class vector(list):
                         if ret:
                             return ".{}".format(func) + ret
                         if original_obj is not None:
-                            ret = vector.help(original_obj, history=history, only_content=only_content)
+                            ret = vector.help(original_obj, history=history, only_content=only_content, prefix=prefix)
                         else:
-                            ret = vector.help(obj, history=history, only_content=only_content)
+                            ret = vector.help(obj, history=history, only_content=only_content, prefix=prefix)
                         if ret:
                             return ret
                     elif len(f_ret) == 3:
