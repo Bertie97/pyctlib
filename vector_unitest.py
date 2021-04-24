@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath("."))
 import pyctlib
 import pathlib
 import numpy as np
-from pyctlib import vector, IndexMapping, scope
+from pyctlib import vector, IndexMapping, scope, vhelp
 from pyctlib.vector import chain_function
 with scope("import"):
     from pyctlib import path, get_relative_path, file
@@ -46,4 +46,3 @@ with scope("all"):
     assert vector.range(100).reshape(2, -1).shape == (2, 50)
 
 p = path("./tpdataset_unitest.py", main_folder=".")
-vector.help(p)
