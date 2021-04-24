@@ -40,6 +40,26 @@ import traceback
 import inspect
 import os
 from .strtools import delete_surround
+import logging  # 引入logging模块
+import os.path
+import time
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)  # Log等级总开关
+rq = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
+log_path = os.path.dirname(os.getcwd()) + '/Logs/'
+log_name = log_path + rq + '.log'
+logfile = log_name
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
+formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+# logger.debug('this is a logger debug message')
+# logger.info('this is a logger info message')
+# logger.warning('this is a logger warning message')
+# logger.error('this is a logger error message')
+# logger.critical('this is a logger critical message')
 
 """
 Usage:
@@ -2294,7 +2314,7 @@ class vector(list):
     def __bool__(self):
         return self.length > 0
 
-    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False):
+    def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False, stdscr=None):
         """
         Provide interactive search function for item in vector
 
@@ -2342,185 +2362,186 @@ class vector(list):
                 return self.map_index_from(selected).sort(sorted_function)[0]
             else:
                 return self.map_index_from(selected).sort(sorted_function)[:max_k]
-        else:
+        elif stdscr is None:
             def c_main(stdscr: "curses._CursesWindow"):
-                def write_line(row, col=0, content=""):
-                    content = " ".join(vector(content.split("\n")).map(lambda x: x.strip()))
-                    if len(content) >= cols:
-                        stdscr.addstr(row, col, content[:cols])
-                    else:
-                        stdscr.addstr(row, col, content)
-                        stdscr.clrtoeol()
-                stdscr.clear()
-                new_self = self.sort(key=pre_sorted_function).clear_index_mapping()
-                candidate = new_self.map(str_func)
-                query_done = False
-                select_number = 0
-                rows, cols = stdscr.getmaxyx()
-                for index in range(rows):
-                    write_line(index, 0, "")
-                x_init = len("token to search: ")
-
-                stdscr.addstr(0, 0, "token to search: ")
-                search_k = max_k
-                if search_k is NoDefault:
-                    search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5))
-
-                display_bias = 0
-                select_number = 0
-                query = ""
-                char = ""
-                x_bias = 0
-                error_info = ""
-                if isinstance(history, dict):
-                    display_bias = history.get("display_bias", 0)
-                    select_number = history.get("select_number", 0)
-                    query = history.get("query", "")
-                    x_bias = history.get("x_bias", 0)
-
-                selected = search_func(candidate, query)
-                result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-
-                write_line(search_k + 1, 0, "-" * int(0.8 * cols))
-
-                while True:
-                    write_line(0, 0, "token to search: ")
-                    stdscr.addstr(0, len("token to search: "), query)
-
-                    write_line(search_k + 2, 0, "# match: " + str(selected.length))
-                    write_line(search_k + 3, 0, "# dispaly: " + str(result.length))
-                    error_nu = search_k + 4
-                    if display_info is not None:
-                        info = display_info(new_self, query, selected)
-                        if isinstance(info, str):
-                            info = vector([info])
-                        for index in range(len(info)):
-                            if search_k + 4 + index < rows:
-                                write_line(search_k + 4 + index, 0, info[index][:cols])
-                                error_nu += 1
-                            else:
-                                break
-                    if error_info:
-                        if error_nu < rows:
-                            for line in error_info.split("\n"):
-                                write_line(error_nu, 0, line[:cols])
-                                error_nu += 1
-                    for index in range(error_nu, rows):
-                        write_line(index, 0, "")
-
-                    for index in range(len(result)):
-                        if show_line_number:
-                            display_str = "[{}] {}".format(result.original_index(index), str_display(result[index]))
-                        else:
-                            display_str = str_display(result[index])
-                        if index == select_number:
-                            write_line(1 + index, 0, "* " + display_str)
-                        else:
-                            write_line(1 + index, 0, display_str)
-                        assert index < search_k
-                    for index in range(len(result), search_k):
-                        write_line(1 + index, 0, "")
-                    write_line(rows-1, cols-5, content=str(char))
-
-                    def new_len(x): return 1 + int(u'\u4e00' < x < u'\u9fff')
-                    new_x_bias = sum([new_len(t) for t in query[:x_bias]])
-                    stdscr.addstr(0, x_init + new_x_bias, "")
-                    search_flag = False
-                    char = stdscr.get_wch()
-                    if char == "\x1b" or char == curses.KEY_EXIT or char == "`":
-                        return None
-                    elif isinstance(char, str) and char == "π":
-                        if history is not None:
-                            assert isinstance(history, dict)
-                            history["select_number"] = select_number
-                            history["display_bias"] = display_bias
-                            history["query"] = query
-                            history["x_bias"] = x_bias
-                        if len(result) > 0:
-                            return ("p", result.original_index(select_number), result[select_number])
-                        return None
-                    elif isinstance(char, str) and char.isprintable():
-                        query = query[:x_bias] + char + query[x_bias:]
-                        select_number = 0
-                        display_bias = 0
-                        x_bias += 1
-                        search_flag = True
-                    elif char == curses.KEY_BACKSPACE or char == "\x7f" or touch(lambda: ord(char), 0) == 8:
-                        query = query[:max(x_bias - 1, 0)] + query[x_bias:]
-                        select_number = 0
-                        display_bias = 0
-                        x_bias = max(x_bias - 1, 0)
-                        search_flag = True
-                    elif char == "\n":
-                        if history is not None:
-                            assert isinstance(history, dict)
-                            history["select_number"] = select_number
-                            history["display_bias"] = display_bias
-                            history["query"] = query
-                            history["x_bias"] = x_bias
-                        if len(result) > 0:
-                            if return_tuple:
-                                return (result.original_index(select_number), result[select_number])
-                            else:
-                                return result[select_number]
-                        return None
-                    elif char == curses.KEY_UP:
-                        if select_number == 2 and display_bias > 0:
-                            display_bias -= 1
-                            result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                        else:
-                            select_number = max(select_number - 1, 0)
-                    elif char == curses.KEY_DOWN:
-                        if select_number == search_k - 3 and display_bias + search_k < selected.length:
-                            display_bias += 1
-                            result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                        else:
-                            select_number = max(min(select_number + 1, len(result) - 1), 0)
-                    elif char == curses.KEY_LEFT:
-                        x_bias = max(x_bias - 1, 0)
-                        continue
-                    elif char == curses.KEY_RIGHT:
-                        x_bias = min(x_bias + 1, len(query))
-                    elif char == '\x01':
-                        x_bias = 0
-                    elif char == '\x05':
-                        x_bias = len(query)
-                    elif char == 338:
-                        # page down
-                        increase_amount = max(min(search_k, selected.length - search_k - display_bias), 0)
-                        display_bias += increase_amount
-                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                    elif char == 339:
-                        # page up
-                        decrease_amount = max(min(search_k, display_bias), 0)
-                        display_bias -= decrease_amount
-                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                    elif char == 262:
-                        # home
-                        display_bias = 0
-                        select_number = 0
-                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                    elif char == 360:
-                        # end
-                        display_bias = max(selected.length - search_k, 0)
-                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                    else:
-                        raise RuntimeError()
-                        pass
-
-                    try:
-                        if search_flag:
-                            selected = search_func(candidate, query)
-                            result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
-                    except Exception as e:
-                        error_info = str(e)
-                    else:
-                        error_info = ""
-
-
+                return self.function_search(search_func, query="", max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple, stdscr=stdscr)
             return curses.wrapper(c_main)
+        else:
+            def write_line(row, col=0, content=""):
+                content = " ".join(vector(content.split("\n")).map(lambda x: x.strip()))
+                if len(content) >= cols:
+                    stdscr.addstr(row, col, content[:cols])
+                else:
+                    stdscr.addstr(row, col, content)
+                    stdscr.clrtoeol()
+            stdscr.clear()
+            new_self = self.sort(key=pre_sorted_function).clear_index_mapping()
+            candidate = new_self.map(str_func)
+            query_done = False
+            select_number = 0
+            rows, cols = stdscr.getmaxyx()
+            for index in range(rows):
+                write_line(index, 0, "")
+            x_init = len("token to search: ")
 
-    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False):
+            stdscr.addstr(0, 0, "token to search: ")
+            search_k = max_k
+            if search_k is NoDefault:
+                search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5))
+
+            display_bias = 0
+            select_number = 0
+            query = ""
+            char = ""
+            x_bias = 0
+            error_info = ""
+            if isinstance(history, dict):
+                display_bias = history.get("display_bias", 0)
+                select_number = history.get("select_number", 0)
+                query = history.get("query", "")
+                x_bias = history.get("x_bias", 0)
+
+            selected = search_func(candidate, query)
+            result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+
+            write_line(search_k + 1, 0, "-" * int(0.8 * cols))
+
+            while True:
+                write_line(0, 0, "token to search: ")
+                stdscr.addstr(0, len("token to search: "), query)
+
+                write_line(search_k + 2, 0, "# match: " + str(selected.length))
+                write_line(search_k + 3, 0, "# dispaly: " + str(result.length))
+                error_nu = search_k + 4
+                if display_info is not None:
+                    info = display_info(new_self, query, selected)
+                    if isinstance(info, str):
+                        info = vector([info])
+                    for index in range(len(info)):
+                        if search_k + 4 + index < rows:
+                            write_line(search_k + 4 + index, 0, info[index][:cols])
+                            error_nu += 1
+                        else:
+                            break
+                if error_info:
+                    if error_nu < rows:
+                        for line in error_info.split("\n"):
+                            write_line(error_nu, 0, line[:cols])
+                            error_nu += 1
+                for index in range(error_nu, rows):
+                    write_line(index, 0, "")
+
+                for index in range(len(result)):
+                    if show_line_number:
+                        display_str = "[{}] {}".format(result.original_index(index), str_display(result[index]))
+                    else:
+                        display_str = str_display(result[index])
+                    if index == select_number:
+                        write_line(1 + index, 0, "* " + display_str)
+                    else:
+                        write_line(1 + index, 0, display_str)
+                    assert index < search_k
+                for index in range(len(result), search_k):
+                    write_line(1 + index, 0, "")
+                write_line(rows-1, cols-5, content=str(char))
+
+                def new_len(x): return 1 + int(u'\u4e00' < x < u'\u9fff')
+                new_x_bias = sum([new_len(t) for t in query[:x_bias]])
+                stdscr.addstr(0, x_init + new_x_bias, "")
+                search_flag = False
+                char = stdscr.get_wch()
+                logger.info(str(char))
+                if char == "\x1b" or char == curses.KEY_EXIT or char == "`":
+                    return None
+                elif isinstance(char, str) and char == "π":
+                    if history is not None:
+                        assert isinstance(history, dict)
+                        history["select_number"] = select_number
+                        history["display_bias"] = display_bias
+                        history["query"] = query
+                        history["x_bias"] = x_bias
+                    if len(result) > 0:
+                        return ("p", result.original_index(select_number), result[select_number])
+                    return None
+                elif isinstance(char, str) and char.isprintable():
+                    query = query[:x_bias] + char + query[x_bias:]
+                    select_number = 0
+                    display_bias = 0
+                    x_bias += 1
+                    search_flag = True
+                elif char == curses.KEY_BACKSPACE or char == "\x7f" or touch(lambda: ord(char), 0) == 8:
+                    query = query[:max(x_bias - 1, 0)] + query[x_bias:]
+                    select_number = 0
+                    display_bias = 0
+                    x_bias = max(x_bias - 1, 0)
+                    search_flag = True
+                elif char == "\n":
+                    if history is not None:
+                        assert isinstance(history, dict)
+                        history["select_number"] = select_number
+                        history["display_bias"] = display_bias
+                        history["query"] = query
+                        history["x_bias"] = x_bias
+                    if len(result) > 0:
+                        if return_tuple:
+                            return (result.original_index(select_number), result[select_number])
+                        else:
+                            return result[select_number]
+                    return None
+                elif char == curses.KEY_UP or char == 259:
+                    if select_number == 2 and display_bias > 0:
+                        display_bias -= 1
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    else:
+                        select_number = max(select_number - 1, 0)
+                elif char == curses.KEY_DOWN or char == 258:
+                    if select_number == search_k - 3 and display_bias + search_k < selected.length:
+                        display_bias += 1
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    else:
+                        select_number = max(min(select_number + 1, len(result) - 1), 0)
+                elif char == curses.KEY_LEFT:
+                    x_bias = max(x_bias - 1, 0)
+                    continue
+                elif char == curses.KEY_RIGHT:
+                    x_bias = min(x_bias + 1, len(query))
+                elif char == '\x01':
+                    x_bias = 0
+                elif char == '\x05':
+                    x_bias = len(query)
+                elif char == 338:
+                    # page down
+                    increase_amount = max(min(search_k, selected.length - search_k - display_bias), 0)
+                    display_bias += increase_amount
+                    result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                elif char == 339:
+                    # page up
+                    decrease_amount = max(min(search_k, display_bias), 0)
+                    display_bias -= decrease_amount
+                    result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                elif char == 262:
+                    # home
+                    display_bias = 0
+                    select_number = 0
+                    result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                elif char == 360:
+                    # end
+                    display_bias = max(selected.length - search_k, 0)
+                    result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                else:
+                    # raise RuntimeError()
+                    pass
+
+                try:
+                    if search_flag:
+                        selected = search_func(candidate, query)
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                except Exception as e:
+                    error_info = str(e)
+                else:
+                    error_info = ""
+
+    def regex_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False, stdscr=None):
 
         def regex_function(candidate, query):
             if len(query) == 0:
@@ -2529,9 +2550,9 @@ class vector(list):
             selected = candidate.filter(lambda x: regex.search(x), ignore_error=False).sort(len)
             return selected
 
-        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple)
+        return self.function_search(regex_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple, stdscr=stdscr)
 
-    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False):
+    def fuzzy_search(self, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False, stdscr=None):
 
         def fuzzy_function(candidate, query):
             upper = any(x.isupper() for x in query)
@@ -2561,7 +2582,7 @@ class vector(list):
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
 
-        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple)
+        return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple, stdscr=stdscr)
 
     def get_size(self):
         return self.rmap(sys.getsizeof).reduce(lambda x, y: x + y, first=0)
@@ -2570,40 +2591,44 @@ class vector(list):
         return vector(super().__dir__())
 
     @staticmethod
-    def search_content(obj, history=None, prefix=""):
+    def search_content(obj, history=None, prefix="", stdscr=None):
         assert isinstance(obj, (list, vector, set, dict, tuple))
         if isinstance(obj, (list, vector, set, tuple)):
             vector_obj = vector(obj)
-            selected = vector_obj.fuzzy_search(history=history, show_line_number=True, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]))
+            selected = vector_obj.fuzzy_search(history=history, show_line_number=True, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]), stdscr=stdscr)
             return selected
         elif isinstance(obj, dict):
             vector_obj = vector(obj.keys())
-            selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]))
+            selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]), stdscr=stdscr)
             return selected
 
-    def help(self, only_content=False, prefix=""):
-        return vhelp(self, only_content=only_content, prefix=prefix)
+    def help(self, only_content=False, prefix="", stdscr=None):
+        return vhelp(self, only_content=only_content, prefix=prefix, stdscr=stdscr)
 
-def vhelp(obj=None, history=None, only_content=False, prefix=""):
+def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
     if obj is None:
-        vhelp(vector)
+        vhelp(vector, history=history, only_content=only_content, stdscr=stdscr)
+    elif stdscr is None:
+        def help_main(stdscr):
+            vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
+        return curses.wrapper(help_main)
     else:
         content_type = (list, vector, set, tuple, dict)
         if only_content:
             if isinstance(obj, content_type):
                 if history is None:
                     history = {}
-                selected = vector.search_content(obj, history=history, prefix=prefix)
+                selected = vector.search_content(obj, history=history, prefix=prefix, stdscr=stdscr)
                 if selected:
                     if len(selected) == 2:
                         if isinstance(obj, (list, vector, set, tuple)):
-                            ret = vhelp(selected[1], only_content=True, prefix=prefix + "[{}]".format(selected[0]))
+                            ret = vhelp(selected[1], only_content=True, prefix=prefix + "[{}]".format(selected[0]), stdscr=stdscr)
                             if ret is not None:
                                 if isinstance(obj, (list, vector, tuple)):
                                     return "[{}]".format(selected[0]) + ret
                                 else:
                                     return ".set<{}>".format(selected[1]) + ret
-                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix)
+                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix, stdscr=stdscr)
                             if ret is not None:
                                 return ret
                         else:
@@ -2614,10 +2639,10 @@ def vhelp(obj=None, history=None, only_content=False, prefix=""):
                                 if isinstance(key, str):
                                     return "[\"{}\"]".format(key)
                                 return "[{}]".format(key)
-                            ret = vhelp(value, only_content=True, prefix=prefix + get_dict_string_key(selected[1]))
+                            ret = vhelp(value, only_content=True, prefix=prefix + get_dict_string_key(selected[1]), stdscr=stdscr)
                             if ret is not None:
                                 return get_dict_string_key(selected[1])
-                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix)
+                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix, stdscr=stdscr)
                             if ret is not None:
                                 return ret
                     elif len(selected) == 3 and selected[0] == "p":
@@ -2635,80 +2660,79 @@ def vhelp(obj=None, history=None, only_content=False, prefix=""):
                 raw_display_str = str(obj).replace("\t", "    ")
                 str_length = len(raw_display_str)
                 line_number = raw_display_str.count("\n") + 1
-                def c_main(stdscr: "curses._CursesWindow"):
-                    def write_line(row, col=0, content=""):
-                        if col >= cols:
-                            return
-                        if row >= rows:
-                            return
-                        if len(content) + col >= cols:
-                            stdscr.addstr(row, col, content[:cols - col])
+
+                def write_line(row, col=0, content=""):
+                    if col >= cols:
+                        return
+                    if row >= rows:
+                        return
+                    if len(content) + col >= cols:
+                        stdscr.addstr(row, col, content[:cols - col])
+                    else:
+                        stdscr.addstr(row, col, content)
+                        stdscr.clrtoeol()
+                stdscr.clear()
+                rows, cols = stdscr.getmaxyx()
+                for index in range(rows):
+                    stdscr.addstr(index, 0, "")
+                    stdscr.clrtoeol()
+                display_str = vector(raw_display_str.split("\n"))
+                for index in range(len(display_str)):
+                    display_str[index] = "[{}] ".format(index+1) + display_str[index]
+                def split_len(s, l):
+                    if len(s) <= l:
+                        return s
+                    ret = vector()
+                    while s:
+                        if len(s) > l:
+                            ret.append(s[:l-1] + "\\")
                         else:
-                            stdscr.addstr(row, col, content)
-                            stdscr.clrtoeol()
-                    stdscr.clear()
-                    rows, cols = stdscr.getmaxyx()
-                    for index in range(rows):
+                            ret.append(s[:l])
+                        s = s[l:]
+                    return ret
+                display_str = display_str.map(lambda x: split_len(x, cols-1)).flatten()
+                line_bias = 0
+                search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5)) + 1
+                write_line(search_k, 0, "-" * int(0.8 * cols))
+                write_line(search_k+1, 0, "# char: {}".format(str_length))
+                write_line(search_k+2, 0, "# line: {}".format(line_number))
+                write_line(search_k+3, 0, "prefix: " + prefix)
+                while True:
+                    display = display_str[line_bias: line_bias + search_k]
+                    for index in range(len(display)):
+                        write_line(index, 0, display[index])
+                    for index in range(len(display), search_k):
                         stdscr.addstr(index, 0, "")
                         stdscr.clrtoeol()
-                    display_str = vector(raw_display_str.split("\n"))
-                    for index in range(len(display_str)):
-                        display_str[index] = "[{}] ".format(index+1) + display_str[index]
-                    def split_len(s, l):
-                        if len(s) <= l:
-                            return s
-                        ret = vector()
-                        while s:
-                            if len(s) > l:
-                                ret.append(s[:l-1] + "\\")
-                            else:
-                                ret.append(s[:l])
-                            s = s[l:]
-                        return ret
-                    display_str = display_str.map(lambda x: split_len(x, cols-1)).flatten()
-                    line_bias = 0
-                    search_k = int(max(min(rows - 8, rows * 0.85), rows * 0.5)) + 1
-                    write_line(search_k, 0, "-" * int(0.8 * cols))
-                    write_line(search_k+1, 0, "# char: {}".format(str_length))
-                    write_line(search_k+2, 0, "# line: {}".format(line_number))
-                    write_line(search_k+3, 0, "prefix: " + prefix)
-                    while True:
-                        display = display_str[line_bias: line_bias + search_k]
-                        for index in range(len(display)):
-                            write_line(index, 0, display[index])
-                        for index in range(len(display), search_k):
-                            stdscr.addstr(index, 0, "")
-                            stdscr.clrtoeol()
-                        stdscr.addstr(0, 0, "")
-                        char = stdscr.get_wch()
+                    stdscr.addstr(0, 0, "")
+                    char = stdscr.get_wch()
+                    if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
+                        return
+                    elif char == curses.KEY_DOWN:
+                        line_bias = max(min(line_bias + 1, len(display_str) - search_k), 0)
+                    elif char == curses.KEY_UP:
+                        line_bias = max(line_bias - 1, 0)
+                    elif char == "G":
+                        line_bias = max(0, len(display_str) - search_k)
+                    elif char == "g":
+                        char == stdscr.get_wch()
+                        if char == "g":
+                            line_bias = 0
                         if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
                             return
-                        elif char == curses.KEY_DOWN:
-                            line_bias = max(min(line_bias + 1, len(display_str) - search_k), 0)
-                        elif char == curses.KEY_UP:
-                            line_bias = max(line_bias - 1, 0)
-                        elif char == "G":
-                            line_bias = max(0, len(display_str) - search_k)
-                        elif char == "g":
-                            char == stdscr.get_wch()
-                            if char == "g":
-                                line_bias = 0
-                            if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
-                                return
-                            else:
-                                continue
-                        elif isinstance(char, str) and char.isdigit():
-                            num = 0
-                            while isinstance(char, str) and char.isdigit():
-                                num = num * 10 + int(char)
-                                char = stdscr.get_wch()
-                            if char == "G":
-                                line_bias = max(min(num - search_k // 6, len(display_str) - search_k), 0)
-                            else:
-                                continue
                         else:
                             continue
-                curses.wrapper(c_main)
+                    elif isinstance(char, str) and char.isdigit():
+                        num = 0
+                        while isinstance(char, str) and char.isdigit():
+                            num = num * 10 + int(char)
+                            char = stdscr.get_wch()
+                        if char == "G":
+                            line_bias = max(min(num - search_k // 6, len(display_str) - search_k), 0)
+                        else:
+                            continue
+                    else:
+                        continue
                 return
 
         if not inspect.isfunction(obj) and not inspect.ismethod(obj) and not inspect.ismodule(obj) and not inspect.isclass(obj):
@@ -2731,122 +2755,122 @@ def vhelp(obj=None, history=None, only_content=False, prefix=""):
         if len(temp) == 0:
             help(obj)
         else:
-            def temp_c_main(stdscr):
-                stdscr.clear()
-                str_display = dict()
-                str_search = dict()
-                sorted_key = dict()
-                parent = touch(lambda: obj.__mro__[1], None)
-                parent_dir = vector(dir(parent) if parent else [])
-                def is_overridden(obj, parent, func_name):
-                    if parent is None:
-                        return False
-                    if raw_function(eval("obj.{}".format(func_name))) != raw_function(eval("parent.{}".format(func_name))):
-                        return True
+            # def temp_c_main(stdscr):
+            #     stdscr.clear()
+            str_display = dict()
+            str_search = dict()
+            sorted_key = dict()
+            parent = touch(lambda: obj.__mro__[1], None)
+            parent_dir = vector(dir(parent) if parent else [])
+            def is_overridden(obj, parent, func_name):
+                if parent is None:
                     return False
-                def is_property(func):
-                    if isinstance(raw_function(func), property):
-                        return True
-                    return False
+                if raw_function(eval("obj.{}".format(func_name))) != raw_function(eval("parent.{}".format(func_name))):
+                    return True
+                return False
+            def is_property(func):
+                if isinstance(raw_function(func), property):
+                    return True
+                return False
 
-                space_parameter = 15
-                for item in temp:
-                    if isinstance(original_obj, content_type) and item == "content":
-                        str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
-                        str_search[item] = "[new] content"
-                        sorted_key[item] = -1
-                        continue
-                    if item in parent_dir:
-                        if is_overridden(obj, parent, item):
-                            str_display[item] = "[overridden] "
-                            str_search[item] = "[overridden] "
-                            sorted_key[item] = 10
-                        else:
-                            str_display[item] = "[inherited] "
-                            str_search[item] = "[inherited] "
-                            sorted_key[item] = 20
+            space_parameter = 15
+            for item in temp:
+                if isinstance(original_obj, content_type) and item == "content":
+                    str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
+                    str_search[item] = "[new] content"
+                    sorted_key[item] = -1
+                    continue
+                if item in parent_dir:
+                    if is_overridden(obj, parent, item):
+                        str_display[item] = "[overridden] "
+                        str_search[item] = "[overridden] "
+                        sorted_key[item] = 10
                     else:
-                        str_display[item] = "[new] "
-                        str_search[item] = "[new] "
-                        sorted_key[item] = 0
+                        str_display[item] = "[inherited] "
+                        str_search[item] = "[inherited] "
+                        sorted_key[item] = 20
+                else:
+                    str_display[item] = "[new] "
+                    str_search[item] = "[new] "
+                    sorted_key[item] = 0
 
-                    if item in extra_temp:
-                        str_display[item] = str_display[item] + "[A] "
-                        str_search[item] = str_search[item] + "[A] " + item
-                        sorted_key[item] += 0
+                if item in extra_temp:
+                    str_display[item] = str_display[item] + "[A] "
+                    str_search[item] = str_search[item] + "[A] " + item
+                    sorted_key[item] += 0
+                    try:
+                        str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                    except:
                         try:
-                            str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                            str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
                         except:
-                            try:
-                                str_display[item] = str_display[item] + item + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
-                            except:
-                                str_display[item] = str_display[item] + item
-                        continue
+                            str_display[item] = str_display[item] + item
+                    continue
 
-                    func = eval("obj.{}".format(item))
-                    if is_property(func):
-                        str_display[item] = str_display[item] + "[P] " + item
-                        str_search[item] = str_search[item] + "[P] " + item
-                        sorted_key[item] += 1
-                        if original_obj is not None:
-                            try:
-                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
-                            except:
-                                try:
-                                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
-                                except:
-                                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [unk]"
-                    elif inspect.ismethod(func):
-                        str_display[item] = str_display[item] + "[M] " + item
-                        str_search[item] = str_search[item] + "[M] " + item
-                        sorted_key[item] += 3
-                    elif inspect.isfunction(func) or inspect.isroutine(func):
-                        str_display[item] = str_display[item] + "[F] " + item
-                        str_search[item] = str_search[item] + "[F] " + item
-                        str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| {}".format(get_args_str(func, item))
-                        sorted_key[item] += 4
-                    # elif inspect.isroutine(func):
-                    #     str_display[item] = str_display[item] + "[F] " + item
-                    #     str_search[item] = str_search[item] + "[F] " + item
-                    #     sorted_key[item] += 4
-                    elif inspect.isclass(func):
-                        str_display[item] = str_display[item] + "[C] " + item
-                        str_search[item] = str_search[item] + "[C] " + item
-                        sorted_key[item] += 5
-                    elif inspect.ismodule(func):
-                        str_display[item] = str_display[item] + "[Module] " + item
-                        str_search[item] = str_search[item] + "[Module] " + item
-                        sorted_key[item] += 6
-                    elif inspect.isgenerator(func):
-                        str_display[item] = str_display[item] + "[G] " + item
-                        str_search[item] = str_search[item] + "[G] " + item
-                        sorted_key[item] += 7
-                    elif original_obj is not None and item in class_temp:
-                        str_display[item] = str_display[item] + "[D] " + item
-                        str_search[item] = str_search[item] + "[D] " + item
+                func = eval("obj.{}".format(item))
+                if is_property(func):
+                    str_display[item] = str_display[item] + "[P] " + item
+                    str_search[item] = str_search[item] + "[P] " + item
+                    sorted_key[item] += 1
+                    if original_obj is not None:
                         try:
                             str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
                         except:
                             try:
                                 str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
                             except:
-                                str_display[item] = str_display[item] + item
-                        sorted_key[item] += 2
-                    elif isinstance(func, str):
-                        str_display[item] = str_display[item] + "[S] " + item + " " * max(1, space_parameter - len(item)) + "| \"{}\"".format(func)
-                        str_search[item] = str_search[item] + "[S] " + item
-                    elif isinstance(func, (int, float)):
-                        str_display[item] = str_display[item] + "[N] " + item + " " * max(1, space_parameter - len(item)) + "| {}".format(func)
-                        str_search[item] = str_search[item] + "[N] " + item
-                    else:
-                        str_display[item] = str_display[item] + "[U] " + item + " " * max(1, space_parameter - len(item)) + "| [{}]".format(class_name(func))
-                        str_search[item] = str_search[item] + "[U] " + item
-                    str_display[item] = str_display[item].replace("\n", " ")[:500]
-                    str_search[item] = str_search[item].replace("\n", " ")[:500]
+                                str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [unk]"
+                elif inspect.ismethod(func):
+                    str_display[item] = str_display[item] + "[M] " + item
+                    str_search[item] = str_search[item] + "[M] " + item
+                    sorted_key[item] += 3
+                elif inspect.isfunction(func) or inspect.isroutine(func):
+                    str_display[item] = str_display[item] + "[F] " + item
+                    str_search[item] = str_search[item] + "[F] " + item
+                    str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| {}".format(get_args_str(func, item))
+                    sorted_key[item] += 4
+                # elif inspect.isroutine(func):
+                #     str_display[item] = str_display[item] + "[F] " + item
+                #     str_search[item] = str_search[item] + "[F] " + item
+                #     sorted_key[item] += 4
+                elif inspect.isclass(func):
+                    str_display[item] = str_display[item] + "[C] " + item
+                    str_search[item] = str_search[item] + "[C] " + item
+                    sorted_key[item] += 5
+                elif inspect.ismodule(func):
+                    str_display[item] = str_display[item] + "[Module] " + item
+                    str_search[item] = str_search[item] + "[Module] " + item
+                    sorted_key[item] += 6
+                elif inspect.isgenerator(func):
+                    str_display[item] = str_display[item] + "[G] " + item
+                    str_search[item] = str_search[item] + "[G] " + item
+                    sorted_key[item] += 7
+                elif original_obj is not None and item in class_temp:
+                    str_display[item] = str_display[item] + "[D] " + item
+                    str_search[item] = str_search[item] + "[D] " + item
+                    try:
+                        str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item))) + str(original_obj.__getattribute__(item)).replace("\n", " ")
+                    except:
+                        try:
+                            str_display[item] = str_display[item] + " " * max(1, space_parameter - len(item)) + "| [{}] ".format(class_name(original_obj.__getattribute__(item)))
+                        except:
+                            str_display[item] = str_display[item] + item
+                    sorted_key[item] += 2
+                elif isinstance(func, str):
+                    str_display[item] = str_display[item] + "[S] " + item + " " * max(1, space_parameter - len(item)) + "| \"{}\"".format(func)
+                    str_search[item] = str_search[item] + "[S] " + item
+                elif isinstance(func, (int, float)):
+                    str_display[item] = str_display[item] + "[N] " + item + " " * max(1, space_parameter - len(item)) + "| {}".format(func)
+                    str_search[item] = str_search[item] + "[N] " + item
+                else:
+                    str_display[item] = str_display[item] + "[U] " + item + " " * max(1, space_parameter - len(item)) + "| [{}]".format(class_name(func))
+                    str_search[item] = str_search[item] + "[U] " + item
+                str_display[item] = str_display[item].replace("\n", " ")[:500]
+                str_search[item] = str_search[item].replace("\n", " ")[:500]
 
-                return str_search, str_display, sorted_key
+            # return str_search, str_display, sorted_key
 
-            str_search, str_display, sorted_key = curses.wrapper(temp_c_main)
+            # str_search, str_display, sorted_key = curses.wrapper(temp_c_main)
 
             def display_info(me, query: str, selected: str):
                 result = me.map_index_from(selected).map(lambda x: sorted_key[x]).filter(lambda x: x > 0).map(lambda x: x // 10).count_all()
@@ -2858,43 +2882,44 @@ def vhelp(obj=None, history=None, only_content=False, prefix=""):
                 return ret
             if history is None:
                 history = dict()
-            f_ret = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], pre_sorted_function=lambda x: (sorted_key[x], x), display_info=display_info, history=history, return_tuple=True)
+            f_ret = temp.fuzzy_search(str_func=lambda x: str_search[x], str_display=lambda x: str_display[x], pre_sorted_function=lambda x: (sorted_key[x], x), display_info=display_info, history=history, return_tuple=True, stdscr=stdscr)
             if f_ret is not None:
                 if len(f_ret) == 2:
                     func = f_ret[-1]
                     if func == "content" and isinstance(original_obj, content_type):
-                        ret = vhelp(original_obj, only_content=True)
+                        ret = vhelp(original_obj, only_content=True, stdscr=stdscr)
                         if ret is not None:
                             return ret
-                        vhelp(original_obj, history=history, only_content=False, prefix=prefix)
+                        vhelp(original_obj, history=history, only_content=False, prefix=prefix, stdscr=stdscr)
                         return
                     ret = None
                     if func in extra_temp:
                         searched = original_obj.__getattribute__(func)
                     else:
                         searched = eval("obj.{}".format(func))
-                    if isinstance(searched, (list, vector, tuple, set, dict)):
-                        ret = vhelp(searched, only_content=True, prefix=prefix + "." + func)
-                    elif func in extra_temp:
-                        ret = vhelp(searched, only_content=True, prefix=prefix + "." + func)
-                    elif "module" in str(type(searched)):
-                        ret = vhelp(searched, only_content=True, prefix=prefix + "." + func)
-                    elif inspect.isclass(searched):
-                        ret = vhelp(searched, only_content=True, prefix=prefix + "." + func)
-                    elif isinstance(searched, vector):
-                        ret = vhelp(searched, only_content=True, prefix=prefix + "." + func)
-                    elif isinstance(searched, (int, float, str)):
-                        vhelp(searched, only_content=True, prefix=prefix + "." + func)
-                    else:
-                        help(searched)
-                        if os.name == "nt":
-                            return
+                    ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
+                    # if isinstance(searched, (list, vector, tuple, set, dict)):
+                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
+                    # elif func in extra_temp:
+                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
+                    # elif "module" in str(type(searched)):
+                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
+                    # elif inspect.isclass(searched):
+                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
+                    # elif isinstance(searched, vector):
+                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
+                    # elif isinstance(searched, (int, float, str)):
+                    #     vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
+                    # else:
+                    #     help(searched)
+                    #     if os.name == "nt":
+                    #         return
                     if ret:
                         return ".{}".format(func) + ret
                     if original_obj is not None:
-                        ret = vhelp(original_obj, history=history, only_content=only_content, prefix=prefix)
+                        ret = vhelp(original_obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
                     else:
-                        ret = vhelp(obj, history=history, only_content=only_content, prefix=prefix)
+                        ret = vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
                     if ret:
                         return ret
                 elif len(f_ret) == 3:
