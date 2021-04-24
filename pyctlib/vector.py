@@ -43,18 +43,19 @@ from .strtools import delete_surround
 import logging  # 引入logging模块
 import os.path
 import time
+import pydoc
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)  # Log等级总开关
-rq = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
-log_path = os.path.dirname(os.getcwd()) + '/Logs/'
-log_name = log_path + rq + '.log'
-logfile = log_name
-fh = logging.FileHandler(logfile, mode='w')
-fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
-formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-fh.setFormatter(formatter)
-logger.addHandler(fh)
+# logger = logging.getLogger()
+# logger.setLevel(logging.INFO)  # Log等级总开关
+# rq = time.strftime('%Y%m%d%H', time.localtime(time.time()))
+# log_path = os.path.dirname(os.getcwd()) + '/Logs/'
+# log_name = log_path + rq + '.log'
+# logfile = log_name
+# fh = logging.FileHandler(logfile, mode='w')
+# fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
+# formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+# fh.setFormatter(formatter)
+# logger.addHandler(fh)
 # logger.debug('this is a logger debug message')
 # logger.info('this is a logger info message')
 # logger.warning('this is a logger warning message')
@@ -2450,7 +2451,7 @@ class vector(list):
                 stdscr.addstr(0, x_init + new_x_bias, "")
                 search_flag = False
                 char = stdscr.get_wch()
-                logger.info(str(char))
+                # logger.info(str(char))
                 if char == "\x1b" or char == curses.KEY_EXIT or char == "`":
                     return None
                 elif isinstance(char, str) and char == "π":
@@ -2681,7 +2682,7 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                     display_str[index] = "[{}] ".format(index+1) + display_str[index]
                 def split_len(s, l):
                     if len(s) <= l:
-                        return s
+                        return vector([s])
                     ret = vector()
                     while s:
                         if len(s) > l:
@@ -2753,10 +2754,82 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
             extra_temp = vector()
             temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
         if len(temp) == 0:
-            help(obj)
+            help_doc = pydoc.render_doc(obj, "Help on %s")
+
+            raw_display_str = help_doc.replace("\t", "    ")
+            str_length = len(raw_display_str)
+            line_number = raw_display_str.count("\n") + 1
+
+            def write_line(row, col=0, content=""):
+                if col >= cols:
+                    return
+                if row >= rows:
+                    return
+                if len(content) + col >= cols:
+                    stdscr.addstr(row, col, content[:cols - col])
+                else:
+                    stdscr.addstr(row, col, content)
+                    stdscr.clrtoeol()
+            stdscr.clear()
+            rows, cols = stdscr.getmaxyx()
+            for index in range(rows):
+                stdscr.addstr(index, 0, "")
+                stdscr.clrtoeol()
+            display_str = vector(raw_display_str.split("\n"))
+            # for index in range(len(display_str)):
+            #     display_str[index] = "[{}] ".format(index+1) + display_str[index]
+            def split_len(s, l):
+                if len(s) <= l:
+                    return vector([s])
+                ret = vector()
+                while s:
+                    if len(s) > l:
+                        ret.append(s[:l-1] + "\\")
+                    else:
+                        ret.append(s[:l])
+                    s = s[l:]
+                return ret
+            display_str = display_str.map(lambda x: split_len(x, cols-1)).flatten()
+            line_bias = 0
+            search_k = rows
+            while True:
+                display = display_str[line_bias: line_bias + search_k]
+                for index in range(len(display)):
+                    write_line(index, 0, display[index])
+                for index in range(len(display), search_k):
+                    stdscr.addstr(index, 0, "")
+                    stdscr.clrtoeol()
+                stdscr.addstr(0, 0, "")
+                char = stdscr.get_wch()
+                if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
+                    return
+                elif char == curses.KEY_DOWN:
+                    line_bias = max(min(line_bias + 1, len(display_str) - search_k), 0)
+                elif char == curses.KEY_UP:
+                    line_bias = max(line_bias - 1, 0)
+                elif char == "G":
+                    line_bias = max(0, len(display_str) - search_k)
+                elif char == "g":
+                    char == stdscr.get_wch()
+                    if char == "g":
+                        line_bias = 0
+                    if char == "\x1b" or char == curses.KEY_EXIT or char == "q" or char == "`":
+                        return
+                    else:
+                        continue
+                elif isinstance(char, str) and char.isdigit():
+                    num = 0
+                    while isinstance(char, str) and char.isdigit():
+                        num = num * 10 + int(char)
+                        char = stdscr.get_wch()
+                    if char == "G":
+                        line_bias = max(min(num - search_k // 6, len(display_str) - search_k), 0)
+                    else:
+                        continue
+                else:
+                    continue
+            return
         else:
-            # def temp_c_main(stdscr):
-            #     stdscr.clear()
             str_display = dict()
             str_search = dict()
             sorted_key = dict()

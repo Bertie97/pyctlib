@@ -17,6 +17,8 @@ from tpdataset.NLP.babi import BABI
 import inspect
 import torch
 from fuzzywuzzy import fuzz
+import pydoc
 
-babi = BABI(download=True)
-vhelp(babi, prefix="babi")
+# babi = BABI(download=True)
+# vhelp(babi, prefix="babi")
+vhelp()
