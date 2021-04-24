@@ -2295,6 +2295,41 @@ class vector(list):
         return self.length > 0
 
     def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False):
+        """
+        Provide interactive search function for item in vector
+
+        Parameters
+        ---------------------
+        search_func: Callable
+            search_func(candidate: vector[str], query: str) -> vector[str]
+            candidate is a vector of all string representation (1) of items, query is the current query string
+            output the query result
+        max_k: int
+            maximum number of queried results
+        str_func: Callable
+            function to get the string representation (1) which is used for query
+        display_info: Callable
+            function to get the string which determined how each item is displayed
+        sorted_function: Callable
+            key function determining how result of search_func is sorted
+        pre_sorted_function: Callable
+            key function determining how self is sorted before query
+
+            process is:
+            pre_sorted_function -> search_function -> sorted_function
+        history: dict
+            dict to restore preview query scession
+            with key:
+            display_bias
+            select_number
+            query
+            x_bias
+        show_line_number: bool
+            whether to show line_number e.g. [11] before each item
+        return_tuple: bool
+            if return_tuple, when you press enter at some item, (item_index, item) tuple will be returned
+            otherwise, only item will be returned
+        """
         if str_display is None:
             str_display = str_func
         if len(query) > 0:
