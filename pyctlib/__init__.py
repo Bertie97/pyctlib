@@ -13,6 +13,5 @@ from .wrapper import *
 from .filemanager import *
 from .terminal import *
 from .timing import *
-from . import visual
-from visual import *
+from .visual import *
 from .logging import Logger

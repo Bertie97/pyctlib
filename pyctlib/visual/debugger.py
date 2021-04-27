@@ -17,6 +17,15 @@ except ImportError:
     raise ImportError("'pyctlib.watch.debugger' cannot be used without dependency 'line_profiler'. ")
 
 def profile(*args, **kwargs):
+    """
+    Usage 1:
+    @profile
+    def function()
+
+    Usage 2:
+    @profile(2)
+    def function()
+    """
     if len(args) == 1 and callable(args[0]):
         func = args[0]
 

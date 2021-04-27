@@ -1,4 +1,9 @@
-from pyctlib.visual import profile
+import sys
+import os
+sys.path.append(os.path.abspath("."))
+from pyctlib import vector, vhelp
+from pyctlib import visual
+from pyctlib import profile
 
 @profile
 def gcd(a, b):
