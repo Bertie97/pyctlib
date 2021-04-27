@@ -462,6 +462,8 @@ class path(str):
             self.parent.cmd("open %s" % self)
     @property
     def parent(self):
+        if path.sep not in self:
+            return path(".")
         return self @ path.Folder
 
     @property

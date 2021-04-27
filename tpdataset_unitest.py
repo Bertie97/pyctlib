@@ -18,7 +18,11 @@ import inspect
 import torch
 from fuzzywuzzy import fuzz
 import pydoc
+from pyctlib import Logger
 
+logger = Logger(True, True)
+logger.info("test")
+# logger.record_elapsed()
 # babi = BABI(download=True)
 # vhelp(babi, prefix="babi")
-vhelp()
+# vhelp()

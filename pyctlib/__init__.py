@@ -14,3 +14,4 @@ from .filemanager import *
 from .terminal import *
 from .timing import *
 from .visual import *
+from .logging import Logger
