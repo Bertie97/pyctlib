@@ -6,6 +6,12 @@ import time
 from datetime import timedelta
 import atexit
 
+DEBUG = logging.DEBUG
+INFO = logging.INFO
+WARNING = logging.WARNING
+CRITICAL = logging.CRITICAL
+ERROR = logging.ERROR
+NOTSET = logging.NOTSET
 
 class Logger:
 
@@ -19,8 +25,8 @@ class Logger:
             self.file_log_level = logging.DEBUG
         else:
             self.file_log_level = file_log_level
-        self.file_path = file_path
-        self.file_name = file_name
+        self.f_path = file_path
+        self.f_name = file_name
         self.c_format = c_format
         self.f_format = f_format
         self._disabled = False

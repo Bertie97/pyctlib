@@ -2846,7 +2846,7 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                     return True
                 return False
 
-            space_parameter = 15
+            space_parameter = max(10, int(stdscr.getmaxyx()[0] / 10))
             for item in temp:
                 if isinstance(original_obj, content_type) and item == "content":
                     str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
