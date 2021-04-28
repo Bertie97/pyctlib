@@ -44,6 +44,7 @@ import logging  # 引入logging模块
 import os.path
 import time
 import pydoc
+from .visual.debugger import profile
 
 # logger = logging.getLogger()
 # logger.setLevel(logging.INFO)  # Log等级总开关
@@ -2175,11 +2176,11 @@ class vector(list):
             return self
         assert self.length == index_mapping.domain_size
         if not self.allow_undefined_value:
-            assert all(0 <= index < self.length for index in index_mapping.index_map_reverse)
-            ret = vector([self[index] for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
+            # assert all(0 <= index < self.length for index in index_mapping.index_map_reverse)
+            ret = vector([super(vector, self).__getitem__(index) for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
             return ret
         else:
-            ret = vector([self[index] if index >= 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
+            ret = vector([super(vector, self).__getitem__(index) if index >= 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
             return ret
 
     def map_index_(self, index_mapping: "IndexMapping"):
@@ -2253,6 +2254,14 @@ class vector(list):
             self.allow_undefined_value = True
         self.map_index_(self.index_mapping.reverse())
         self.clear_index_mapping_()
+
+    def roll(self, shift=1):
+        index_mapping = IndexMapping([(index - shift) % self.length for index in range(self.length)], range_size=self.length, reverse=True)
+        return self.map_index(index_mapping)
+
+    def roll_(self, shift=1):
+        index_mapping = IndexMapping([(index - shift) % self.length for index in range(self.length)], range_size=self.length, reverse=True)
+        return self.map_index_(index_mapping)
 
     def __str__(self):
         if self.shape != "undefined" and len(self.shape) > 1:
