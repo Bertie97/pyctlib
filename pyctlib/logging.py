@@ -1,6 +1,4 @@
 import logging
-from pyctlib import touch, vector
-from pyctlib.vector import EmptyClass, UnDefined
 from .filemanager import path
 import time
 from datetime import timedelta
@@ -12,6 +10,22 @@ WARNING = logging.WARNING
 CRITICAL = logging.CRITICAL
 ERROR = logging.ERROR
 NOTSET = logging.NOTSET
+
+class EmptyClass:
+
+    def __init__(self, name="EmptyClass"):
+        self.name = name
+        pass
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+NoDefault = EmptyClass("No Default Value")
+OutBoundary = EmptyClass("Out of Boundary")
+UnDefined = EmptyClass("Not Defined")
 
 class Logger:
 
@@ -197,7 +211,7 @@ class Logger:
         return (days, hours, minutes, seconds)
 
     def pop_all_formatter(self):
-        ret = vector()
+        ret = list()
         for handler in self.logging.handlers:
             ret.append(handler.formatter)
             handler.setFormatter(logging.Formatter("%(messages)s"))

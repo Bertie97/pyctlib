@@ -56,11 +56,6 @@ import pydoc
 # formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
 # fh.setFormatter(formatter)
 # logger.addHandler(fh)
-# logger.debug('this is a logger debug message')
-# logger.info('this is a logger info message')
-# logger.warning('this is a logger warning message')
-# logger.error('this is a logger error message')
-# logger.critical('this is a logger critical message')
 
 """
 Usage:
@@ -2754,7 +2749,15 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
             extra_temp = vector()
             temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
         if len(temp) == 0:
-            help_doc = pydoc.render_doc(obj, "Help on %s")
+            help_doc = pydoc.render_doc(original_obj, "Help on %s")
+
+            if help_doc[:-1].split("\n")[-1].strip().startswith("See :func:`torch."):
+                import torch
+                see_doc = help_doc[:-1].split("\n")[-1].strip()
+                m = re.fullmatch(r"See :func:`torch.(\w+)`", see_doc)
+                if m:
+                    extra_doc = pydoc.render_doc(torch.__getattribute__(m.group(1)))
+                    help_doc = "\n".join([help_doc, "", "doc for torch.%s" %(m.group(1)), "-" * 30, "", extra_doc])
 
             raw_display_str = help_doc.replace("\t", "    ")
             str_length = len(raw_display_str)
@@ -2971,22 +2974,6 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                     else:
                         searched = eval("obj.{}".format(func))
                     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # if isinstance(searched, (list, vector, tuple, set, dict)):
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif func in extra_temp:
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif "module" in str(type(searched)):
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif inspect.isclass(searched):
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif isinstance(searched, vector):
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif isinstance(searched, (int, float, str)):
-                    #     vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # else:
-                    #     help(searched)
-                    #     if os.name == "nt":
-                    #         return
                     if ret:
                         return ".{}".format(func) + ret
                     if original_obj is not None:
