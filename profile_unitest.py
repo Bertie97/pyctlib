@@ -5,7 +5,7 @@ from pyctlib import vector, vhelp
 from pyctlib import visual
 from pyctlib import profile
 
-@profile
+@profile(filename="profile.log")
 def gcd(a, b):
     if a > b:
         return gcd(b, a)
