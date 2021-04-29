@@ -652,6 +652,9 @@ class vector(list):
         func : callable
         args :
             more function
+        func_self:
+            if func_self is not None, then func_self(self) will be passed as another argument to func
+            x -> func(x, func_self(self))
         default :
             default value used when func cause an error
 
@@ -1427,6 +1430,22 @@ class vector(list):
         """
         norm_p = self.norm(p)
         return self.map_(lambda x: x / self.norm(p))
+
+    def softmax(self, beta=1):
+        """
+        softmax function
+
+        the i-th element is $\frac{\exp(\beta a_i )}{\sum_{j} \exp(\beta a_j)}$
+        """
+        return self.map(lambda x, y: x - y, func_self=lambda x: x.max()).map(lambda x: math.exp(x * beta)).map(lambda x, y: x / y, func_self = lambda x: x.sum())
+
+    def entropy(self):
+        assert self.all(lambda x: 0 <= x <= 1)
+        def negative_xlogx(x):
+            if x == 0:
+                return 0
+            return - x * math.log(x)
+        return self.map(negative_xlogx).sum()
 
     def prod(self, default=None):
         """prod.
