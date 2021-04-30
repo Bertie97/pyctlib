@@ -19,6 +19,6 @@ import torch
 from fuzzywuzzy import fuzz
 import pydoc
 
-# babi = BABI(download=True)
-# vhelp(babi, prefix="babi")
-vhelp()
+babi = BABI(download=True)
+vhelp(babi, prefix="babi")
+# vhelp()
