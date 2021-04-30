@@ -9,6 +9,7 @@ __all__ = """
     get_environ_vars
     touch
     crash
+    no_print
 """.split()
 
 import sys
@@ -108,3 +109,19 @@ def crash(func):
     except:
         return True
     return False
+
+class _strIO:
+    def __init__(self): self._str_ = ''
+    def write(self, s): self._str_ += s
+    def __str__(self): return self._str_
+    def split(self, c=None): return self._str_.split(c)
+
+class NoPrint:
+    def __enter__(self):
+        self.io = _strIO()
+        self.old_io = sys.stdout
+        sys.stdout = self.io
+    def __exit__(self):
+        sys.stdout = self.old_io
+
+no_print = NoPrint()
