@@ -121,7 +121,7 @@ class NoPrint:
         self.io = _strIO()
         self.old_io = sys.stdout
         sys.stdout = self.io
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, traceback):
         sys.stdout = self.old_io
 
 no_print = NoPrint()
