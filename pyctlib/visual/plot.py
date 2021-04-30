@@ -9,7 +9,7 @@
 __all__ = """
 """.split()
 
-try: from matplotlib import pyplot as plt
+try:
+    from matplotlib import pyplot as plt
 except ImportError:
     raise ImportError("'pyctlib.watch.debugger' cannot be used without dependency 'matplotlib'. ")
-

@@ -800,7 +800,7 @@ class Tensor(torch.Tensor):
             dim = dims
         if not isinstance(dim, tuple):
             dim = (dim,)
-        if len(dim) == 0: dim = tuple(i for i, x in enumerate(self.ishape) if x == 1)
+        if len(dim) == 0: dim = tuple(i for i, x in enumerate(self.ishape) if x == 1)[::-1]
         a, b = self._special
         ndim = self.ndim
         bf = self._batch_first

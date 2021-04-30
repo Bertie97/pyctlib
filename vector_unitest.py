@@ -8,6 +8,7 @@ import pathlib
 import numpy as np
 from pyctlib import vector, IndexMapping, scope, vhelp
 from pyctlib.vector import chain_function
+import torch
 with scope("import"):
     from pyctlib import path, get_relative_path, file
     from pyctlib import touch

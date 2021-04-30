@@ -18,6 +18,7 @@ import inspect
 import torch
 from fuzzywuzzy import fuzz
 import pydoc
+from pyctlib import Logger
 
 babi = BABI(download=True)
 vhelp(babi, prefix="babi")

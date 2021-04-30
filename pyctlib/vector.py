@@ -29,8 +29,8 @@ import copy
 import numpy as np
 from pyoverload import iterable
 from tqdm import tqdm, trange
-from fuzzywuzzy import fuzz
-from fuzzywuzzy.fuzz import WRatio
+# from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 import curses
 import re
 import sys
@@ -44,6 +44,7 @@ import logging  # 引入logging模块
 import os.path
 import time
 import pydoc
+# from .visual.debugger import profile
 
 # logger = logging.getLogger()
 # logger.setLevel(logging.INFO)  # Log等级总开关
@@ -56,11 +57,6 @@ import pydoc
 # formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
 # fh.setFormatter(formatter)
 # logger.addHandler(fh)
-# logger.debug('this is a logger debug message')
-# logger.info('this is a logger info message')
-# logger.warning('this is a logger warning message')
-# logger.error('this is a logger error message')
-# logger.critical('this is a logger critical message')
 
 """
 Usage:
@@ -656,6 +652,9 @@ class vector(list):
         func : callable
         args :
             more function
+        func_self:
+            if func_self is not None, then func_self(self) will be passed as another argument to func
+            x -> func(x, func_self(self))
         default :
             default value used when func cause an error
 
@@ -1432,6 +1431,22 @@ class vector(list):
         norm_p = self.norm(p)
         return self.map_(lambda x: x / self.norm(p))
 
+    def softmax(self, beta=1):
+        """
+        softmax function
+
+        the i-th element is $\frac{\exp(\beta a_i )}{\sum_{j} \exp(\beta a_j)}$
+        """
+        return self.map(lambda x, y: x - y, func_self=lambda x: x.max()).map(lambda x: math.exp(x * beta)).map(lambda x, y: x / y, func_self = lambda x: x.sum())
+
+    def entropy(self):
+        assert self.all(lambda x: 0 <= x <= 1)
+        def negative_xlogx(x):
+            if x == 0:
+                return 0
+            return - x * math.log(x)
+        return self.map(negative_xlogx).sum()
+
     def prod(self, default=None):
         """prod.
 
@@ -2180,11 +2195,11 @@ class vector(list):
             return self
         assert self.length == index_mapping.domain_size
         if not self.allow_undefined_value:
-            assert all(0 <= index < self.length for index in index_mapping.index_map_reverse)
-            ret = vector([self[index] for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
+            # assert all(0 <= index < self.length for index in index_mapping.index_map_reverse)
+            ret = vector([super(vector, self).__getitem__(index) for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
             return ret
         else:
-            ret = vector([self[index] if index >= 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
+            ret = vector([super(vector, self).__getitem__(index) if index >= 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
             return ret
 
     def map_index_(self, index_mapping: "IndexMapping"):
@@ -2258,6 +2273,14 @@ class vector(list):
             self.allow_undefined_value = True
         self.map_index_(self.index_mapping.reverse())
         self.clear_index_mapping_()
+
+    def roll(self, shift=1):
+        index_mapping = IndexMapping([(index - shift) % self.length for index in range(self.length)], range_size=self.length, reverse=True)
+        return self.map_index(index_mapping)
+
+    def roll_(self, shift=1):
+        index_mapping = IndexMapping([(index - shift) % self.length for index in range(self.length)], range_size=self.length, reverse=True)
+        return self.map_index_(index_mapping)
 
     def __str__(self):
         if self.shape != "undefined" and len(self.shape) > 1:
@@ -2415,7 +2438,7 @@ class vector(list):
                 write_line(search_k + 3, 0, "# dispaly: " + str(result.length))
                 error_nu = search_k + 4
                 if display_info is not None:
-                    info = display_info(new_self, query, selected)
+                    info = display_info(self, query, selected)
                     if isinstance(info, str):
                         info = vector([info])
                     for index in range(len(info)):
@@ -2573,12 +2596,13 @@ class vector(list):
                     candidate = candidate.filter(lambda x: query[:2] in x)
                 else:
                     candidate = candidate.filter(lambda x: query[0] in x and query[1] in x)
+                eta = 1 - (len(x) - len(query)) / (len(x) + len(y))
                 if len(query) <= 3:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.8, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
                 elif len(query) <= 10:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.6, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
                 else:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.5, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score
@@ -2754,7 +2778,15 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
             extra_temp = vector()
             temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
         if len(temp) == 0:
-            help_doc = pydoc.render_doc(obj, "Help on %s")
+            help_doc = pydoc.render_doc(original_obj, "Help on %s")
+
+            if help_doc[:-1].split("\n")[-1].strip().startswith("See :func:`torch."):
+                import torch
+                see_doc = help_doc[:-1].split("\n")[-1].strip()
+                m = re.fullmatch(r"See :func:`torch.(\w+)`", see_doc)
+                if m:
+                    extra_doc = pydoc.render_doc(torch.__getattribute__(m.group(1)))
+                    help_doc = "\n".join([help_doc, "", "doc for torch.%s" %(m.group(1)), "-" * 30, "", extra_doc])
 
             raw_display_str = help_doc.replace("\t", "    ")
             str_length = len(raw_display_str)
@@ -2846,7 +2878,7 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                     return True
                 return False
 
-            space_parameter = 15
+            space_parameter = max(10, int(stdscr.getmaxyx()[0] / 10))
             for item in temp:
                 if isinstance(original_obj, content_type) and item == "content":
                     str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
@@ -2971,22 +3003,6 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                     else:
                         searched = eval("obj.{}".format(func))
                     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # if isinstance(searched, (list, vector, tuple, set, dict)):
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif func in extra_temp:
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif "module" in str(type(searched)):
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif inspect.isclass(searched):
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif isinstance(searched, vector):
-                    #     ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # elif isinstance(searched, (int, float, str)):
-                    #     vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
-                    # else:
-                    #     help(searched)
-                    #     if os.name == "nt":
-                    #         return
                     if ret:
                         return ".{}".format(func) + ret
                     if original_obj is not None:
