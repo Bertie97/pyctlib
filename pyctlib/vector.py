@@ -2438,7 +2438,7 @@ class vector(list):
                 write_line(search_k + 3, 0, "# dispaly: " + str(result.length))
                 error_nu = search_k + 4
                 if display_info is not None:
-                    info = display_info(new_self, query, selected)
+                    info = display_info(self, query, selected)
                     if isinstance(info, str):
                         info = vector([info])
                     for index in range(len(info)):
