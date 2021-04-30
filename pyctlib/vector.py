@@ -44,7 +44,7 @@ import logging  # 引入logging模块
 import os.path
 import time
 import pydoc
-from .visual.debugger import profile
+# from .visual.debugger import profile
 
 # logger = logging.getLogger()
 # logger.setLevel(logging.INFO)  # Log等级总开关
@@ -2596,12 +2596,13 @@ class vector(list):
                     candidate = candidate.filter(lambda x: query[:2] in x)
                 else:
                     candidate = candidate.filter(lambda x: query[0] in x and query[1] in x)
+                eta = 1 - (len(x) - len(query)) / (len(x) + len(y))
                 if len(query) <= 3:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.8, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
                 elif len(query) <= 10:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.6, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
                 else:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) * (len(x) / len(query)) ** 0.5, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
             score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
             return score

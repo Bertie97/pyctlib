@@ -1,5 +1,6 @@
 import logging
 from .filemanager import path
+from .touch import touch
 import time
 from datetime import timedelta
 import atexit
@@ -26,6 +27,9 @@ class EmptyClass:
 NoDefault = EmptyClass("No Default Value")
 OutBoundary = EmptyClass("Out of Boundary")
 UnDefined = EmptyClass("Not Defined")
+
+def empty_func(*args, **kwargs):
+    return
 
 class Logger:
 
@@ -69,9 +73,9 @@ class Logger:
             for handler in self._logger.handlers:
                 handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
             self._logger.info("start logging")
-            for handler in self._logger.handlers:
-                handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s: %(pathname)s"))
-            self._logger.info("pathname")
+            # for handler in self._logger.handlers:
+            #     handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s: %(pathname)s"))
+            # self._logger.info("pathname")
 
             for handler, formatter in zip(self._logger.handlers, formatters):
                 handler.setFormatter(formatter)
@@ -171,35 +175,41 @@ class Logger:
                 return temp_path
             index += 1
 
-    def debug(self, msg, *args, **kwargs):
+    @property
+    def debug(self):
         if self._disabled:
-            return
-        self.logger.debug(msg, *args, **kwargs)
+            return empty_func
+        return self.logger.debug
 
-    def info(self, msg, *args, **kwargs):
+    @property
+    def info(self):
         if self._disabled:
-            return
-        self.logger.info(msg, *args, **kwargs)
+            return empty_func
+        return self.logger.info
 
-    def warning(self, msg, *args, **kwargs):
+    @property
+    def warning(self):
         if self._disabled:
-            return
-        self.logger.warning(msg, *args, **kwargs)
+            return empty_func
+        return self.logger.warning
 
-    def error(self, msg, *args, **kwargs):
+    @property
+    def error(self):
         if self._disabled:
-            return
-        self.logger.error(msg, *args, **kwargs)
+            return empty_func
+        return self.logger.error
 
-    def critical(self, msg, *args, **kwargs):
+    @property
+    def critical(self):
         if self._disabled:
-            return
-        self.logger.critical(msg, *args, **kwargs)
+            return empty_func
+        return self.logger.critical
 
-    def exception(self, msg, *args, **kwargs):
+    @property
+    def exception(self):
         if self._disabled:
-            return
-        self.logger.exception(msg, *args, **kwargs)
+            return empty_func
+        return self.logger.exception
 
     def elapsed_time(self):
         end = time.time()
