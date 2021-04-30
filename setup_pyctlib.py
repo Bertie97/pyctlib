@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "pyctlib",
-    version = "0.2.100",
+    version = "0.2.103",
     keywords = ("pip", "pyctlib"),
     description = "This is A foundamental package containing some basic self-designed functions and types for Project PyCTLib. ",
     long_description = open("./pyctlib/README.md").read(),
@@ -25,5 +25,5 @@ setup(
     packages = find_packages(),
     include_package_data = True,
     platforms = "any",
-    install_requires = ["pyoverload", "rapidwuzzy", "numpy"]
+    install_requires = ["pyoverload", "rapidfuzz", "numpy"]
 )

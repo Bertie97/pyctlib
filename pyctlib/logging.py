@@ -252,4 +252,3 @@ class Logger:
             str_time += "{}minute{}, ".format(minute, "s" if minute > 1 else "")
         str_time += "{}seconds{}".format(seconds, "s" if seconds > 1 else "")
         self.logger.info("Elapsed time: " + str_time)
->>>>>>> c33a5cd753a14f92ae54810d4e0a5231be30575a
