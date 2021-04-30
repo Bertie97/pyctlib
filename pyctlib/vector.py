@@ -29,8 +29,8 @@ import copy
 import numpy as np
 from pyoverload import iterable
 from tqdm import tqdm, trange
-from fuzzywuzzy import fuzz
-from fuzzywuzzy.fuzz import WRatio
+# from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 import curses
 import re
 import sys
