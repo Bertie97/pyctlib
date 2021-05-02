@@ -2721,8 +2721,12 @@ class vector(list):
                 candidate = candidate.filter(lambda x: query[0] in x)
                 if not upper:
                     candidate = candidate.map(lambda x: x.lower())
+            def eta(x):
+                if len(x) > len(query):
+                    return 1 - (len(x) - len(query)) / (len(x) + len(query))
+                else:
+                    return 1 - (len(query) - len(x)) / (len(x) + len(query)) / 2
             if len(candidate) < 1000:
-                eta = lambda x: 1 - (len(x) - len(query)) / (len(x) + len(query))
                 partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta(x) ** 0.8, x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
             else:
@@ -2732,7 +2736,6 @@ class vector(list):
                     candidate = candidate.filter(lambda x: query[:2] in x)
                 else:
                     candidate = candidate.filter(lambda x: query[0] in x and query[1] in x)
-                eta = lambda x: 1 - (len(x) - len(query)) / (len(x) + len(query))
                 partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta(x) ** 0.8, x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
             # score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
