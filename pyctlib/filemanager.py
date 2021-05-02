@@ -554,6 +554,12 @@ class path(str):
         assert self.isfile()
         return file(self).readlines()
 
+    def __getattribute__(self, name):
+        try:
+            return object.__getattribute__(self, name)
+        except:
+            raise RuntimeError("{} is not a method/attribute of path, the most similar name is {}".format(name, vector(dir(self)).fuzzy_search(name, 3)))
+
 class file(path):
 
     endl = "\n"

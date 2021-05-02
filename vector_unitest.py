@@ -8,7 +8,7 @@ import pathlib
 import numpy as np
 from pyctlib import vector, IndexMapping, scope, vhelp
 from pyctlib.vector import chain_function
-import torch
+from fuzzywuzzy import fuzz
 with scope("import"):
     from pyctlib import path, get_relative_path, file
     from pyctlib import touch
@@ -45,5 +45,16 @@ with scope("all"):
     assert repr(vector.range(10).filter(lambda x: x < 5).unmap_index()) == "[0, 1, 2, 3, 4, Not Defined, Not Defined, Not Defined, Not Defined, Not Defined]"
     vector.range(5).map(lambda x, y: x / y, func_self=lambda x: x.sum())
     assert vector.range(100).reshape(2, -1).shape == (2, 50)
+    x = vector.range(100)[:10]
+    y = vector.range(100).map_index_from(x)
+    assert x == y
+    assert list(vector.range(100)[::-1]) == list(range(100)[::-1])
+    x = vector.rand(10)
+    assert all(x[::-2][::-1] == x[1::2])
 
-p = path("./tpdataset_unitest.py", main_folder=".")
+with scope("IndexMapping"):
+    t1 = IndexMapping(slice(0, 15, 2), 10, True)
+    t2 = IndexMapping([4,3,2,1,0], 5, True)
+    assert list(t1.map(t2).index_map) == [4, -1, 3, -1, 2, -1, 1, -1, 0, -1]
+    t3 = IndexMapping(slice(0, 2, 1), range_size=5, reverse=True)
+    assert list(t1.map(t3).index_map) == [0, -1, 1, -1, -1, -1, -1, -1, -1, -1]
