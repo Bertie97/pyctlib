@@ -46,4 +46,4 @@ with scope("all"):
     vector.range(5).map(lambda x, y: x / y, func_self=lambda x: x.sum())
     assert vector.range(100).reshape(2, -1).shape == (2, 50)
 
-p = path("./tpdataset_unitest.py", main_folder=".")
+# p = path("./tpdataset_unitest.py", main_folder=".")
