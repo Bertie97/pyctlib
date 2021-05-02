@@ -489,6 +489,8 @@ class vector(list):
                 list.__init__(self, temp)
             elif isinstance(args[0], ctgenerator):
                 list.__init__(self, args[0])
+            elif isinstance(args[0], str):
+                list.__init__(self, [args[0]])
             else:
                 try:
                     list.__init__(self, args[0])
@@ -1551,6 +1553,10 @@ class vector(list):
         """
         return enumerate(self)
 
+
+    def join(self, sep: str):
+        return sep.join(self)
+
     def flatten(self, depth=-1):
         """flatten.
         flatten the vector
@@ -2128,7 +2134,14 @@ class vector(list):
         split vector in given position
         """
         if len(args) == 0:
-            return self
+            if self.length == 0 and self.check_type(str):
+                return vector(super(vector, self).__getitem__(0).split())
+            else:
+                return self
+        if len(args) == 1 and isinstance(args[0], str):
+            assert self.length == 1 and self.check_type(str)
+            return vector(super(vector, self).__getitem__(0).split(args[0]))
+
         args = totuple(args)
         args = vector(args).sort()
         args.all(lambda x: 0 <= x <= self.length)
@@ -2596,15 +2609,16 @@ class vector(list):
                     candidate = candidate.filter(lambda x: query[:2] in x)
                 else:
                     candidate = candidate.filter(lambda x: query[0] in x and query[1] in x)
-                eta = 1 - (len(x) - len(query)) / (len(x) + len(y))
+                eta = lambda x: 1 - (len(x) - len(query)) / (len(x) + len(query))
                 if len(query) <= 3:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta(x), x))
                 elif len(query) <= 10:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta(x), x))
                 else:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
+                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta(x), x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
-            score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            # score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            score = selected.map(lambda x: x[0]).sort(lambda x: -x)
             return score
 
         return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple, stdscr=stdscr)
@@ -2635,7 +2649,11 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
         vhelp(vector, history=history, only_content=only_content, stdscr=stdscr)
     elif stdscr is None:
         def help_main(stdscr):
-            vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
+            ret = vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
+            if ret and prefix:
+                return prefix + ret
+            else:
+                return ret
         return curses.wrapper(help_main)
     else:
         content_type = (list, vector, set, tuple, dict)
