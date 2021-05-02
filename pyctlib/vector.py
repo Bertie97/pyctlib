@@ -46,17 +46,17 @@ import time
 import pydoc
 # from .visual.debugger import profile
 
-# logger = logging.getLogger()
-# logger.setLevel(logging.INFO)  # Log等级总开关
-# rq = time.strftime('%Y%m%d%H', time.localtime(time.time()))
-# log_path = os.path.dirname(os.getcwd()) + '/Logs/'
-# log_name = log_path + rq + '.log'
-# logfile = log_name
-# fh = logging.FileHandler(logfile, mode='w')
-# fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
-# formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-# fh.setFormatter(formatter)
-# logger.addHandler(fh)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)  # Log等级总开关
+rq = time.strftime('%Y%m%d%H', time.localtime(time.time()))
+log_path = os.path.dirname(os.getcwd()) + '/Logs/'
+log_name = log_path + rq + '.log'
+logfile = log_name
+fh = logging.FileHandler(logfile, mode='w')
+fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
+formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 """
 Usage:
@@ -216,9 +216,85 @@ def chain_function(*funcs):
         return funcs[0]
     return partial(ret, funcs)
 
+def slice_length(index):
+    if index is None:
+        return 0
+    if index.step > 0:
+        return (index.stop - index.start - 1) // index.step + 1
+    else:
+        return (index.stop - index.start + 1) // index.step + 1
+
+def slice_complete(index, length):
+    if index is None:
+        return None
+    if index.step is None:
+        step = 1
+    else:
+        step = index.step
+    if index.start is None:
+        if step > 0:
+            start = 0
+        else:
+            start = length - 1
+    else:
+        start = index.start
+        if start < 0:
+            start = length + start
+    if index.stop is None:
+        if step > 0:
+            stop = length
+        else:
+            stop = -1
+    else:
+        stop = index.stop
+        if stop < 0:
+            stop = length + stop
+        stop = min(max(stop, -1), length)
+    if step == 0:
+        return None
+    if start < 0 and stop <= 0:
+        return None
+    if start >= length and stop >= length - 1:
+        return None
+    if (stop - start) * step <= 0:
+        return None
+    return slice(start, stop, step)
+
+def slice_to_list(index: Union[slice, None], length, forward=False):
+    if index is None:
+        return [-1] * length
+    start = index.start
+    stop = index.stop
+    step = index.step
+    if start is None or stop is None or step is None:
+        return slice_to_list(slice_complete(index, length), forward=forward)
+    if not forward:
+        temp = list()
+        current_index = start
+        while (stop - current_index) * step > 0:
+            if 0 <= current_index < length:
+                temp.append(current_index)
+            current_index += step
+        return temp
+    else:
+        ret = [-1] * length
+        current_index = start
+        current_nu = 0
+        while (stop - current_index) * step > 0:
+            if 0 <= current_index < length:
+                ret[current_index] = current_nu
+                current_nu += 1
+            current_index += step
+        return ret
+
+# class test_slice:
+
+#     def __getitem__(self, index, reverse=False):
+#         return index, reverse
+
 class IndexMapping:
 
-    def __init__(self, index_map: list=None, range_size: int=-1, reverse: bool=False):
+    def __init__(self, index_map: Union[list, slice]=None, range_size: int=-1, reverse: bool=False):
         """
         Paramters:
         -----------
@@ -232,12 +308,23 @@ class IndexMapping:
                 # range:  range_size
         reverse: bool
         """
+        self.__isslice = False
         if index_map is None:
             assert range_size == -1
             self.__index_map = None
             self.__index_map_reverse = None
             self.__range_size = 0
             self.__domain_size = 0
+            return
+        if isinstance(index_map, slice):
+            assert reverse is True
+            assert range_size > 0
+            self.slice = slice_complete(index_map, length=range_size)
+            self.__index_map = None
+            self.__index_map_reverse = None
+            self.__domain_size = range_size
+            self.__range_size = slice_length(self.slice)
+            self.__isslice = True
             return
         if range_size == -1:
             if len(index_map) == 0:
@@ -257,48 +344,30 @@ class IndexMapping:
             self.__index_map_reverse = index_map
             self.__index_map = None
 
+    @property
+    def isslice(self):
+        return self.__isslice
+
     def reverse(self):
-        ret = IndexMapping()
-        ret.__index_map = self._index_map_reverse
-        ret.__index_map_reverse = self._index_map
-        ret.__range_size = self.__domain_size
-        ret.__domain_size = self.__range_size
-        return ret
+        if self.isidentity:
+            return self
+        elif not self.isslice:
+            ret = IndexMapping()
+            ret.__index_map = self._index_map_reverse
+            ret.__index_map_reverse = self._index_map
+            ret.__range_size = self.__domain_size
+            ret.__domain_size = self.__range_size
+            return ret
+        else:
+            ret = IndexMapping(slice_to_list(self.slice, self.domain_size), range_size=self.domain_size, reverse=True, isslice=False)
+            return ret.reverse()
 
     @staticmethod
-    def from_slice(index: slice, length):
-        if index.start is None:
-            start = 0
+    def from_slice(index: slice, length, tolist=False):
+        if tolist:
+            return IndexMapping(slice_to_list(index, length), range_size=length, reverse=True)
         else:
-            start = index.start
-            if start < 0:
-                start = length + start
-        if index.stop is None:
-            stop = length
-        else:
-            stop = index.stop
-            if stop < 0:
-                stop = length + stop
-            stop = min(max(stop, -1), length)
-        if index.step is None:
-            step = 1
-        else:
-            step = index.step
-        assert step != 0
-        if start < 0 and stop <= 0:
-            return IndexMapping(vector(), range_size=length, reverse=True)
-        if start >= length and stop >= length - 1:
-            return IndexMapping(vector(), range_size=length, reverse=True)
-        if (stop - start) * step <= 0:
-            return IndexMapping(vector(), range_size=length, reverse=True)
-        temp = list()
-        current_index = start
-        current_nu = 0
-        while (stop - current_index) * step > 0:
-            if 0 <= current_index < length:
-                temp.append(current_index)
-            current_index += step
-        return IndexMapping(temp, range_size=length, reverse=True)
+            return IndexMapping(index, range_size=length, reverse=True)
 
     @property
     def domain_size(self) -> int:
@@ -314,10 +383,15 @@ class IndexMapping:
 
     @property
     def _index_map_reverse(self):
+        if self.isslice:
+            return self.slice
         return self.__index_map_reverse
 
     @property
     def index_map(self) -> Union[list, None]:
+        if self.isslice:
+            self.__index_map = slice_to_list(self.slice, length=self.domain_size, forward=True)
+            return self._index_map
         if self._index_map is None and self._index_map_reverse is None:
             return None
         if self._index_map is not None:
@@ -327,7 +401,7 @@ class IndexMapping:
             return self._index_map
 
     @property
-    def index_map_reverse(self) -> Union[list, None]:
+    def index_map_reverse(self) -> Union[list, slice, None]:
         if self._index_map is None and self._index_map_reverse is None:
             return None
         if self._index_map_reverse is not None:
@@ -342,13 +416,16 @@ class IndexMapping:
             return copy.deepcopy(other)
         if other.isidentity:
             return copy.deepcopy(self)
+        assert self.range_size == other.domain_size
+        if self.range_size == 0 or other.range_size == 0:
+            return IndexMapping([], range_size=self.domain_size, reverse=True)
         if self._index_map is not None and other._index_map is not None:
             forward = True
         elif self._index_map_reverse is not None and other._index_map_reverse is not None:
             forward = False
         elif self._index_map is not None and other._index_map_reverse is not None:
             forward = True
-        elif self._index_map_reverse is not None and other.index_map is not None:
+        elif self._index_map_reverse is not None and other._index_map is not None:
             forward = False
 
         if forward:
@@ -357,6 +434,19 @@ class IndexMapping:
                 if 0 <= to < other.domain_size:
                     temp[index] = other.index_map[to]
             return IndexMapping(temp, range_size=other.range_size, reverse=False)
+        elif self.isslice and other.isslice:
+            start = self.slice.start + self.slice.step * other.slice.start
+            stop = self.slice.start + self.slice.step * other.slice.stop
+            step = self.slice.step * other.slice.step
+            return IndexMapping(slice(start, stop, step), range_size=self.domain_size, reverse=True)
+        elif self.isslice and not other.isslice:
+            temp = [-1] * other.range_size
+            for index, to in enumerate(other.index_map_reverse):
+                if 0 <= to < self.range_size:
+                    temp[index] = self.slice.start + self.slice.step * to
+            return IndexMapping(temp, range_size=self.domain_size, reverse=True)
+        elif not self.isslice and other.isslice:
+            return IndexMapping(self.index_map_reverse[other.slice], range_size=self.domain_size, reverse=True)
         else:
             temp = [-1] * other.range_size
             for index, to in enumerate(other.index_map_reverse):
@@ -369,6 +459,8 @@ class IndexMapping:
 
     @staticmethod
     def _reverse_mapping(mapping, range_size=0):
+        if isinstance(mapping, slice):
+            return slice_to_list(mapping, range_size, forward=True)
         if len(mapping) == 0:
             return [-1] * range_size
         range_size = max(range_size, max(mapping) + 1)
@@ -382,11 +474,15 @@ class IndexMapping:
 
     @property
     def isidentity(self):
+        if self.isslice:
+            return self.domain_size == self.range_size and self.slice.step == 1
         return self._index_map is None and self._index_map_reverse is None
 
     def __str__(self):
         if self.isidentity:
             return "id()"
+        if self.isslice:
+            return "slice: {}".format(self.slice)
         return "->: {}\n<-: {}\n[{}] -> [{}]".format(str(self._index_map), str(self._index_map_reverse), self.domain_size, self.range_size)
 
     def __repr__(self):
@@ -411,10 +507,28 @@ class IndexMapping:
         assert isinstance(index, int)
         if self.isidentity:
             return index
+        if self.range_size == 0:
+            return -1
+        if self.isslice:
+            return self.index_map[index]
         if self._index_map is None:
             if self.domain_size > self.range_size * 4:
                 return self._index_map_reverse.index(index)
         return self.index_map[index]
+
+    def reverse_getitem(self, index):
+        assert isinstance(index, int)
+        if index < 0 or index >= self.range_size:
+            return -1
+        if self.isidentity:
+            return index
+        if self.isslice:
+            return self.slice.start + self.slice.step * index
+        if self._index_map_reverse is None:
+            if self.range_size > self.domain_size * 4:
+                return self._index_map.index(index)
+        return self.index_map_reverse[index]
+
 
 class vector(list):
     """vector
@@ -489,6 +603,8 @@ class vector(list):
                 list.__init__(self, temp)
             elif isinstance(args[0], ctgenerator):
                 list.__init__(self, args[0])
+            elif isinstance(args[0], str):
+                list.__init__(self, [args[0]])
             else:
                 try:
                     list.__init__(self, args[0])
@@ -1073,7 +1189,7 @@ class vector(list):
         if isinstance(index, int):
             return super().__getitem__(index)
         if isinstance(index, slice):
-            return self.map_index(IndexMapping.from_slice(index, self.length))
+            return self.map_index(IndexMapping(index, self.length, True))
         if isinstance(index, list):
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
@@ -1550,6 +1666,10 @@ class vector(list):
         equivalent to enumerate(vector)
         """
         return enumerate(self)
+
+
+    def join(self, sep: str):
+        return sep.join(self)
 
     def flatten(self, depth=-1):
         """flatten.
@@ -2128,7 +2248,14 @@ class vector(list):
         split vector in given position
         """
         if len(args) == 0:
-            return self
+            if self.length == 0 and self.check_type(str):
+                return vector(super(vector, self).__getitem__(0).split())
+            else:
+                return self
+        if len(args) == 1 and isinstance(args[0], str):
+            assert self.length == 1 and self.check_type(str)
+            return vector(super(vector, self).__getitem__(0).split(args[0]))
+
         args = totuple(args)
         args = vector(args).sort()
         args.all(lambda x: 0 <= x <= self.length)
@@ -2194,6 +2321,14 @@ class vector(list):
         if index_mapping.isidentity:
             return self
         assert self.length == index_mapping.domain_size
+        if index_mapping.range_size == 0:
+            return vector([], index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=self.allow_undefined_value)
+        if index_mapping.isslice:
+            slice_index = index_mapping.slice
+            if slice_index.step < 0 and slice_index.stop == -1:
+                slice_index = slice(slice_index.start, None, slice_index.step)
+            ret = vector(super(vector, self).__getitem__(slice_index), recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
+            return ret
         if not self.allow_undefined_value:
             # assert all(0 <= index < self.length for index in index_mapping.index_map_reverse)
             ret = vector([super(vector, self).__getitem__(index) for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
@@ -2223,7 +2358,7 @@ class vector(list):
     def original_index(self, index):
         if self.index_mapping.isidentity:
             return index
-        return self.index_mapping.index_map_reverse[index]
+        return self.index_mapping.reverse_getitem(index)
 
     def register_index_mapping(self, index_mapping=IndexMapping()):
         ret = self.copy()
@@ -2586,8 +2721,13 @@ class vector(list):
                 candidate = candidate.filter(lambda x: query[0] in x)
                 if not upper:
                     candidate = candidate.map(lambda x: x.lower())
+            def eta(x):
+                if len(x) > len(query):
+                    return 1 - (len(x) - len(query)) / (len(x) + len(query))
+                else:
+                    return 1 - (len(query) - len(x)) / (len(x) + len(query)) / 2
             if len(candidate) < 1000:
-                partial_ratio = candidate.map(lambda x: (fuzz.partial_ratio(x, query), x))
+                partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta(x) ** 0.8, x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
             else:
                 if len(query) == 1:
@@ -2596,15 +2736,10 @@ class vector(list):
                     candidate = candidate.filter(lambda x: query[:2] in x)
                 else:
                     candidate = candidate.filter(lambda x: query[0] in x and query[1] in x)
-                eta = 1 - (len(x) - len(query)) / (len(x) + len(y))
-                if len(query) <= 3:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
-                elif len(query) <= 10:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
-                else:
-                    partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta, x))
+                partial_ratio = candidate.map(lambda x: (fuzz.ratio(x, query) / eta(x) ** 0.8, x))
                 selected = partial_ratio.filter(lambda x: x[0] > 49)
-            score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            # score = selected.map(lambda x: 100 * (x[0] == 100) + x[0] * min(1, len(x[1]) / len(query)) * min(1, len(query) / len(x[1])) ** 0.3, lambda x: round(x * 10) / 10).sort(lambda x: -x)
+            score = selected.map(lambda x: x[0]).sort(lambda x: -x)
             return score
 
         return self.function_search(fuzzy_function, query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info, sorted_function=sorted_function, pre_sorted_function=pre_sorted_function, history=history, show_line_number=show_line_number, return_tuple=return_tuple, stdscr=stdscr)
@@ -2632,10 +2767,14 @@ class vector(list):
 
 def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
     if obj is None:
-        vhelp(vector, history=history, only_content=only_content, stdscr=stdscr)
+        return vhelp(vector, history=history, only_content=only_content, stdscr=stdscr)
     elif stdscr is None:
         def help_main(stdscr):
-            vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
+            ret = vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
+            if ret and prefix:
+                return prefix + ret
+            else:
+                return ret
         return curses.wrapper(help_main)
     else:
         content_type = (list, vector, set, tuple, dict)
@@ -2778,7 +2917,10 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
             extra_temp = vector()
             temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
         if len(temp) == 0:
-            help_doc = pydoc.render_doc(original_obj, "Help on %s")
+            if original_obj is not None:
+                help_doc = pydoc.render_doc(original_obj, "Help on %s")
+            else:
+                help_doc = pydoc.render_doc(obj, "Help on %s")
 
             if help_doc[:-1].split("\n")[-1].strip().startswith("See :func:`torch."):
                 import torch

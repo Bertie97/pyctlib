@@ -17,6 +17,7 @@ from tpdataset.NLP.babi import BABI
 import inspect
 import torch
 from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 import pydoc
 from pyctlib import Logger
 
