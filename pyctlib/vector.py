@@ -2565,6 +2565,7 @@ class vector(list):
 
             selected = search_func(candidate, query)
             result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+            result_str = result.map(str_display).map(lambda x: x.replace("\n", " ").replace("\t", " "* 4)[:cols])
 
             write_line(search_k + 1, 0, "-" * int(0.8 * cols))
 
@@ -2595,9 +2596,9 @@ class vector(list):
 
                 for index in range(len(result)):
                     if show_line_number:
-                        display_str = "[{}] {}".format(result.original_index(index), str_display(result[index]))
+                        display_str = "[{}] {}".format(result.original_index(index), result_str[index])
                     else:
-                        display_str = str_display(result[index])
+                        display_str = result_str[index]
                     if index == select_number:
                         write_line(1 + index, 0, "* " + display_str)
                     else:
@@ -2607,7 +2608,7 @@ class vector(list):
                     write_line(1 + index, 0, "")
                 write_line(rows-1, cols-5, content=str(char))
 
-                def new_len(x): return 1 + int(u'\u4e00' < x < u'\u9fff')
+                def new_len(x): return 1 + int(u'\u4e00' <= x <= u'\u9fff')
                 new_x_bias = sum([new_len(t) for t in query[:x_bias]])
                 stdscr.addstr(0, x_init + new_x_bias, "")
                 search_flag = False
@@ -2654,12 +2655,14 @@ class vector(list):
                     if select_number == 2 and display_bias > 0:
                         display_bias -= 1
                         result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result_str = result.map(str_display).map(lambda x: x.replace("\n", " ").replace("\t", " " * 4)[:cols])
                     else:
                         select_number = max(select_number - 1, 0)
                 elif char == curses.KEY_DOWN or char == 258:
                     if select_number == search_k - 3 and display_bias + search_k < selected.length:
                         display_bias += 1
                         result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result_str = result.map(str_display).map(lambda x: x.replace("\n", " ").replace("\t", " " * 4)[:cols])
                     else:
                         select_number = max(min(select_number + 1, len(result) - 1), 0)
                 elif char == curses.KEY_LEFT:
@@ -2675,21 +2678,27 @@ class vector(list):
                     # page down
                     increase_amount = max(min(search_k, selected.length - search_k - display_bias), 0)
                     display_bias += increase_amount
-                    result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    if increase_amount != 0:
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result_str = result.map(str_display).map(lambda x: x.replace("\n", " ").replace("\t", " " * 4)[:cols])
                 elif char == 339:
                     # page up
                     decrease_amount = max(min(search_k, display_bias), 0)
                     display_bias -= decrease_amount
-                    result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    if increase_amount != 0:
+                        result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result_str = result.map(str_display).map(lambda x: x.replace("\n", " ").replace("\t", " " * 4)[:cols])
                 elif char == 262:
                     # home
                     display_bias = 0
                     select_number = 0
                     result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    result_str = result.map(str_display).map(lambda x: x.replace("\n", " ").replace("\t", " " * 4)[:cols])
                 elif char == 360:
                     # end
                     display_bias = max(selected.length - search_k, 0)
                     result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                    result_str = result.map(str_display).map(lambda x: x.replace("\n", " ").replace("\t", " " * 4)[:cols])
                 else:
                     # raise RuntimeError()
                     pass
@@ -2698,6 +2707,7 @@ class vector(list):
                     if search_flag:
                         selected = search_func(candidate, query)
                         result = new_self.map_index_from(selected).sort(key=sorted_function)[display_bias:display_bias + search_k]
+                        result_str = result.map(str_display).map(lambda x: x.replace("\n", " ").replace("\t", " " * 4)[:cols])
                 except Exception as e:
                     error_info = str(e)
                 else:
@@ -3051,7 +3061,7 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None, en
                     str_search[item] = "[new] content"
                     sorted_key[item] = -1
                     continue
-                elif enhanced and "__len__" in dir(original_obj) and "__getitem__" in dir(original_obj):
+                elif enhanced and list_like(original_obj) and item == "content":
                     str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
                     str_search[item] = "[new] content"
                     sorted_key[item] = -1

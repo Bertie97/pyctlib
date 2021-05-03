@@ -275,6 +275,6 @@ class Logger:
         if days != 0 or hours != 0:
             str_time += "{}hour{}, ".format(hours, "s" if hours > 1 else "")
         if days != 0 or hours != 0 or minutes != 0:
-            str_time += "{}minute{}, ".format(minute, "s" if minute > 1 else "")
+            str_time += "{}minute{}, ".format(minutes, "s" if minute > 1 else "")
         str_time += "{}seconds{}".format(seconds, "s" if seconds > 1 else "")
         self.logger.info("Elapsed time: " + str_time)

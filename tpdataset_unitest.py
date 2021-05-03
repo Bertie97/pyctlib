@@ -22,5 +22,5 @@ import pydoc
 from pyctlib import Logger
 
 babi = BABI(download=True)
-vhelp(babi, prefix="babi")
+vhelp(babi, prefix="babi", enhanced=True)
 # vhelp()

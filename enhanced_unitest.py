@@ -25,4 +25,7 @@ class L:
         for index in range(10):
             yield index
 
-vhelp(L(), enhanced=True, only_content=True)
+    def test(self):
+        return
+
+vhelp(L(), enhanced=True)
