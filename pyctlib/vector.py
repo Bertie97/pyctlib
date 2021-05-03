@@ -46,23 +46,26 @@ import time
 import pydoc
 # from .visual.debugger import profile
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)  # Log等级总开关
-rq = time.strftime('%Y%m%d%H', time.localtime(time.time()))
-log_path = os.path.dirname(os.getcwd()) + '/Logs/'
-log_name = log_path + rq + '.log'
-logfile = log_name
-fh = logging.FileHandler(logfile, mode='w')
-fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
-formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-fh.setFormatter(formatter)
-logger.addHandler(fh)
+# logger = logging.getLogger()
+# logger.setLevel(logging.INFO)  # Log等级总开关
+# rq = time.strftime('%Y%m%d%H', time.localtime(time.time()))
+# log_path = os.path.dirname(os.getcwd()) + '/Logs/'
+# log_name = log_path + rq + '.log'
+# logfile = log_name
+# fh = logging.FileHandler(logfile, mode='w')
+# fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
+# formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+# fh.setFormatter(formatter)
+# logger.addHandler(fh)
 
 """
 Usage:
 from pyctlib.vector import *
 from pyctlib import touch
 """
+
+def list_like(obj):
+    return "__getitem__" in dir(obj) and "__len__" in dir(obj) and "__iter__" in dir(obj)
 
 def totuple(x, depth=1):
     if not iterable(x):
@@ -2758,7 +2761,7 @@ class vector(list):
 
     @staticmethod
     def search_content(obj, history=None, prefix="", stdscr=None):
-        assert isinstance(obj, (list, vector, set, dict, tuple))
+        assert isinstance(obj, (list, vector, set, dict, tuple)) or list_like(obj)
         if isinstance(obj, (list, vector, set, tuple)):
             vector_obj = vector(obj)
             selected = vector_obj.fuzzy_search(history=history, show_line_number=True, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]), stdscr=stdscr)
@@ -2767,16 +2770,20 @@ class vector(list):
             vector_obj = vector(obj.keys())
             selected = vector_obj.fuzzy_search(str_display=lambda x: "[{}]: {}".format(x, obj[x]), history=history, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]), stdscr=stdscr)
             return selected
+        elif list_like(obj):
+            vector_obj = vector(obj)
+            selected = vector_obj.fuzzy_search(history=history, show_line_number=True, return_tuple=True, display_info=lambda x, y, z: vector(["prefix: " + prefix]), stdscr=stdscr)
+            return selected
 
     def help(self, only_content=False, prefix="", stdscr=None):
         return vhelp(self, only_content=only_content, prefix=prefix, stdscr=stdscr)
 
-def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
+def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None, enhanced=False):
     if obj is None:
-        return vhelp(vector, history=history, only_content=only_content, stdscr=stdscr)
+        return vhelp(vector, history=history, only_content=only_content, stdscr=stdscr, enhanced=enhanced)
     elif stdscr is None:
         def help_main(stdscr):
-            ret = vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
+            ret = vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr, enhanced=enhanced)
             if ret and prefix:
                 return prefix + ret
             else:
@@ -2785,23 +2792,23 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
     else:
         content_type = (list, vector, set, tuple, dict)
         if only_content:
-            if isinstance(obj, content_type):
+            if isinstance(obj, content_type) or (enhanced and list_like(obj)):
                 if history is None:
                     history = {}
                 selected = vector.search_content(obj, history=history, prefix=prefix, stdscr=stdscr)
                 if selected:
                     if len(selected) == 2:
                         if isinstance(obj, (list, vector, set, tuple)):
-                            ret = vhelp(selected[1], only_content=True, prefix=prefix + "[{}]".format(selected[0]), stdscr=stdscr)
+                            ret = vhelp(selected[1], only_content=True, prefix=prefix + "[{}]".format(selected[0]), stdscr=stdscr, enhanced=enhanced)
                             if ret is not None:
                                 if isinstance(obj, (list, vector, tuple)):
                                     return "[{}]".format(selected[0]) + ret
                                 else:
                                     return ".set<{}>".format(selected[1]) + ret
-                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix, stdscr=stdscr)
+                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix, stdscr=stdscr, enhanced=enhanced)
                             if ret is not None:
                                 return ret
-                        else:
+                        elif isinstance(obj, dict):
                             value = obj.get(selected[1], None)
                             if value is None:
                                 return
@@ -2809,10 +2816,17 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                                 if isinstance(key, str):
                                     return "[\"{}\"]".format(key)
                                 return "[{}]".format(key)
-                            ret = vhelp(value, only_content=True, prefix=prefix + get_dict_string_key(selected[1]), stdscr=stdscr)
+                            ret = vhelp(value, only_content=True, prefix=prefix + get_dict_string_key(selected[1]), stdscr=stdscr, enhanced=enhanced)
                             if ret is not None:
                                 return get_dict_string_key(selected[1])
-                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix, stdscr=stdscr)
+                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix, stdscr=stdscr, enhanced=enhanced)
+                            if ret is not None:
+                                return ret
+                        elif list_like(obj):
+                            ret = vhelp(selected[1], only_content=True, prefix=prefix + "[{}]".format(selected[0]), stdscr=stdscr, enhanced=enhanced)
+                            if ret is not None:
+                                return "[{}]".format(selected[0]) + ret
+                            ret = vhelp(obj, history=history, only_content=True, prefix=prefix, stdscr=stdscr, enhanced=True)
                             if ret is not None:
                                 return ret
                     elif len(selected) == 3 and selected[0] == "p":
@@ -2823,8 +2837,10 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                                 return "[\"{}\"]".format(selected[2])
                             else:
                                 return "[{}]".format(selected[2])
-                        else:
+                        elif isinstance(obj, set):
                             return ".set<{}>".format(selected[1])
+                        elif list_like(obj):
+                            return "[{}]".format(selected[1])
                 return
             if isinstance(obj, (int, str, float)):
                 raw_display_str = str(obj).replace("\t", "    ")
@@ -2916,6 +2932,8 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
             class_temp = vector(dir(obj)).unique().filter(lambda x: len(x) > 0 and x[0] != "_").test(lambda x: testfunc(obj, x))
             extra_temp = vector(dir(original_obj)).unique().filter(lambda x: not x.startswith("_")).test(lambda x: original_obj.__getattribute__(x)) - class_temp
             if isinstance(original_obj, (list, vector, tuple, set, dict)):
+                temp = vector(["content"]) + class_temp + extra_temp
+            elif enhanced and list_like(original_obj):
                 temp = vector(["content"]) + class_temp + extra_temp
             else:
                 temp = class_temp + extra_temp
@@ -3033,6 +3051,11 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                     str_search[item] = "[new] content"
                     sorted_key[item] = -1
                     continue
+                elif enhanced and "__len__" in dir(original_obj) and "__getitem__" in dir(original_obj):
+                    str_display[item] = "[new] [*] content" + " " *  max(1, space_parameter - len("content")) + "| " +  str(original_obj).replace("\n", " ")[:500]
+                    str_search[item] = "[new] content"
+                    sorted_key[item] = -1
+                    continue
                 if item in parent_dir:
                     if is_overridden(obj, parent, item):
                         str_display[item] = "[overridden] "
@@ -3140,23 +3163,29 @@ def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None):
                 if len(f_ret) == 2:
                     func = f_ret[-1]
                     if func == "content" and isinstance(original_obj, content_type):
-                        ret = vhelp(original_obj, only_content=True, stdscr=stdscr)
+                        ret = vhelp(original_obj, only_content=True, stdscr=stdscr, enhanced=enhanced)
                         if ret is not None:
                             return ret
-                        vhelp(original_obj, history=history, only_content=False, prefix=prefix, stdscr=stdscr)
+                        vhelp(original_obj, history=history, only_content=False, prefix=prefix, stdscr=stdscr, enhanced=enhanced)
+                        return
+                    elif func == "content" and enhanced and list_like(original_obj):
+                        ret = vhelp(original_obj, only_content=True, stdscr=stdscr, enhanced=True)
+                        if ret is not None:
+                            return ret
+                        vhelp(original_obj, history=history, only_content=False, prefix=prefix, stdscr=stdscr, enhanced=True)
                         return
                     ret = None
                     if func in extra_temp:
                         searched = original_obj.__getattribute__(func)
                     else:
                         searched = eval("obj.{}".format(func))
-                    ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr)
+                    ret = vhelp(searched, only_content=True, prefix=prefix + "." + func, stdscr=stdscr, enhanced=enhanced)
                     if ret:
                         return ".{}".format(func) + ret
                     if original_obj is not None:
-                        ret = vhelp(original_obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
+                        ret = vhelp(original_obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr, enhanced=enhanced)
                     else:
-                        ret = vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr)
+                        ret = vhelp(obj, history=history, only_content=only_content, prefix=prefix, stdscr=stdscr, enhanced=enhanced)
                     if ret:
                         return ret
                 elif len(f_ret) == 3:
