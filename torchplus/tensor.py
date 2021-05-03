@@ -27,7 +27,7 @@ import torchplus as tp
 from .tensorfunc import __all__ as tf_list
 # from pyoverload import overload, override, Tuple, List, Set, params, null, Array, isarray, isoftype, isofsubclass, isint, isdtype, isitertype, isclassmethod
 from pyoverload import *
-from pyctlib import raw_function, return_type_wrapper, touch
+from pyctlib import raw_function, return_type_wrapper, touch, vector
 #from pyctlib.visual.debugger import profile
 from functools import wraps
 from types import GeneratorType, MethodWrapperType
@@ -1066,7 +1066,10 @@ class Tensor(torch.Tensor):
         if not self.init:
             if key == '_special': return [self.ndim, self.ndim]
             elif key == '_batch_first': return True
-        return super().__getattr__(key)
+        try:
+            return super().__getattr__(key)
+        except:
+            raise RuntimeError("{} is not a method/attribute of Tensor, the most similar name is {}".format(key, vector(dir(self)).fuzzy_search(key, 3)))
 
     def __matmul__(self, other, **kwargs):
         if isinstance(other, torch.Tensor) and self.has_special or isinstance(other, Tensor) and other.has_special:

@@ -2750,6 +2750,12 @@ class vector(list):
     def __dir__(self):
         return vector(super().__dir__())
 
+    # def __getattr__(self, name):
+    #     try:
+    #         return object.__getattr__(self, name)
+    #     except:
+    #         raise RuntimeError("{} is not a method/attribute of vector, the most similar name is {}".format(name, vector(dir(self)).fuzzy_search(name, 3)))
+
     @staticmethod
     def search_content(obj, history=None, prefix="", stdscr=None):
         assert isinstance(obj, (list, vector, set, dict, tuple))

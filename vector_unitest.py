@@ -16,14 +16,14 @@ with scope("import"):
 
 print(pyctlib.__file__)
 
-from pyctlib import Logger
-logger = Logger(True)
-# logger.test_info(1)
-try:
-    1 / 0
-except Exception as e:
-    logger.exception(e)
-    exit(0)
+# from pyctlib import Logger
+# logger = Logger(True)
+# # logger.test_info(1)
+# try:
+#     1 / 0
+# except Exception as e:
+#     logger.exception(e)
+#     exit(0)
 
 with scope("all"):
     vec = vector(1, 2, 3)
