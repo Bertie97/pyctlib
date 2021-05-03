@@ -4,6 +4,7 @@ from .touch import touch
 import time
 from datetime import timedelta
 import atexit
+import sys
 
 DEBUG = logging.DEBUG
 INFO = logging.INFO
@@ -109,7 +110,8 @@ class Logger:
     def c_format(self):
         if touch(lambda: self._c_format, None) is not None:
             return self._c_format
-        self._c_format = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
+        # self._c_format = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
+        self._c_format = "%(asctime)s - %(message)s"
         return self._c_format
 
     @c_format.setter
@@ -122,7 +124,8 @@ class Logger:
     def f_format(self):
         if touch(lambda: self._f_format, None) is not None:
             return self._f_format
-        self._f_format = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
+        # self._f_format = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
+        self._f_format = "%(asctime)s - %(message)s"
         return self._f_format
 
     @f_format.setter
@@ -175,41 +178,64 @@ class Logger:
                 return temp_path
             index += 1
 
-    @property
-    def debug(self):
+    def debug(self, *msgs):
         if self._disabled:
-            return empty_func
-        return self.logger.debug
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        for msg in msgs:
+            self.logger.debug("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
 
-    @property
-    def info(self):
+    def info(self, *msgs):
         if self._disabled:
-            return empty_func
-        return self.logger.info
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        for msg in msgs:
+            self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
 
-    @property
-    def warning(self):
+    def warning(self, *msgs):
         if self._disabled:
-            return empty_func
-        return self.logger.warning
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        for msg in msgs:
+            self.logger.warning("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
 
-    @property
-    def error(self):
+    def critical(self, *msgs):
         if self._disabled:
-            return empty_func
-        return self.logger.error
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        for msg in msgs:
+            self.logger.critical("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
 
-    @property
-    def critical(self):
+    def error(self, *msgs):
         if self._disabled:
-            return empty_func
-        return self.logger.critical
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        for msg in msgs:
+            self.logger.error("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
 
-    @property
-    def exception(self):
+    def exception(self, msg):
         if self._disabled:
-            return empty_func
-        return self.logger.exception
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        self.logger.exception("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
 
     def elapsed_time(self):
         end = time.time()
