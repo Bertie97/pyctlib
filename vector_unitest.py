@@ -17,7 +17,7 @@ with scope("import"):
 print(pyctlib.__file__)
 
 from pyctlib import Logger
-logger = Logger(True)
+logger = Logger(True, file_name="vector_test_{time}")
 
 @logger.wrapper_function_input_output(logging_level=20)
 def test(a, b):

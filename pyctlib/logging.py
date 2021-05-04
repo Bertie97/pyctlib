@@ -3,6 +3,7 @@ from .filemanager import path
 from .touch import touch
 import time
 from datetime import timedelta
+from datetime import datetime
 import atexit
 import sys
 from functools import wraps
@@ -132,7 +133,6 @@ class Logger:
     def f_format(self):
         if touch(lambda: self._f_format, None) is not None:
             return self._f_format
-        # self._f_format = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
         self._f_format = "%(asctime)s - %(message)s"
         return self._f_format
 
@@ -140,6 +140,8 @@ class Logger:
     def f_format(self, value):
         if value is None:
             return
+        if self.file_log_level is None:
+            self.file_log_level = logging.DEBUG
         self._f_format = value
 
     @property
@@ -153,6 +155,8 @@ class Logger:
     def f_path(self, value):
         if value is None:
             return
+        if self.file_log_level is None:
+            self.file_log_level = logging.DEBUG
         if value.endswith(".log"):
             self.f_name = path(value).fullname
             self.f_path = path(value).parent
@@ -172,9 +176,13 @@ class Logger:
     def f_name(self, value: str):
         if value is None:
             return
+        if self.file_log_level is None:
+            self.file_log_level = logging.DEBUG
         if value.endswith(".log"):
             self._f_name = value
         self._f_name = value + ".log"
+        self._f_name = self._f_name.replace("{time}", "%Y-%m%d-%H")
+        self._f_name = datetime.now().strftime(self._f_name)
 
     def get_f_fullpath(self):
         if not (self.f_path / self.f_name).isfile():
