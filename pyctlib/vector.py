@@ -762,7 +762,7 @@ class vector(list):
     #         return func(x, input_from_self)
     #     return self.map(temp, default=default, processing_bar=False)
 
-    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False):
+    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False):
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -784,6 +784,12 @@ class vector(list):
         """
         if func is None:
             return self
+        if register_result:
+            if not hasattr(self, "_vector__map_register"):
+                self.__map_register = dict()
+            else:
+                if (func, *args, default) in self.__map_register:
+                    return self.__map_register[(func, *args, default)]
         if func_self is None:
             if len(args) > 0:
                 new_func = chain_function((func, *args))
@@ -796,14 +802,20 @@ class vector(list):
                 return func(x, input_from_self)
         if not isinstance(default, EmptyClass):
             if processing_bar:
-                return vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                ret = vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
-                return vector([touch(lambda: new_func(a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                ret = vector([touch(lambda: new_func(a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+            if register_result:
+                self.__map_register[(func, *args, default)] = ret
+            return ret
         try:
             if processing_bar:
-                return vector([new_func(a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                ret = vector([new_func(a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
-                return vector([new_func(a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                ret = vector([new_func(a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+            if register_result:
+                self.__map_register[(func, *args, default)] = ret
+            return ret
         except Exception as e:
             error_info = str(e)
             error_trace = traceback.format_exc()
@@ -1006,6 +1018,24 @@ class vector(list):
             for x in self:
                 command(x)
 
+    @property
+    def element_type(self):
+        if self.length == 0:
+            return None
+        if hasattr(self, "_vector__type"):
+            return self.__type
+        def add_element(x, y):
+            x.add(type(y))
+            return x
+        ret = self.reduce(add_element, first=set())
+        if len(ret) == 0:
+            self.__type == None
+        elif len(ret) == 1:
+            self.__type = ret.pop()
+        else:
+            self.__type = ret
+        return self.__type
+
     def check_type(self, instance):
         """check_type
         check if all the element in the vector is of type instance
@@ -1015,7 +1045,14 @@ class vector(list):
         instance : Type
             instance
         """
-        return all(self.map(lambda x: isinstance(x, instance)))
+        if self.element_type is None:
+            return False
+        if isinstance(self.element_type, set):
+            for t in self.element_type:
+                if instance not in t.__mro__:
+                    return False
+            return True
+        return instance in self.element_type.__mro__
 
     def __and__(self, other):
         if isinstance(other, vector):
@@ -2136,6 +2173,7 @@ class vector(list):
         self._set = NoDefault
         self._sum = NoDefault
         self._norm = dict()
+        touch(lambda: delattr(self, "_vector__type"))
 
     def clear(self):
         """clear

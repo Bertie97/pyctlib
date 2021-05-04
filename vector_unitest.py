@@ -25,6 +25,10 @@ print(pyctlib.__file__)
 #     logger.exception(e)
 #     exit(0)
 
+vec = vector.range(10)
+def t(x): return x+1
+vec.map(t, register_result=True)
+
 with scope("all"):
     vec = vector(1, 2, 3)
     assert list(vec) == [1, 2, 3]
