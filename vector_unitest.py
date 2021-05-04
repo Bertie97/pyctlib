@@ -36,6 +36,9 @@ with scope("all"):
     assert list(vec) == [1, 2, 3]
     vec = vector((1, 2, 3))
     assert list(vec) == [1, 2, 3]
+    vec = vector.range(10).shuffle()
+    vec.sort_()
+    assert list(vec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert list(vector([1, 2, 3, 4, 5, 6]).filter(lambda x: x > 3)) == [4, 5, 6]
     assert list(vector(0, 1, 2, 3).test(lambda x: 1 / x)) == [1, 2, 3]
     assert list(vector(0, 1, 2, 3).testnot(lambda x: 1 / x)) == [0]

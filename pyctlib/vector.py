@@ -35,7 +35,7 @@ import curses
 import re
 import sys
 import math
-from typing import overload, Callable, Iterable, Union
+from typing import overload, Callable, Iterable, Union, Dict, Any
 import traceback
 import inspect
 import os
@@ -270,7 +270,7 @@ def slice_to_list(index: Union[slice, None], length, forward=False):
     stop = index.stop
     step = index.step
     if start is None or stop is None or step is None:
-        return slice_to_list(slice_complete(index, length), forward=forward)
+        return slice_to_list(slice_complete(index, length), length, forward=forward)
     if not forward:
         temp = list()
         current_index = start
@@ -519,7 +519,7 @@ class IndexMapping:
                 return self._index_map_reverse.index(index)
         return self.index_map[index]
 
-    def reverse_getitem(self, index):
+    def reverse_getitem(self, index: int) -> int:
         assert isinstance(index, int)
         if index < 0 or index >= self.range_size:
             return -1
@@ -786,7 +786,7 @@ class vector(list):
             return self
         if register_result:
             if not hasattr(self, "_vector__map_register"):
-                self.__map_register = dict()
+                self.__map_register: Dict[tuple, Any] = dict()
             else:
                 if (func, *args, default) in self.__map_register:
                     return self.__map_register[(func, *args, default)]
@@ -1247,7 +1247,7 @@ class vector(list):
         elif index_mapping.isidentity():
             return super().__getitem__(index)
         else:
-            return self.getitem(index_mapping.index_map_reverse[index], outboundary_value=outboundary_value)
+            return self.getitem(index_mapping.reverse_getitem(index), outboundary_value=outboundary_value)
 
     def __sub__(self, other):
         """__sub__.
@@ -1312,10 +1312,10 @@ class vector(list):
         """ishashable.
         chech whether every element in the vector is hashable
         """
-        if not isinstance(touch(lambda: self._hashable, NoDefault), EmptyClass):
-            return self._hashable
-        self._hashable = self.all(lambda x: "__hash__" in x.__dir__())
-        return self._hashable
+        if hasattr(self, "_vector__hashable"):
+            return self.__hashable
+        self.__hashable = self.all(lambda x: "__hash__" in x.__dir__())
+        return self.__hashable
 
     def __hash__(self):
         """__hash__.
@@ -1542,10 +1542,10 @@ class vector(list):
         default :
             default
         """
-        if not isinstance(touch(lambda: self._sum, NoDefault), EmptyClass):
-            return self._sum
-        self._sum = self.reduce(lambda x, y: x + y, default)
-        return self._sum
+        if hasattr(self, "_vector__sum"):
+            return self.__sum
+        self.__sum = self.reduce(lambda x, y: x + y, default)
+        return self.__sum
 
     def cumsum(self):
         """
@@ -1562,10 +1562,10 @@ class vector(list):
         is equivalent to
         self.map(lambda x: abs(x) ** p).sum() ** (1/p)
         """
-        if touch(lambda: self._norm[p], None):
-            return self._norm[p]
-        self._norm[p] = math.pow(self.map(lambda x: math.pow(abs(x), p)).sum(), 1/p)
-        return self._norm[p]
+        if touch(lambda: self.__norm[p], None):
+            return self.__norm[p]
+        self.__norm[p] = math.pow(self.map(lambda x: math.pow(abs(x), p)).sum(), 1/p)
+        return self.__norm[p]
 
     def normalization(self, p=1):
         """
@@ -2085,22 +2085,22 @@ class vector(list):
     def shape(self):
         """shape.
         """
-        if not isinstance(touch(lambda: self._shape, NoDefault), EmptyClass):
-            return self._shape
+        if hasattr(self, "_vector__shape"):
+            return self.__shape
         if all(not isinstance(x, vector) for x in self):
-            self._shape = (self.length, )
-            return self._shape
+            self.__shape = (self.length, )
+            return self.__shape
         if any(not isinstance(x, vector) for x in self):
-            self._shape = "undefined"
-            return self._shape
+            self.__shape = "undefined"
+            return self.__shape
         if not self.map(lambda x: x.shape).all_equal():
-            self._shape = "undefined"
-            return self._shape
+            self.__shape = "undefined"
+            return self.__shape
         if self[0].shape is None:
-            self._shape = "undefined"
-            return self._shape
-        self._shape = (self.length, *(self[0].shape))
-        return self._shape
+            self.__shape = "undefined"
+            return self.__shape
+        self.__shape = (self.length, *(self[0].shape))
+        return self.__shape
 
     def append(self, element):
         """append.
@@ -2168,11 +2168,11 @@ class vector(list):
         return self
 
     def clear_appendix(self):
-        self._shape = NoDefault
-        self._hashable = NoDefault
-        self._set = NoDefault
-        self._sum = NoDefault
-        self._norm = dict()
+        touch(lambda: delattr(self, "_vector__shape"))
+        touch(lambda: delattr(self, "_vector__hashable"))
+        touch(lambda: delattr(self, "_vector__set"))
+        touch(lambda: delattr(self, "_vector__sum"))
+        touch(lambda: delattr(self, "_vector__norm"))
         touch(lambda: delattr(self, "_vector__type"))
 
     def clear(self):
@@ -2386,11 +2386,7 @@ class vector(list):
         if index_mapping.isidentity:
             return self
         assert self.length == index_mapping.domain_size
-        if not self.allow_undefined_value:
-            assert all(0 <= index < self.length for index in index_mapping.index_map_reverse)
-            ret = vector([self[index] for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=False)
-        else:
-            ret = vector([self[index] if index >= 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
+        ret = self.map_index(index_mapping)
         self.clear_appendix()
         super().clear()
         super().extend(ret)
@@ -2499,12 +2495,12 @@ class vector(list):
         return ret
 
     def set(self):
-        if not isinstance(touch(lambda: self._set, NoDefault), EmptyClass):
-            return self._set
+        if hasattr(self, "_vector__set"):
+            return self.__set
         if not self.ishashable():
             raise RuntimeError("this vector is not hashable")
-        self._set = set(self)
-        return self._set
+        self.__set = set(self)
+        return self.__set
 
     def __contains__(self, item):
         if self.ishashable():
@@ -3277,7 +3273,7 @@ class ctgenerator:
             raise TypeError("not a generator")
 
     @generator_wrapper
-    def map(self, func: callable, *args, default=NoDefault) -> "ctgenerator":
+    def map(self, func: Callable, *args, default=NoDefault) -> "ctgenerator":
         if func is None:
             for x in self.generator:
                 yield x
