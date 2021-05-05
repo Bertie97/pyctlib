@@ -776,6 +776,15 @@ class vector(list):
             x -> func(x, func_self(self))
         default :
             default value used when func cause an error
+        register_result:
+            It can be True/False/<str>
+            If it is set, second time you call the same map function, result will be retrieved from the buffer.
+            warning:
+            if register_result = True, plz not call map with lambda expression in the argument, for example:
+                wrong: v.map(lambda x: x+1, register_result=True)
+                right: 1. f = lambda x: x + 1
+                          v.map(f, register_result)
+                       2. v.map(lambda x: x+1, register_result="plus 1")
 
         Example:
         ----------
@@ -890,6 +899,27 @@ class vector(list):
                     error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", new_func, default)
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
+
+    def insert_between(self, func_element, func_space):
+        """
+        x, y, z -> {1} x' {2} y' {3} z' {4}
+        where
+            {1} = func_space([], [x, y, z])
+            {2} = func_space([x], [y, z])
+            {3} = func_space([x, y], [z])
+            {4} = func_space([x, y, z], [])
+            x' = func_element(x, [], [y, z])
+            y' = func_element(y, [x], [z])
+            z' = func_element(z, [x, y], [])
+        """
+        ret = vector()
+        if self.length == 0:
+            return ret
+        for index in range(self.length):
+            ret.append(touch(lambda: func_space(super(vector, self).__getitem__(slice(index)), super(vector, self).__getitem__(slice(index, None)))), refuse_value=None)
+            ret.append(func_element(super(vector, self).__getitem__(index), super(vector, self).__getitem__(slice(index)), super(vector, self).__getitem__(slice(index + 1, None))), refuse_value=None)
+        ret.append(touch(lambda: func_space(self, vector())), refuse_value=None)
+        return ret
 
     def rmap(self, func, *args, default=NoDefault):
         """rmap
@@ -2121,7 +2151,7 @@ class vector(list):
         self.__shape = (self.length, *(self[0].shape))
         return self.__shape
 
-    def append(self, element):
+    def append(self, element, refuse_value=NoDefault):
         """append.
 
         Parameters
@@ -2129,6 +2159,9 @@ class vector(list):
         args :
             args
         """
+        if not isinstance(refuse_value, EmptyClass):
+            if element == refuse_value:
+                return self
         self.clear_appendix()
         self._index_mapping = IndexMapping()
         if not isinstance(self.content_type, EmptyClass):
