@@ -274,12 +274,14 @@ class Logger:
                     raise Exception
                 except:
                     f = sys.exc_info()[2].tb_frame.f_back
-                self.logger.info("{}[line:{}] - INFO: start execution function {}".format(f.f_code.co_filename, f.f_lineno, func.__name__))
-                self.logger.info("{}[line:{}] - : args: {}".format(f.f_code.co_filename, f.f_lineno, args))
+                logging_func = self.from_level(logging_level)
+                random_id = ''.join(random.sample(string.ascii_letters + string.digits, 8))
+                logging_func("{}[line:{}] - {}: function [{}] start execution function {}".format(f.f_code.co_filename, f.f_lineno, level_to_name[logging_level], random_id, func.__name__))
+                logging_func("{}[line:{}] - {}: function [{}] args: {}".format(f.f_code.co_filename, f.f_lineno, level_to_name[logging_level], random_id, args))
                 if len(kwargs):
-                    self.logger.info("{}[line:{}] - info: kargs: {}".format(f.f_code.co_filename, f.f_lineno, kwargs))
+                    logging_func("{}[line:{}] - {}: function [{}] kargs: {}".format(f.f_code.co_filename, f.f_lineno, level_to_name[logging_level], random_id, kwargs))
                 ret = func(*args, **kwargs)
-                self.logger.info("{}[line:{}] - info: return of {}: {}".format(f.f_code.co_filename, f.f_lineno, func.__name__, ret))
+                logging_func("{}[line:{}] - {}: function [{}] return of {}: {}".format(f.f_code.co_filename, f.f_lineno, level_to_name[logging_level], random_id, func.__name__, ret))
             return wrapper
         elif len(args) == 0:
             def temp_wrapper_function_input_output(func):
