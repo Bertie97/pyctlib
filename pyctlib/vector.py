@@ -786,10 +786,13 @@ class vector(list):
             return self
         if register_result:
             if not hasattr(self, "_vector__map_register"):
-                self.__map_register: Dict[tuple, Any] = dict()
-            else:
+                self.__map_register: Dict[Union[tuple, str], Any] = dict()
+            elif register_result is True:
                 if (func, *args, default) in self.__map_register:
                     return self.__map_register[(func, *args, default)]
+            elif isinstance(register_result, str):
+                if register_result in self.__map_register:
+                    return self.__map_register[register_result]
         if func_self is None:
             if len(args) > 0:
                 new_func = chain_function((func, *args))
@@ -805,8 +808,10 @@ class vector(list):
                 ret = vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
                 ret = vector([touch(lambda: new_func(a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
-            if register_result:
+            if register_result is True:
                 self.__map_register[(func, *args, default)] = ret
+            elif isinstance(register_result, str) and register_result:
+                self.__map_register[register_result] = ret
             return ret
         try:
             if processing_bar:
@@ -1561,10 +1566,24 @@ class vector(list):
         norm of vector
         is equivalent to
         self.map(lambda x: abs(x) ** p).sum() ** (1/p)
+
+        Parameters:
+        ------------
+        p: float
+            p can be a positive number or 0 or "inf"
         """
         if touch(lambda: self.__norm[p], None):
             return self.__norm[p]
-        self.__norm[p] = math.pow(self.map(lambda x: math.pow(abs(x), p)).sum(), 1/p)
+        if not hasattr(self, "_vector__norm"):
+            self.__norm = dict()
+        if p == "inf":
+            self.__norm[p] = self.map(abs).max()
+        elif p > 0:
+            self.__norm[p] = math.pow(self.map(lambda x: math.pow(abs(x), p)).sum(), 1/p)
+        elif p == 0:
+            self.__norm[p] = self.count(lambda x: x != 0)
+        else:
+            raise TypeError("p can be a positive number or 0 or 'inf'")
         return self.__norm[p]
 
     def normalization(self, p=1):

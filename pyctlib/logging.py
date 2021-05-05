@@ -83,9 +83,7 @@ class Logger:
             for handler in self._logger.handlers:
                 handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
             self._logger.info("start logging")
-            # for handler in self._logger.handlers:
-            #     handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s: %(pathname)s"))
-            # self._logger.info("pathname")
+            self._logger.info("sys.argv: {}".format(sys.argv))
 
             for handler, formatter in zip(self._logger.handlers, formatters):
                 handler.setFormatter(formatter)
