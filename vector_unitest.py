@@ -9,10 +9,10 @@ import numpy as np
 from pyctlib import vector, IndexMapping, scope, vhelp
 from pyctlib.vector import chain_function
 from fuzzywuzzy import fuzz
-with scope("import"):
-    from pyctlib import path, get_relative_path, file
-    from pyctlib import touch
-    from pyctlib.wrapper import generate_typehint_wrapper
+from pyctlib import path, get_relative_path, file
+from pyctlib import touch
+from pyctlib.wrapper import generate_typehint_wrapper
+import argparse
 
 print(pyctlib.__file__)
 
@@ -68,3 +68,7 @@ with scope("IndexMapping"):
     assert list(t1.map(t2).index_map) == [4, -1, 3, -1, 2, -1, 1, -1, 0, -1]
     t3 = IndexMapping(slice(0, 2, 1), range_size=5, reverse=True)
     assert list(t1.map(t3).index_map) == [0, -1, 1, -1, -1, -1, -1, -1, -1, -1]
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--test", "-t", action="store_true")
+parser.parse_known_args()

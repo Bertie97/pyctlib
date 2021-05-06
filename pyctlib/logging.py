@@ -60,7 +60,7 @@ class Logger:
         self.f_format = f_format
         self.__disabled = False
         self.start_time = time.time()
-        _parser = argparse.ArgumentParser()
+        _parser = argparse.ArgumentParser(add_help=False)
         _parser.add_argument("--disable-logging", dest="disabled", action="store_true")
         self.sysargv = _parser.parse_known_args(sys.argv)[0]
         atexit.register(self.record_elapsed)
@@ -79,25 +79,25 @@ class Logger:
 
     @property
     def logger(self):
-        if touch(lambda: self._logger, UnDefined) is not UnDefined:
-            return self._logger
+        if hasattr(self, "_Logger__logger"):
+            return self.__logger
         else:
-            self._logger = logging.getLogger(self.name)
-            self._logger.setLevel(logging.DEBUG)
+            self.__logger = logging.getLogger(self.name)
+            self.__logger.setLevel(logging.DEBUG)
             if self.c_handler is not None:
-                self._logger.addHandler(self.c_handler)
+                self.__logger.addHandler(self.c_handler)
             if self.f_handler is not None:
-                self._logger.addHandler(self.f_handler)
-            formatters = [x.formatter for x in self._logger.handlers]
+                self.__logger.addHandler(self.f_handler)
+            formatters = [x.formatter for x in self.__logger.handlers]
 
-            for handler in self._logger.handlers:
+            for handler in self.__logger.handlers:
                 handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
-            self._logger.info("start logging")
-            self._logger.info("sys.argv: {}".format(sys.argv))
+            self.__logger.info("start logging")
+            self.__logger.info("sys.argv: {}".format(sys.argv))
 
-            for handler, formatter in zip(self._logger.handlers, formatters):
+            for handler, formatter in zip(self.__logger.handlers, formatters):
                 handler.setFormatter(formatter)
-            return self._logger
+            return self.__logger
 
     @property
     def c_handler(self):
@@ -342,8 +342,14 @@ class Logger:
         for handler in self.logger.handlers:
             handler.setFormatter(formatter)
 
+    @property
+    def already_logging(self):
+        return hasattr(self, "_Logger__logger")
+
     def record_elapsed(self):
         if self.disabled:
+            return
+        if not self.already_logging:
             return
 
         for handler in self.logger.handlers:
