@@ -60,9 +60,9 @@ class Logger:
         self.f_format = f_format
         self.__disabled = False
         self.start_time = time.time()
-        _parser = argparse.ArgumentParser()
-        _parser.add_argument("--disable-logging", dest="disabled", action="store_true")
-        self.sysargv = _parser.parse_known_args(sys.argv)[0]
+        self._parser = argparse.ArgumentParser()
+        self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
+        sysargv = self._parser.parse_known_args(sys.argv)[0]
         atexit.register(self.record_elapsed)
 
     def enable(self):
@@ -73,7 +73,7 @@ class Logger:
 
     @property
     def disabled(self):
-        if self.sysargv.disabled:
+        if self._parser.disabled:
             return True
         return self.__disabled
 
@@ -297,8 +297,8 @@ class Logger:
             def temp_wrapper_function_input_output(func):
                 @wraps(func)
                 def wrapper(*args, **kwargs):
-                    if self.disabled:
-                        return func(*args, **kwargs)
+                if self.disabled:
+                    return func(*args, **kwargs)
                     try:
                         raise Exception
                     except:
