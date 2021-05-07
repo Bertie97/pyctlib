@@ -1582,6 +1582,13 @@ class vector(list):
         self.__sum = self.reduce(lambda x, y: x + y, default)
         return self.__sum
 
+    def mean(self, default=NoDefault):
+        if self.length == 0:
+            if isinstance(default, EmptyClass):
+                raise TypeError("vector is empty, plz set default to prevent error")
+            return default
+        return self.sum() / self.length
+
     def cumsum(self):
         """
         cumulation summation of vector
