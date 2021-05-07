@@ -1589,6 +1589,23 @@ class vector(list):
             return default
         return self.sum() / self.length
 
+    def variance(self, default=NoDefault):
+        if self.length == 0:
+            if isinstance(default, EmptyClass):
+                raise TypeError("vector is empty, plz set default to prevent error")
+            return default
+        if hasattr(self, "_vector__variance"):
+            return self.__variance
+        return self.map(lambda x: x ** 2).mean() - (self.mean()) ** 2
+
+    def standard_error(self, default=NoDefault):
+        if self.length == 0:
+            if isinstance(default, EmptyClass):
+                raise TypeError("vector is empty, plz set default to prevent error")
+            return default
+        return self.variance() ** 0.5
+
+
     def cumsum(self):
         """
         cumulation summation of vector
@@ -2231,6 +2248,7 @@ class vector(list):
         touch(lambda: delattr(self, "_vector__hashable"))
         touch(lambda: delattr(self, "_vector__set"))
         touch(lambda: delattr(self, "_vector__sum"))
+        touch(lambda: delattr(self, "_vector__variance"))
         touch(lambda: delattr(self, "_vector__norm"))
         touch(lambda: delattr(self, "_vector__type"))
 
