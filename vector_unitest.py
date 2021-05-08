@@ -30,9 +30,23 @@ with scope("all"):
     assert list(vec) == [1, 2, 3]
     vec = vector((1, 2, 3))
     assert list(vec) == [1, 2, 3]
+    vec = vector()
+    for index in range(10):
+        vec.append(index)
+        assert vec.sum() == sum(_ for _ in range(index+1))
+        assert vec.element_type == int
+        assert vec.set() == set([_ for _ in range(index + 1)])
+        assert vec.ishashable()
+    vec.append("hello")
+    assert vec.sum() is None
+    assert vec.element_type == set([int, str])
+    assert vec.set() == set([_ for _ in range(10)] + ["hello"])
+    assert vec.ishashable()
     vec = vector.range(10).shuffle()
     vec.sort_()
     assert list(vec) == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert vec.max() == 9
+    assert vec.min() == 0
     assert list(vector([1, 2, 3, 4, 5, 6]).filter(lambda x: x > 3)) == [4, 5, 6]
     assert list(vector(0, 1, 2, 3).test(lambda x: 1 / x)) == [1, 2, 3]
     assert list(vector(0, 1, 2, 3).testnot(lambda x: 1 / x)) == [0]

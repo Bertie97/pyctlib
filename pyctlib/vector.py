@@ -44,6 +44,7 @@ import logging  # 引入logging模块
 import os.path
 import time
 import pydoc
+import numba as nb
 # from .visual.debugger import profile
 
 # logger = logging.getLogger()
@@ -290,10 +291,30 @@ def slice_to_list(index: Union[slice, None], length, forward=False):
             current_index += step
         return ret
 
-# class test_slice:
+@nb.jit(nopython=True, cache=True)
+def numba_cumsum(x):
+    return np.cumsum(x)
 
-#     def __getitem__(self, index, reverse=False):
-#         return index, reverse
+@nb.jit(nopython=True, cache=True)
+def numba_sum(x):
+    return np.sum(x)
+
+@nb.jit(nopython=True, cache=True)
+def numba_max(x):
+    return np.max(x)
+
+@nb.jit(nopython=True, cache=True)
+def numba_min(x):
+    return np.min(x)
+
+@nb.jit(nopython=True, cache=True)
+def numba_variance(x):
+    return np.var(x)
+
+# @nb.jit(nb.int64[:](nb.int64[:]), nopython=True, cache=True)
+# @nb.jit(nopython=True)
+# def numba_cumsum_int(x):
+#     return np.cumsum(x)
 
 class IndexMapping:
 
@@ -1561,6 +1582,12 @@ class vector(list):
         """
         if len(self) == 0:
             return None
+        if key is None and not with_index:
+            if hasattr(self, "_vector__max"):
+                return self.__max
+            if self.check_type(int) or self.check_type(float):
+                self.__max = numba_max(np.array(self))
+                return self.__max
         m_index = 0
         m_key = self._transform(self[0], key)
         for index in range(1, len(self)):
@@ -1568,6 +1595,8 @@ class vector(list):
             if i_key > m_key:
                 m_key = i_key
                 m_index = index
+        if key is None:
+            self.__max = self[m_index]
         if with_index:
             return self[m_index], m_index
         return self[m_index]
@@ -1585,6 +1614,12 @@ class vector(list):
         """
         if len(self) == 0:
             return None
+        if key is None and not with_index:
+            if hasattr(self, "_vector__min"):
+                return self.__min
+            if self.check_type(int) or self.check_type(float):
+                self.__min = numba_min(np.array(self))
+                return self.__min
         m_index = 0
         m_key = self._transform(self[0], key)
         for index in range(1, len(self)):
@@ -1606,7 +1641,10 @@ class vector(list):
         """
         if hasattr(self, "_vector__sum"):
             return self.__sum
-        self.__sum = self.reduce(lambda x, y: x + y, default)
+        if self.check_type(int) or self.check_type(float):
+            self.__sum = numba_sum(np.array(self))
+        else:
+            self.__sum = self.reduce(lambda x, y: x + y, default)
         return self.__sum
 
     def mean(self, default=NoDefault):
@@ -1623,15 +1661,17 @@ class vector(list):
             return default
         if hasattr(self, "_vector__variance"):
             return self.__variance
-        return self.map(lambda x: x ** 2).mean() - (self.mean()) ** 2
+        if self.check_type(int) or self.check_type(float):
+            return numba_variance(np.array(self))
+        else:
+            return self.map(lambda x: x ** 2).mean() - (self.mean()) ** 2
 
-    def standard_error(self, default=NoDefault):
+    def std(self, default=NoDefault):
         if self.length == 0:
             if isinstance(default, EmptyClass):
                 raise TypeError("vector is empty, plz set default to prevent error")
             return default
         return self.variance() ** 0.5
-
 
     def cumsum(self):
         """
@@ -1640,6 +1680,12 @@ class vector(list):
         ->
         [a_1, a_1+a_2, \ldots, a_1+a_2+\ldots+a_n]
         """
+        if self.length == 0:
+            return vector()
+        if self.check_type(float):
+            return vector(numba_cumsum(np.array(self)))
+        if self.check_type(int):
+            return vector(numba_cumsum(np.array(self)))
         return self.cumulative_reduce(lambda x, y: x + y)
 
     def norm(self, p=2):
@@ -2216,7 +2262,7 @@ class vector(list):
         if not isinstance(refuse_value, EmptyClass):
             if element == refuse_value:
                 return self
-        self.clear_appendix()
+        self.update_appendix(element)
         self._index_mapping = IndexMapping()
         if not isinstance(self.content_type, EmptyClass):
             assert isinstance(element, self.content_type)
@@ -2278,9 +2324,34 @@ class vector(list):
         touch(lambda: delattr(self, "_vector__hashable"))
         touch(lambda: delattr(self, "_vector__set"))
         touch(lambda: delattr(self, "_vector__sum"))
+        touch(lambda: delattr(self, "_vector__max"))
+        touch(lambda: delattr(self, "_vector__min"))
         touch(lambda: delattr(self, "_vector__variance"))
         touch(lambda: delattr(self, "_vector__norm"))
         touch(lambda: delattr(self, "_vector__type"))
+
+    def update_appendix(self, element):
+        touch(lambda: delattr(self, "_vector__shape"))
+        if hasattr(self, "_vector__hashable"):
+            self.__hashable = self.__hashable and hasattr(element, "__hash__")
+        if hasattr(self, "_vector__set"):
+            if hasattr(element, "__hash__"):
+                self.__set.add(element)
+            else:
+                self.__set = None
+        if hasattr(self, "_vector__sum"):
+            self.__sum = touch(lambda: self.__sum + element)
+        if hasattr(self, "_vector__max"):
+            self.__max = touch(lambda: max(self.__max, element))
+        if hasattr(self, "_vector__min"):
+            self.__min = touch(lambda: min(self.__min, element))
+        touch(lambda: delattr(self, "_vector__variance"))
+        touch(lambda: delattr(self, "_vector__norm"))
+        if hasattr(self, "_vector__type"):
+            if isinstance(self.__type, set):
+                self.__type.add(type(element))
+            elif self.__type is not type(element):
+                self.__type = set([self.__type, type(element)])
 
     def clear(self):
         """clear
@@ -2603,6 +2674,8 @@ class vector(list):
 
     def set(self):
         if hasattr(self, "_vector__set"):
+            if self.__set is None:
+                raise RuntimeError("this vector is not hashable")
             return self.__set
         if not self.ishashable():
             raise RuntimeError("this vector is not hashable")
