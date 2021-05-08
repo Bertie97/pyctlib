@@ -296,6 +296,22 @@ def numba_cumsum(x):
     return np.cumsum(x)
 
 @nb.jit(nopython=True, cache=True)
+def numba_exp(x):
+    return np.exp(x)
+
+@nb.jit(nopython=True, cache=True)
+def numba_cos(x):
+    return np.cos(x)
+
+@nb.jit(nopython=True, cache=True)
+def numba_sin(x):
+    return np.sin(x)
+
+@nb.jit(nopython=True, cache=True)
+def numba_log(x):
+    return np.log(x)
+
+@nb.jit(nopython=True, cache=True)
 def numba_sum(x):
     return np.sum(x)
 
@@ -310,11 +326,6 @@ def numba_min(x):
 @nb.jit(nopython=True, cache=True)
 def numba_variance(x):
     return np.var(x)
-
-# @nb.jit(nb.int64[:](nb.int64[:]), nopython=True, cache=True)
-# @nb.jit(nopython=True)
-# def numba_cumsum_int(x):
-#     return np.cumsum(x)
 
 class IndexMapping:
 
@@ -604,8 +615,11 @@ class vector(list):
             if args[0] is None:
                 return vector()
             elif isinstance(args[0], np.ndarray):
-                temp = vector.from_numpy(args[0])
-                list.__init__(self, temp)
+                if args[0].ndim == 1:
+                    list.__init__(self, args[0].tolist())
+                else:
+                    temp = vector.from_numpy(args[0])
+                    list.__init__(self, temp)
             elif isinstance(args[0], vector):
                 list.__init__(self, args[0])
                 self._index_mapping = args[0]._index_mapping
@@ -787,13 +801,7 @@ class vector(list):
             func = chain_function((func, *args))
         return self.filter(lambda x: not touch(lambda: (func(x), True)[-1], False))
 
-    # def map_with_self(self, func: Callable, func_self=lambda x: x, default=NoDefault, processing_bar=False):
-    #     input_from_self = func_self(self)
-    #     def temp(x):
-    #         return func(x, input_from_self)
-    #     return self.map(temp, default=default, processing_bar=False)
-
-    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False, split_tuple=False):
+    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False, split_tuple=False, filter_function=None):
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -816,6 +824,8 @@ class vector(list):
                 right: 1. f = lambda x: x + 1
                           v.map(f, register_result)
                        2. v.map(lambda x: x+1, register_result="plus 1")
+        filter_function:
+            if filter_function(index, element) is False, map will not be executed.
 
         Example:
         ----------
@@ -844,32 +854,56 @@ class vector(list):
             def new_func(x):
                 return func(x, input_from_self)
         if not isinstance(default, EmptyClass):
-            if processing_bar:
-                if split_tuple and self.check_type(tuple):
-                    ret = vector([touch(lambda: new_func(*a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+            if filter_function is None:
+                if processing_bar:
+                    if split_tuple and self.check_type(tuple):
+                        ret = vector([touch(lambda: new_func(*a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    else:
+                        ret = vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
-                    ret = vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    if split_tuple and self.check_type(tuple):
+                        ret = vector([touch(lambda: new_func(*a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    else:
+                        ret = vector([touch(lambda: new_func(a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
-                if split_tuple and self.check_type(tuple):
-                    ret = vector([touch(lambda: new_func(*a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                if processing_bar:
+                    if split_tuple and self.check_type(tuple):
+                        ret = vector([touch(lambda: new_func(*a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    else:
+                        ret = vector([touch(lambda: new_func(a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
-                    ret = vector([touch(lambda: new_func(a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    if split_tuple and self.check_type(tuple):
+                        ret = vector([touch(lambda: new_func(*a), default=default) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    else:
+                        ret = vector([touch(lambda: new_func(a), default=default) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             if register_result is True:
-                self.__map_register[(func, *args, default)] = ret
+                self.__map_register[(func, *args, default, filter_function)] = ret
             elif isinstance(register_result, str) and register_result:
                 self.__map_register[register_result] = ret
             return ret
         try:
-            if processing_bar:
-                if split_tuple and self.check_type(tuple):
-                    ret = vector([new_func(*a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+            if filter_function is None:
+                if processing_bar:
+                    if split_tuple and self.check_type(tuple):
+                        ret = vector([new_func(*a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    else:
+                        ret = vector([new_func(a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
-                    ret = vector([new_func(a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    if split_tuple and self.check_type(tuple):
+                        ret = vector([new_func(*a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    else:
+                        ret = vector([new_func(a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             else:
-                if split_tuple and self.check_type(tuple):
-                    ret = vector([new_func(*a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                if processing_bar:
+                    if split_tuple and self.check_type(tuple):
+                        ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    else:
+                        ret = vector([new_func(a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
-                    ret = vector([new_func(a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    if split_tuple and self.check_type(tuple):
+                        ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                    else:
+                        ret = vector([new_func(a) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
             if register_result:
                 self.__map_register[(func, *args, default)] = ret
             return ret
@@ -877,6 +911,8 @@ class vector(list):
             error_info = str(e)
             error_trace = traceback.format_exc()
         for index, a in self.enumerate():
+            if filter_function is not None and not filter_function(index, a):
+                continue
             if touch(lambda: new_func(a)) is None:
                 try:
                     error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, new_func, default)
@@ -1114,7 +1150,25 @@ class vector(list):
             self.__type = ret
         return self.__type
 
-    def check_type(self, instance):
+    @property
+    def element_type_recursive(self):
+        if self.length == 0:
+            return None
+        if hasattr(self, "_vector__type_recursive"):
+            return self.__type_recursive
+        def add_element(x, y):
+            x.add(type(y))
+            return x
+        ret = self.reduce(add_element, first=set(), recursive=True)
+        if len(ret) == 0:
+            self.__type_recursive == None
+        elif len(ret) == 1:
+            self.__type_recursive = ret.pop()
+        else:
+            self.__type_recursive = ret
+        return self.__type_recursive
+
+    def check_type(self, instance, recursive=False):
         """check_type
         check if all the element in the vector is of type instance
 
@@ -1125,17 +1179,22 @@ class vector(list):
         """
         if self.length == 0:
             return False
-        if not hasattr(self, "_vector__type"):
-            if not isinstance(super(vector, self).__getitem__(0), instance):
-                return False
-        if self.element_type is None:
+        if not recursive:
+            if not hasattr(self, "_vector__type"):
+                if not isinstance(super(vector, self).__getitem__(0), instance):
+                    return False
+        if not recursive:
+            element_type = self.element_type
+        else:
+            element_type = self.element_type_recursive
+        if element_type is None:
             return False
-        if isinstance(self.element_type, set):
-            for t in self.element_type:
+        if isinstance(element_type, set):
+            for t in element_type:
                 if instance not in t.__mro__:
                     return False
             return True
-        return instance in self.element_type.__mro__
+        return instance in element_type.__mro__
 
     def __and__(self, other):
         if isinstance(other, vector):
@@ -1682,10 +1741,8 @@ class vector(list):
         """
         if self.length == 0:
             return vector()
-        if self.check_type(float):
-            return vector(numba_cumsum(np.array(self)))
-        if self.check_type(int):
-            return vector(numba_cumsum(np.array(self)))
+        if self.check_type(int) or self.check_type(float):
+            return vector(numba_cumsum(self.to_numpy()))
         return self.cumulative_reduce(lambda x, y: x + y)
 
     def smooth(self, window_len=11, window='hanning'):
@@ -1720,7 +1777,7 @@ class vector(list):
         """
 
 
-        if self.length < window_len:
+        if self.length < window_len // 2 + 1:
             raise ValueError("Input vector needs to be bigger than window size.")
 
         if not self.check_type(int) and not self.check_type(float):
@@ -1729,12 +1786,13 @@ class vector(list):
         if window_len<3:
             return self
 
+        assert window_len % 2 == 1
+
         if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
             raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
-        x = np.array(self)
-        s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
-        #print(len(s))
+        x = self.to_numpy()
+        s = np.r_[x[window_len // 2:0:-1], x, x[-2:-(window_len // 2) - 2:-1]]
         if window == 'flat': #moving average
             w = np.ones(window_len, 'd')
         else:
@@ -2164,13 +2222,27 @@ class vector(list):
         """
         try:
             assert isinstance(array, np.ndarray)
-            if len(array.shape) == 1:
+            if array.ndim == 1:
                 return vector(array.tolist())
             else:
                 return vector(list(array)).map(lambda x: vector.from_numpy(x))
         except Exception as e:
             print("warning: input isn't pure np.ndarray")
             return vector(array.tolist())
+
+    def to_numpy(self):
+        if hasattr(self, "_vector__numpy"):
+            return self.__numpy
+        if self.length == 0:
+            return np.array([])
+        elif self.check_type(int):
+            ret = np.fromiter(self, dtype=np.int64)
+        elif self.check_type(float):
+            ret = np.fromiter(self, dtype=np.float64)
+        else:
+            ret = np.array(self)
+        self.__numpy = ret
+        return ret
 
     @staticmethod
     def from_list(array):
@@ -2384,8 +2456,19 @@ class vector(list):
         touch(lambda: delattr(self, "_vector__variance"))
         touch(lambda: delattr(self, "_vector__norm"))
         touch(lambda: delattr(self, "_vector__type"))
+        touch(lambda: delattr(self, "_vector__type_recursive"))
+        touch(lambda: delattr(self, "_vector__numpy"))
 
     def update_appendix(self, element):
+        if self.length == 0:
+            self.__hashable = hasattr(element, "__hash__")
+            self.__set = set([element])
+            if isinstance(element, int) or isinstance(element, float):
+                self.__sum = element
+                self.__max = element
+                self.__min = element
+            self.__type = type(element)
+            return
         touch(lambda: delattr(self, "_vector__shape"))
         if hasattr(self, "_vector__hashable"):
             self.__hashable = self.__hashable and hasattr(element, "__hash__")
@@ -2407,6 +2490,12 @@ class vector(list):
                 self.__type.add(type(element))
             elif self.__type is not type(element):
                 self.__type = set([self.__type, type(element)])
+        if hasattr(self, "_vector__type") and not isinstance(self.__type, set) and self.__type is not vector:
+            self.__type_recursive = self.__type
+        else:
+            touch(lambda: delattr(self, "_vector__type_recursive"))
+        touch(lambda: delattr(self, "_vector__norm"))
+        touch(lambda: delattr(self, "_vector__numpy"))
 
     def clear(self):
         """clear
