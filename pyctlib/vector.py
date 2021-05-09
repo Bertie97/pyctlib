@@ -40,11 +40,17 @@ import traceback
 import inspect
 import os
 from .strtools import delete_surround
+from .wrapper import empty_wrapper
 import logging  # 引入logging模块
 import os.path
 import time
 import pydoc
-import numba as nb
+try:
+    import numba as nb
+    jit = nb.jit
+except:
+    jit = empty_wrapper
+
 # from .visual.debugger import profile
 
 # logger = logging.getLogger()
@@ -291,41 +297,65 @@ def slice_to_list(index: Union[slice, None], length, forward=False):
             current_index += step
         return ret
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_cumsum(x):
     return np.cumsum(x)
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_exp(x):
     return np.exp(x)
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_cos(x):
     return np.cos(x)
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_sin(x):
     return np.sin(x)
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_log(x):
     return np.log(x)
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_sum(x):
     return np.sum(x)
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_max(x):
     return np.max(x)
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_min(x):
     return np.min(x)
 
-@nb.jit(nopython=True, cache=True)
+@jit(nopython=True, cache=True)
 def numba_variance(x):
     return np.var(x)
+
+@jit(nopython=True, cache=True)
+def numba_plus(x, element):
+    return x + element
+
+@jit(nopython=True, cache=True)
+def numba_abs(x):
+    return np.abs(x)
+
+@jit(nopython=True, cache=True)
+def numba_relu(x):
+    return x * (x > 0)
+
+@jit(nopython=True, cache=True)
+def numba_clip(x, x_low, x_upper):
+    return np.clip(x, x_low, x_upper)
+
+@jit(nopython=True, cache=True)
+def numba_maximum(x, a):
+    return np.maximum(x, a)
+
+@jit(nopython=True, cache=True)
+def numba_minimum(x, a):
+    return np.minimum(x, a)
 
 class IndexMapping:
 
@@ -1690,6 +1720,61 @@ class vector(list):
             return self[m_index], m_index
         return self[m_index]
 
+    def map_numba_function(self, numba_function, *args):
+        assert self.check_type(int) or self.check_type(float)
+        ret = numba_function(self.to_numpy(), *args)
+        if isinstance(ret, np.ndarray):
+            return vector(ret)
+        else:
+            return ret
+
+    def exp(self):
+        return self.map_numba_function(numba_exp)
+
+    def sin(self):
+        return self.map_numba_function(numba_sin)
+
+    def cos(self):
+        return self.map_numba_function(numba_cos)
+
+    def log(self):
+        return self.map_numba_function(numba_log)
+
+    def plus(self, element):
+        return self.map_numba_function(numba_plus, element)
+
+    @overload
+    def clip(self, min_value): ...
+
+    @overload
+    def clip(self, min_value, max_value): ...
+
+    @overload
+    def clip(self, min_value: float=None, max_value: float=None): ...
+
+    def clip(self, *args, **kwargs):
+        min_value = max_value = None
+        if len(args) >= 1:
+            min_value = args[0]
+        if len(args) >= 2:
+            max_value = args[1]
+        if len(kwargs) == 0:
+            if "min_value" in kwargs:
+                min_value = kwargs["min_value"]
+            if "max_value" in kwargs:
+                max_value = kwargs["max_value"]
+        if min_value is None and max_value is None:
+            return self
+        if min_value is not None and max_value is not None:
+            return self.map_numba_function(numba_clip, min_value, max_value)
+        if min_value is not None:
+            return self.map_numba_function(numba_maximum, min_value)
+        if max_value is not None:
+            return self.map_numba_function(numba_minimum, max_value)
+
+    def relu(self):
+        return self.map_numba_function(numba_relu)
+
     def sum(self, default=None):
         """sum.
 
@@ -1701,7 +1786,7 @@ class vector(list):
         if hasattr(self, "_vector__sum"):
             return self.__sum
         if self.check_type(int) or self.check_type(float):
-            self.__sum = numba_sum(np.array(self))
+            self.__sum = numba_sum(self.to_numpy())
         else:
             self.__sum = self.reduce(lambda x, y: x + y, default)
         return self.__sum

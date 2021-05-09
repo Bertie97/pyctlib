@@ -8,12 +8,12 @@
 __all__ = """
     restore_type_wrapper
     generate_typehint_wrapper
+    empty_wrapper
 """.split()
 
 from pyoverload import *
 from .basicwrapper import *
 import inspect
-from .vector import vector
 from functools import wraps
 from .strtools import delete_surround
 
@@ -70,6 +70,7 @@ def generate_typehint_wrapper(func):
     def wrapper(*args, **kwargs):
         args_name = inspect.getfullargspec(func)[0]
         ret = func(*args, **kwargs)
+        from .vector import vector
         typehint = vector()
         default_dict = dict()
         default = inspect.getfullargspec(func).defaults
@@ -87,3 +88,15 @@ def generate_typehint_wrapper(func):
         print("\n".join(typehint))
         return ret
     return wrapper
+
+def empty_wrapper(*args, **kwargs):
+    if len(kwargs) > 0 or len(args) > 1 or (len(args) == 1 and not callable(args[0])):
+        return empty_wrapper
+    elif len(args) == 1:
+        func = args[0]
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    else:
+        return

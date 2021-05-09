@@ -53,7 +53,7 @@ sum2d_cache(a)
 end = time.time()
 print(f'Cache 2nd timing {end - start}')
 
-@numba.jit
+@numba.jit(nopython=False)
 def test_function(func, a):
     length = a.shape[0]
     for index in range(length):
