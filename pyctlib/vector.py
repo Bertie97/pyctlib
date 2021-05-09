@@ -632,7 +632,7 @@ class vector(list):
         self._recursive=recursive
         self.allow_undefined_value = allow_undefined_value
         self.content_type = content_type
-        self.clear_appendix()
+        # self.clear_appendix()
         if isinstance(index_mapping, list):
             self._index_mapping = IndexMapping(index_mapping)
         elif isinstance(index_mapping, IndexMapping):
@@ -645,7 +645,9 @@ class vector(list):
             if args[0] is None:
                 return vector()
             elif isinstance(args[0], np.ndarray):
-                if args[0].ndim == 1:
+                if args[0].ndim == 0:
+                    list.__init__(self)
+                elif args[0].ndim == 1:
                     list.__init__(self, args[0].tolist())
                 else:
                     temp = vector.from_numpy(args[0])
