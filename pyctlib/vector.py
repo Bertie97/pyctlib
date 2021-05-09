@@ -705,7 +705,7 @@ class vector(list):
         """
         return touch(lambda: self._index_mapping, IndexMapping())
 
-    def filter(self, func=None, ignore_error=True, func_self=None):
+    def filter(self, func=None, ignore_error=True, func_self=None, register_result=None):
         """
         filter element in the vector with which func(x) is True
 
@@ -721,6 +721,15 @@ class vector(list):
         vector([1,2,3,4,5,6]).filter(lambda x: x>3)
         will produce [4,5,6]
         """
+        if register_result:
+            if not hasattr(self, "_vector__filter_register"):
+                self.__filter_register: Dict[Union[tuple, str], Any] = dict()
+            elif register_result is True:
+                if (func, func_self) in self.__filter_register:
+                    return self.map_index(self.__filter_register[(func, func_self)])
+            elif isinstance(register_result, str):
+                if register_result in self.__filter_register:
+                    return self.map_index(self.__filter_register[register_result])
         if func is None:
             return self
         if func_self is None:
@@ -733,10 +742,16 @@ class vector(list):
             if ignore_error:
                 filtered_index = [index for index, a in enumerate(self) if touch(lambda: new_func(a), False)]
                 index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
-                return self.map_index(index_mapping)
-            filtered_index = [index for index, a in enumerate(self) if new_func(a)]
-            index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
-            return self.map_index(index_mapping)
+                ret = self.map_index(index_mapping)
+            else:
+                filtered_index = [index for index, a in enumerate(self) if new_func(a)]
+                index_mapping = IndexMapping(filtered_index, reverse=True, range_size=self.length)
+                ret = self.map_index(index_mapping)
+            if register_result is True:
+                self.__filter_register[(func, func_self)] = index_mapping
+            if isinstance(register_result, str) and register_result:
+                self.__filter_register[register_result] = index_mapping
+            return ret
         except Exception as e:
             error_info = str(e)
             error_trace = traceback.format_exc()
@@ -936,8 +951,10 @@ class vector(list):
                         ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
                         ret = vector([new_func(a) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
-            if register_result:
-                self.__map_register[(func, *args, default)] = ret
+            if register_result is True:
+                self.__map_register[(func, *args, default, filter_function)] = ret
+            elif isinstance(register_result, str) and register_result:
+                self.__map_register[register_result] = ret
             return ret
         except Exception as e:
             error_info = str(e)

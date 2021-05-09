@@ -83,6 +83,17 @@ with scope("IndexMapping"):
     t3 = IndexMapping(slice(0, 2, 1), range_size=5, reverse=True)
     assert list(t1.map(t3).index_map) == [0, -1, 1, -1, -1, -1, -1, -1, -1, -1]
 
+with scope("register_result"):
+    t = vector.randn(1000)
+    r1 = t.map(lambda x: x+1, register_result="plus 1")
+    r2 = t.map(lambda x: x+1, register_result="plus 1")
+    assert all(r1 == r2)
+    f1 = t.filter(lambda x: x > 0, register_result=">0")
+    f2 = t.filter(lambda x: x > 0, register_result=">0")
+    assert all(f1 == f2)
+    assert list(t._vector__map_register.keys()) == ["plus 1"]
+    assert list(t._vector__filter_register.keys()) == [">0"]
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--test", "-t", action="store_true")
 parser.parse_known_args()
