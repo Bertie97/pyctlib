@@ -1028,7 +1028,7 @@ class vector(list):
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
 
-    def insert_between(self, func_element, func_space):
+    def insert_between(self, func_element=None, func_space=None):
         """
         x, y, z -> {1} x' {2} y' {3} z' {4}
         where
@@ -1041,6 +1041,10 @@ class vector(list):
             z' = func_element(z, [x, y], [])
         """
         ret = vector()
+        if func_element is None:
+            func_element = lambda x, left, right: x
+        if func_space is None:
+            func_space = lambda left, right: None
         if self.length == 0:
             return ret
         for index in range(self.length):
@@ -2734,7 +2738,7 @@ class vector(list):
                     ret.append(temp)
                     temp = vector()
             ret.append(temp)
-            return ret
+            return vector(ret)
 
     def split_index(self, *args):
         args = totuple(args)
