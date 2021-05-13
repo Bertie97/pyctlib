@@ -2720,9 +2720,23 @@ class vector(list):
             else:
                 return self
         if len(args) == 1 and isinstance(args[0], str):
-            assert self.length == 1 and self.check_type(str)
-            return vector(super(vector, self).__getitem__(0).split(args[0]))
+            if self.length == 1 and self.check_type(str):
+                return vector(super(vector, self).__getitem__(0).split(args[0]))
 
+        if len(args) == 1:
+            pivot = args[0]
+            ret = list()
+            temp = vector()
+            for item in self:
+                if item != pivot:
+                    temp.append(item)
+                else:
+                    ret.append(temp)
+                    temp = vector()
+            ret.append(temp)
+            return ret
+
+    def split_index(self, *args):
         args = totuple(args)
         args = vector(args).sort()
         args.all(lambda x: 0 <= x <= self.length)
@@ -2750,7 +2764,7 @@ class vector(list):
             args.pop()
         assert split_num.sum() == self.length
         cumsum = split_num.cumsum()
-        return self.shuffle().split(cumsum).map_index(sorted_index_mapping.reverse())
+        return self.shuffle().split_index(cumsum).map_index(sorted_index_mapping.reverse())
 
     def copy(self, deep_copy=False):
         if not deep_copy:
