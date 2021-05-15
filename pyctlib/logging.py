@@ -214,64 +214,83 @@ class Logger:
         if logging_level == CRITICAL:
             return self.logger.critical
 
-    def debug(self, *msgs):
+    def debug(self, *msgs, sep=" "):
         if self.disabled:
             return
         try:
             raise Exception
         except:
             f = sys.exc_info()[2].tb_frame.f_back
-        for msg in msgs:
-            self.logger.debug("{}[line:{}] - DEBUG: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        if sep == "\n":
+            for msg in msgs:
+                self.logger.debug("{}[line:{}] - DEBUG: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        else:
+            self.logger.debug("{}[line:{}] - DEBUG: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def info(self, *msgs):
+    def info(self, *msgs, sep=" "):
         if self.disabled:
             return
         try:
             raise Exception
         except:
             f = sys.exc_info()[2].tb_frame.f_back
-        for msg in msgs:
-            self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        if sep == "\n":
+            for msg in msgs:
+                self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        else:
+            self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def warning(self, *msgs):
+    def warning(self, *msgs, sep=" "):
         if self.disabled:
             return
         try:
             raise Exception
         except:
             f = sys.exc_info()[2].tb_frame.f_back
-        for msg in msgs:
-            self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        if sep == "\n":
+            for msg in msgs:
+                self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        else:
+            self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def critical(self, *msgs):
+    def critical(self, *msgs, sep=" "):
         if self.disabled:
             return
         try:
             raise Exception
         except:
             f = sys.exc_info()[2].tb_frame.f_back
-        for msg in msgs:
-            self.logger.critical("{}[line:{}] - CRITICAL: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        if sep == "\n":
+            for msg in msgs:
+                self.logger.critical("{}[line:{}] - CRITICAL: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        else:
+            self.logger.critical("{}[line:{}] - CRITICAL: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def error(self, *msgs):
+    def error(self, *msgs, sep=" "):
         if self.disabled:
             return
         try:
             raise Exception
         except:
             f = sys.exc_info()[2].tb_frame.f_back
-        for msg in msgs:
-            self.logger.error("{}[line:{}] - ERROR: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        if sep == "\n":
+            for msg in msgs:
+                self.logger.error("{}[line:{}] - ERROR: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        else:
+            self.logger.error("{}[line:{}] - ERROR: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def exception(self, msg):
+    def exception(self, *msgs, sep=" "):
         if self.disabled:
             return
         try:
             raise Exception
         except:
             f = sys.exc_info()[2].tb_frame.f_back
-        self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        if sep == "\n":
+            for msg in msgs:
+                self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+        else:
+            self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
     def wrapper_function_input_output(self, *args, logging_level=INFO):
         if len(args) == 1:
