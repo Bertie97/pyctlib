@@ -1028,7 +1028,7 @@ class vector(list):
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
 
-    def insert_between(self, func_element, func_space):
+    def insert_between(self, func_element=None, func_space=None):
         """
         x, y, z -> {1} x' {2} y' {3} z' {4}
         where
@@ -1041,6 +1041,10 @@ class vector(list):
             z' = func_element(z, [x, y], [])
         """
         ret = vector()
+        if func_element is None:
+            func_element = lambda x, left, right: x
+        if func_space is None:
+            func_space = lambda left, right: None
         if self.length == 0:
             return ret
         for index in range(self.length):
@@ -2720,9 +2724,23 @@ class vector(list):
             else:
                 return self
         if len(args) == 1 and isinstance(args[0], str):
-            assert self.length == 1 and self.check_type(str)
-            return vector(super(vector, self).__getitem__(0).split(args[0]))
+            if self.length == 1 and self.check_type(str):
+                return vector(super(vector, self).__getitem__(0).split(args[0]))
 
+        if len(args) == 1:
+            pivot = args[0]
+            ret = list()
+            temp = vector()
+            for item in self:
+                if item != pivot:
+                    temp.append(item)
+                else:
+                    ret.append(temp)
+                    temp = vector()
+            ret.append(temp)
+            return vector(ret)
+
+    def split_index(self, *args):
         args = totuple(args)
         args = vector(args).sort()
         args.all(lambda x: 0 <= x <= self.length)
@@ -2750,7 +2768,7 @@ class vector(list):
             args.pop()
         assert split_num.sum() == self.length
         cumsum = split_num.cumsum()
-        return self.shuffle().split(cumsum).map_index(sorted_index_mapping.reverse())
+        return self.shuffle().split_index(cumsum).map_index(sorted_index_mapping.reverse())
 
     def copy(self, deep_copy=False):
         if not deep_copy:

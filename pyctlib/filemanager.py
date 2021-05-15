@@ -238,6 +238,8 @@ class path(str):
             self = super().__new__(cls, "")
         elif len(init_texts) == 1 and init_texts[0] == "~":
             self = super().__new__(cls, path.homedir)
+        elif len(init_texts) == 1 and init_texts[0][0] == "~":
+            self = super().__new__(cls, path.homedir + init_texts[0][1:])
         else:
             self = super().__new__(cls, os.path.join(*[str(x).replace('$', '') for x in init_texts]).strip())
         self.init()
