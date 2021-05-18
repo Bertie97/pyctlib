@@ -16,8 +16,8 @@ class MNIST:
         else:
             self.trans = transform
 
-        self.train_set = vector(datasets.MNIST(root=str(root), train=True, transform=self.trans,download=True), str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Train"]))
-        self.test_set = datasets.MNIST(root=str(root), train=False, transform=trans, download=False, str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Test"]))
+        self.train_set = vector(datasets.MNIST(root=str(root), train=True, transform=self.trans, download=True), str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Train"]))
+        self.test_set = vector(datasets.MNIST(root=str(root), train=False, transform=self.trans, download=False), str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Test"]))
 
     def show_image(self, image, y_labels=None):
 
