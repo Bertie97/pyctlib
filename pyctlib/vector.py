@@ -612,7 +612,7 @@ class vector(list):
     def __init__(self, *data, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> "vector":
         ...
 
-    def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault):
+    def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault, str_function=None):
         """__init__.
 
         Parameters
@@ -632,6 +632,7 @@ class vector(list):
         self._recursive=recursive
         self.allow_undefined_value = allow_undefined_value
         self.content_type = content_type
+        self.str_function = str_function
         # self.clear_appendix()
         if isinstance(index_mapping, list):
             self._index_mapping = IndexMapping(index_mapping)
@@ -2899,6 +2900,8 @@ class vector(list):
         return self.map_index_(index_mapping)
 
     def __str__(self):
+        if self.str_function is not None:
+            return self.str_function(self)
         if self.shape != "undefined" and len(self.shape) > 1:
             ret: List[str] = vector()
             for index, child in self.enumerate():
