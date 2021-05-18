@@ -2,22 +2,22 @@ from tpdataset import RawDataSet, DataDownloader
 from torchvision import datasets
 from torchvision import transforms
 from pyctlib import vector
+from pyctlib import path
 import math
 import torch
 
-class MINIST:
+class MNIST:
 
     def __init__(self, root="", transform="default"):
 
-        root = path(root)
-
+        self.root = root
         if isinstance(transform, str) and transform == "default":
             self.trans = transforms.ToTensor()
         else:
             self.trans = transform
 
-        self.train_set = vector(datasets.MNIST(root=root, train=True, transform=self.trans,download=True), str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Train"]))
-        self.test_set = datasets.MNIST(root=root, train=False, transform=trans, download=False, str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Test"]))
+        self.train_set = vector(datasets.MNIST(root=str(root), train=True, transform=self.trans,download=True), str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Train"]))
+        self.test_set = datasets.MNIST(root=str(root), train=False, transform=trans, download=False, str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Test"]))
 
     def show_image(self, image, y_labels=None):
 
