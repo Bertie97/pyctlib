@@ -22,7 +22,7 @@ class MNIST:
     def show_image(self, image, y_labels=None):
 
         import matplotlib.pyplot as plt
-        if image.dim() == 2 or image.shape[0] == 1:
+        if isinstance(image, torch.Tensor) and (image.dim() == 2 or image.shape[0] == 1):
             image = image.squeeze()
             plt.imshow(image, cmap="gray", interpolation=None)
             if y_labels is not None:
@@ -30,17 +30,26 @@ class MNIST:
             plt.xticks([])
             plt.yticks([])
             plt.show()
-        else:
-            n = image.shape[0]
+        elif isinstance(image, list) or isinstance(image, tuple) or isinstance(image, torch.Tensor) and image.dim() == 3:
+            if isinstance(image, tuple):
+                image = vector([image])
+            if isinstance(image, list):
+                n = image.shape[0]
+            else:
+                n = length(image)
             if n > 100:
                 raise RuntimeError("{} images are displaied simutaneously".format(n))
             width = math.ceil(math.sqrt(n))
             for index in range(n):
-                plt.subplot(index // width, index % width, index + 1)
+                plt.subplot(math.ceil(n / width), width, index + 1)
                 plt.tight_layout()
-                plt.imshow(image[index, :, :], cmap="gray", interpolation=None)
-                if y_labels is not None:
-                    plt.title("Ground Truth: {}".format(y_labels[index]))
+                if isinstance(image[index], tuple):
+                    plt.imshow(image[index][0].squeeze(), cmap="gray", interpolation=None)
+                    plt.title("Ground Truth: {}".format(image[index][1]))
+                else:
+                    plt.imshow(image[index].squeeze(), cmap="gray", interpolation=None)
+                    if y_labels is not None:
+                        plt.title("Ground Truth: {}".format(y_labels[index]))
                 plt.xticks([])
                 plt.yticks()
             plt.show()

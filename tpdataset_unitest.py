@@ -26,4 +26,4 @@ from pyctlib import Logger
 # vhelp(babi, prefix="babi", enhanced=True)
 # vhelp()
 
-mnist = MNIST(root=".")
+mnist = MNIST(root="..")
