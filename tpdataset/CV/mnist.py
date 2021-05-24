@@ -1,6 +1,7 @@
 from tpdataset import RawDataSet, DataDownloader
 from torchvision import datasets
 from torchvision import transforms
+from torch.utils.data import DataLoader
 from pyctlib import vector
 from pyctlib import path
 import math
@@ -53,3 +54,9 @@ class MNIST:
                 plt.xticks([])
                 plt.yticks()
             plt.show()
+
+        def train_dataloader(batch_size=1, shuffle=True):
+            return DataLoader(self.train_set, batch_size=batch_size, shuffle=shuffle)
+
+        def test_dataloader():
+            return DataLoader(self.test_set, batch_size=batch_size, shuffle=shuffle)

@@ -26,7 +26,7 @@ from functools import wraps, reduce, partial
 import typing
 from typing import TextIO, Optional
 from .vector import NoDefault, UnDefined, OutBoundary, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 
 """
 from pyinout import *
