@@ -71,5 +71,9 @@ class MNIST(fuzzy_obj):
     def train_dataloader(self, batch_size=1, shuffle=True, num_workers=0, pin_memory=True):
         return DataLoader(self.__train_set, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
 
+    def train_val_dataloader(self, batch_size=1, shuffle=True, num_workers=0, pin_memory=True, split=[50000, 10000]):
+        train, val = torch.utils.data.random_split(self.__train_set, lengths=split)
+        return DataLoader(train, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory), DataLoader(train, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
+
     def test_dataloader(self, batch_size=1, shuffle=True, num_workers=0, pin_memory=True):
         return DataLoader(self.__test_set, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
