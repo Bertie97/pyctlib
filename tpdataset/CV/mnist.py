@@ -16,8 +16,22 @@ class MNIST(fuzzy_obj):
         else:
             self.trans = transform
 
-        self.train_set = vector(datasets.MNIST(root=str(root), train=True, transform=self.trans, download=True), str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Train"]))
-        self.test_set = vector(datasets.MNIST(root=str(root), train=False, transform=self.trans, download=False), str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Test"]))
+        self.__train_set = datasets.MNIST(root=str(root), train=True, transform=self.trans, download=True)
+        self.__test_set = datasets.MNIST(root=str(root), train=False, transform=self.trans, download=False)
+
+    @property
+    def train_set(self):
+        if hasattr(self, "_MNIST__train_set_vector"):
+            return self.__train_set_vector
+        self.__train_set_vector = vector(self.__train_set, str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Train"]))
+        return self.__train_set_vector
+
+    @property
+    def test_set(self):
+        if hasattr(self, "_MNIST__test_set_vector"):
+            return self.__test_set_vector
+        self.__test_set_vector = vector(self.__test_set, str_function=lambda x: "\n".join(["Dataset MNIST", "    Number of datapoints: {}".format(x.length), "    Split: Test"]))
+        return self.__test_set_vector
 
     def show_image(self, image, y_labels=None):
 
@@ -54,8 +68,8 @@ class MNIST(fuzzy_obj):
                 plt.yticks()
             plt.show()
 
-        def train_dataloader(batch_size=1, shuffle=True):
-            return DataLoader(self.train_set, batch_size=batch_size, shuffle=shuffle)
+    def train_dataloader(self, batch_size=1, shuffle=True, num_workers=0, pin_memory=True):
+        return DataLoader(self.__train_set, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
 
-        def test_dataloader():
-            return DataLoader(self.test_set, batch_size=batch_size, shuffle=shuffle)
+    def test_dataloader(self, batch_size=1, shuffle=True, num_workers=0, pin_memory=True):
+        return DataLoader(self.__test_set, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
