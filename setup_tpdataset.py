@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "tpdataset",
-    version = "0.0.18",
+    version = "0.0.19",
     keywords = ("pip", "pyctlib"),
     description = "This is A foundamental package containing some basic self-designed functions and types for Project PyCTLib. ",
     long_description = open("./pyctlib/README.md").read(),

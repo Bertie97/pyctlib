@@ -18,6 +18,7 @@ __all__ = """
     chain_function
     EmptyClass
     vhelp
+    fuzzy_obj
 """.split()
 
 from types import GeneratorType
@@ -3775,3 +3776,11 @@ class ctgenerator:
 
     def sum(self, default=None):
         return self.reduce(lambda x, y: x+y, default)
+
+class fuzzy_obj:
+
+    def __getattribute__(self, name):
+        try:
+            return object.__getattribute__(self, name)
+        except:
+            raise RuntimeError("{} is not a method/attribute of {}, the most similar name is {}".format(name, str(self.__class__)[8:-2].rpartition(".")[-1], vector(dir(self)).fuzzy_search(name, 3)))

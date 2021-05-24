@@ -2,12 +2,11 @@ from tpdataset import RawDataSet, DataDownloader
 from torchvision import datasets
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from pyctlib import vector
-from pyctlib import path
+from pyctlib import vector, path, fuzzy_obj
 import math
 import torch
 
-class MNIST:
+class MNIST(fuzzy_obj):
 
     def __init__(self, root="", transform="default"):
 

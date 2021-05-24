@@ -7,7 +7,7 @@
 ##############################
 
 from .touch import touch, crash
-from .vector import totuple, recursive_apply, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass, vhelp
+from .vector import totuple, recursive_apply, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass, vhelp, fuzzy_obj
 from .basicwrapper import *
 from .wrapper import *
 from .filemanager import *
