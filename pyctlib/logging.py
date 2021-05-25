@@ -60,10 +60,14 @@ class Logger:
         self.f_format = f_format
         self.__disabled = False
         self.start_time = time.time()
-        _parser = argparse.ArgumentParser(add_help=False)
-        _parser.add_argument("--disable-logging", dest="disabled", action="store_true")
-        self.sysargv = _parser.parse_known_args(sys.argv)[0]
+        self._parser = argparse.ArgumentParser(add_help=False)
+        self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
+        self.sysargv = self._parser.parse_known_args(sys.argv)[0]
         atexit.register(self.record_elapsed)
+
+    @property
+    def parser(self):
+        return self._parser
 
     def enable(self):
         self.__disabled = False
@@ -94,10 +98,28 @@ class Logger:
                 handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
             self.__logger.info("start logging")
             self.__logger.info("sys.argv: {}".format(sys.argv))
+            self.sysargv = self.parser.parse_known_args(sys.argv)[0]
+            self.__logger.info("Argument Parser:")
+            for arg in self.get_parser_result(self.sysargv):
+                self.__logger.info("    " + arg)
 
             for handler, formatter in zip(self.__logger.handlers, formatters):
                 handler.setFormatter(formatter)
             return self.__logger
+
+    @staticmethod
+    def get_parser_result(sysargv):
+        ret = list()
+        for t in dir(sysargv):
+            if t.startswith("_"):
+                continue
+            def format_result(s):
+                if isinstance(s, str):
+                    return '"{}"'.format(s)
+                else:
+                    return str(s)
+            ret.append(t + "=" + "{}".format(format_result(sysargv.__getattribute__(t))))
+        return ret
 
     @property
     def c_handler(self):
