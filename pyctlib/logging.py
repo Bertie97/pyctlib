@@ -99,13 +99,36 @@ class Logger:
             self.__logger.info("start logging")
             self.__logger.info("sys.argv: {}".format(sys.argv))
             self.sysargv = self.parser.parse_known_args(sys.argv)[0]
-            self.__logger.info("Argument Parser:")
-            for arg in self.get_parser_result(self.sysargv):
-                self.__logger.info("    " + arg)
+            self.log_parser(self.parser)
 
             for handler, formatter in zip(self.__logger.handlers, formatters):
                 handler.setFormatter(formatter)
             return self.__logger
+
+    def log_parser(self, parser):
+        default_vars = vars(parser.parse_args([]))
+        virtaul_vars = vars(parser.parse_known_args()[0])
+        same_vars = list()
+        different_vars = list()
+        for item in default_vars:
+            if default_vars[item] == virtaul_vars[item]:
+                same_vars.append(item)
+            else:
+                different_vars.append(item)
+        def format_result(s):
+            if isinstance(s, str):
+                return '"{}"'.format(s)
+            else:
+                return str(s)
+        self.__logger.info("Argument Parser:")
+        self.__logger.info("-" * 30)
+        self.__logger.info("> Specified Vars:")
+        for item in different_vars:
+            self.__logger.info(" " * 4 + item + "=" + format_result(virtaul_vars[item]))
+        self.__logger.info("> Defalut Vars:")
+        for item in same_vars:
+            self.__logger.info(" " * 4 + item + "=" + format_result(virtaul_vars[item]))
+        self.__logger.info("-" * 30)
 
     @staticmethod
     def get_parser_result(sysargv):
