@@ -2,5 +2,5 @@
 
 from .raw_dataset import RawDataSet, DataDownloader
 from . import NLP
-from .CV import MNIST
+from .CV import MNIST, CelebA
 from .device import AutoDeviceId, AutoDevice

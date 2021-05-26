@@ -14,7 +14,7 @@ with scope("import"):
     from pyctlib.wrapper import generate_typehint_wrapper
 from tpdataset import RawDataSet
 from tpdataset.NLP.babi import BABI
-from tpdataset import MNIST
+from tpdataset import MNIST, CelebA
 import inspect
 import torch
 from fuzzywuzzy import fuzz
@@ -27,3 +27,4 @@ from pyctlib import Logger
 # vhelp()
 
 mnist = MNIST(root="..")
+celeba = CelebA(root="..", download=False)

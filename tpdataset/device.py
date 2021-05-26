@@ -39,6 +39,7 @@ if torch.cuda.is_available():
     print(f"Using GPU device {igpu}...")
 else:
     AutoDevice = torch.device("cpu")
+    AutoDeviceId = -1
 
 DeviceCPU = torch.device("cpu")
 
