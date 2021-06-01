@@ -3292,6 +3292,11 @@ class vector(list):
 
     @staticmethod
     def load(filepath):
+        try:
+            import pickle
+        except:
+            print("Please install pickle package")
+            return
         with open(filepath, "rb") as input:
             content = pickle.load(filepath)
             ret = vector.from_list(content)
