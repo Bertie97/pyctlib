@@ -2367,6 +2367,15 @@ class vector(list):
             return array
         return vector(vector.from_list(x) for x in array)
 
+    def tolist(self):
+        ret = list()
+        for item in self:
+            if isinstance(item, vector):
+                ret.append(item.tolist())
+            else:
+                ret.append(item)
+        return ret
+
     @overload
     @staticmethod
     def zeros(size: Iterable): ...
@@ -3271,6 +3280,22 @@ class vector(list):
 
     def help(self, only_content=False, prefix="", stdscr=None):
         return vhelp(self, only_content=only_content, prefix=prefix, stdscr=stdscr)
+
+    def save(self, filepath):
+        try:
+            import pickle
+        except:
+            print("Please install pickle package")
+            return
+        with open(filepath, "wb") as output:
+            pickle.dump(self.tolist(), output)
+
+    @staticmethod
+    def load(filepath):
+        with open(filepath, "rb") as input:
+            content = pickle.load(filepath)
+            ret = vector.from_list(content)
+        return ret
 
 def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None, enhanced=False):
     if obj is None:
