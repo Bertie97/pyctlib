@@ -19,7 +19,7 @@ print(pyctlib.__file__)
 from pyctlib import Logger
 logger = Logger(True, file_name="vector_test_{time}")
 
-vec = vector.range(10)
+vec = vector.range(10).shuffle()
 
 vec.insert_between((lambda x, y, z: x), (lambda x, y: x[-1] + y[0]))
 
