@@ -3298,7 +3298,7 @@ class vector(list):
             print("Please install pickle package")
             return
         with open(filepath, "rb") as input:
-            content = pickle.load(filepath)
+            content = pickle.load(input)
             ret = vector.from_list(content)
         return ret
 
