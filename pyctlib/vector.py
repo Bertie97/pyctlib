@@ -392,6 +392,8 @@ class IndexMapping:
             self.__range_size = slice_length(self.slice)
             self.__isslice = True
             return
+        if isinstance(index_map, vector):
+            index_map = list(index_map)
         if range_size == -1:
             if len(index_map) == 0:
                 range_size = 0
@@ -3289,12 +3291,20 @@ class vector(list):
             return
         with open(filepath, "wb") as output:
             pickle.dump(self.tolist(), output)
+            pickle.dump(self.index_mapping, output)
 
     @staticmethod
     def load(filepath):
+        try:
+            import pickle
+        except:
+            print("Please install pickle package")
+            return
         with open(filepath, "rb") as input:
-            content = pickle.load(filepath)
+            content = pickle.load(input)
+            index_mapping = pickle.load(input)
             ret = vector.from_list(content)
+            ret._index_mapping = index_mapping
         return ret
 
 def vhelp(obj=None, history=None, only_content=False, prefix="", stdscr=None, enhanced=False):
