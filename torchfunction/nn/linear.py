@@ -12,7 +12,7 @@ class Linear(nn.Module):
     out_features: int
     weight: Tensor
 
-    def __init__(self, in_features: int, out_features: int, bias: bool = True, activation=None) -> None:
+    def __init__(self, in_features: int, out_features: int, bias: bool = True, activation="ReLU") -> None:
         super(Linear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -22,7 +22,10 @@ class Linear(nn.Module):
         else:
             self.register_parameter('bias', None)
         # print(self.weight)
-        self.activation = activation
+        if activation == "ReLU":
+            self.activation = nn.ReLU()
+        else:
+            self.activation = activation
         self.reset_parameters()
         # print(self.weight)
 
