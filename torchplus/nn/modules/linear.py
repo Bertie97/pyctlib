@@ -25,9 +25,9 @@ class Linear(Module):
         super(Linear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = Parameter(torchplus.zeros(out_features, in_features))
+        self.weight = Parameter(torch.zeros(out_features, in_features))
         if bias:
-            self.bias = Parameter(torchplus.zeros(out_features))
+            self.bias = Parameter(torch.zeros(out_features))
         else:
             self.register_parameter('bias', None)
         # print(self.weight)
