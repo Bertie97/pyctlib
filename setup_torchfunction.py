@@ -10,16 +10,16 @@
 from setuptools import setup, find_packages
  
 setup(
-    name = "torchplus",
-    version = "0.2.107",
-    keywords = ("pip", "pyctlib", "torchplus"),
+    name = "torchfunction",
+    version = "0.0.4",
+    keywords = ("pip", "pyctlib", "pytorch"),
     description = "This package is based on pytorch and try to provide a more user-friendly interface for pytorch. ",
     long_description = open("./torchplus/README.md").read(),
     long_description_content_type="text/markdown",
     license = "MIT Licence",
  
     url = "https://github.com/Bertie97/pyctlib/tree/main/torchplus",
-    author = "Yiteng Zhang, Yuncheng Zhou",
+    author = "Yiteng Zhang",
     author_email = "zytfdu@icloud.com",
  
     packages = find_packages(),
