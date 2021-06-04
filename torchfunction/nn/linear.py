@@ -13,11 +13,12 @@ class Linear(nn.Module):
     out_features: int
     weight: Tensor
 
-    def __init__(self, in_features: int, out_features: int, bias: bool = True, activation="ReLU", hidden_dim=None) -> None:
+    def __init__(self, in_features: int, out_features: int, bias: bool = True, activation="ReLU", hidden_dim=None, hidden_activation="ReLU") -> None:
         super(Linear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.hidden_dim = hidden_dim
+        self.hidden_activation = hidden_activation
         if hidden_dim is None:
             self.weight = Parameter(torch.zeros(out_features, in_features))
             if bias:
