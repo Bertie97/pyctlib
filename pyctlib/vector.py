@@ -975,6 +975,15 @@ class vector(list):
 
                 raise RuntimeError(error_information)
 
+    def map_k(self, func, k):
+        if self.length < k:
+            return
+        assert k > 0
+        ret = vector()
+        for index in range(self.length - k + 1):
+            ret.append(func(*self[index: index + k]))
+        return ret
+
     def map_(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False):
         """
         **Inplace function**: generate a new vector with each element x are replaced with func(x)
