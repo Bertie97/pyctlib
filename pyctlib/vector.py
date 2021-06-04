@@ -46,6 +46,7 @@ import logging  # 引入logging模块
 import os.path
 import time
 import pydoc
+from collections.abc import Hashable
 try:
     import numba as nb
     jit = nb.jit
@@ -157,6 +158,9 @@ def get_args_str(func, func_name):
     except:
         pass
     return ""
+
+def hashable(x):
+    return isinstance(x, Hashable)
 
 class _Vector_Dict(dict):
 
@@ -979,10 +983,10 @@ class vector(list):
         if self.length < k:
             return
         assert k > 0
-        ret = vector()
+        t = vector()
         for index in range(self.length - k + 1):
-            ret.append(func(*self[index: index + k]))
-        return ret
+            t.append(super().__getitem__(slice(index, index+k)))
+        return t.map(lambda x: func(*x))
 
     def map_(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False):
         """
@@ -1522,7 +1526,7 @@ class vector(list):
         """
         if hasattr(self, "_vector__hashable"):
             return self.__hashable
-        self.__hashable = self.all(lambda x: "__hash__" in x.__dir__())
+        self.__hashable = self.all(hashable)
         return self.__hashable
 
     def __hash__(self):
@@ -1530,7 +1534,7 @@ class vector(list):
         get the hash value of the vector if every element in the vector is hashable
         """
         if not self.ishashable():
-            raise Exception("not all elements in the vector is hashable, the index of first unhashable element is %d" % self.index(lambda x: "__hash__" not in x.__dir__()))
+            raise Exception("not all elements in the vector is hashable, the index of first unhashable element is %d" % self.index(lambda x: not hashable(x)))
         else:
             return hash(tuple(self))
 
@@ -2591,8 +2595,9 @@ class vector(list):
 
     def update_appendix(self, element):
         if self.length == 0:
-            self.__hashable = hasattr(element, "__hash__")
-            self.__set = set([element])
+            self.__hashable = hashable(element)
+            if self.__hashable:
+                self.__set = set([element])
             if isinstance(element, int) or isinstance(element, float):
                 self.__sum = element
                 self.__max = element
@@ -2601,9 +2606,9 @@ class vector(list):
             return
         touch(lambda: delattr(self, "_vector__shape"))
         if hasattr(self, "_vector__hashable"):
-            self.__hashable = self.__hashable and hasattr(element, "__hash__")
+            self.__hashable = self.__hashable and hashable(element)
         if hasattr(self, "_vector__set"):
-            if hasattr(element, "__hash__"):
+            if hashable(element):
                 self.__set.add(element)
             else:
                 self.__set = None
