@@ -6,6 +6,22 @@ import torch.nn.init as init
 import torch.nn.functional as F
 from pyctlib import vector
 
+def identity(x):
+    return x
+
+def get_activation_layer(activation):
+    if isinstance(activation, nn.Module):
+        return activation
+    if activation == "ReLU":
+        return torch.relu
+    if activation == "sigmoid":
+        return F.sigmoid
+    if activation == "tanh":
+        return F.tanh
+    if activation is None:
+        return identity
+    raise ValueError
+
 class Linear(nn.Module):
 
     __constants__ = ['in_features', 'out_features']
@@ -20,38 +36,36 @@ class Linear(nn.Module):
         self.hidden_dim = hidden_dim
         self.hidden_activation = hidden_activation
         if hidden_dim is None:
+            self.dims = vector(in_features, out_features)
             self.weight = Parameter(torch.zeros(out_features, in_features))
             if bias:
                 self.bias = Parameter(torch.zeros(out_features))
             else:
                 self.register_parameter('bias', None)
+            self.activation = get_activation_layer(activation)
         else:
-            temp_dim = vector(in_features, *vector(hidden_dim), out_features)
-            self.weight = nn.ParameterList(temp_dim.map_k(lambda in_dim, out_dim: Parameter(torch.zeros(out_dim, in_dim)), 2))
+            self.dims = vector(in_features, *vector(hidden_dim), out_features)
+            self.weight = nn.ParameterList(self.dims.map_k(lambda in_dim, out_dim: Parameter(torch.zeros(out_dim, in_dim)), 2))
             if bias:
-                self.bias = nn.ParameterList(temp_dim.map_k(lambda in_dim, out_dim: Parameter(torch.zeros(out_dim)), 2))
+                self.bias = nn.ParameterList(self.dims.map_k(lambda in_dim, out_dim: Parameter(torch.zeros(out_dim)), 2))
             else:
                 self.register_parameter('bias', None)
-        # print(self.weight)
-        if activation == "ReLU":
-            self.activation = nn.ReLU()
-        else:
-            self.activation = activation
+            self.activation = vector(get_activation_layer(hidden_activation) for _ in range(len(hidden_dim)))
+            self.activation.append(get_activation_layer(activation))
+
         self.reset_parameters()
-        # print(self.weight)
 
     def reset_parameters(self) -> None:
         if self.hidden_dim is None:
-            if isinstance(self.activation, torch.nn.ReLU):
+            if isinstance(self.activation, torch.nn.ReLU) or self.activation == torch.relu:
                 init.kaiming_normal_(self.weight, a=0, mode='fan_in', nonlinearity='relu')
             else:
                 init.xavier_normal_(self.weight)
         else:
-            if isinstance(self.activation, torch.nn.ReLU):
-                for w in self.weight:
+            for a, w in zip(self.activation, self.weight):
+                if isinstance(a, torch.nn.ReLU) or a == torch.relu:
                     init.kaiming_normal_(w, a=0, mode='fan_in', nonlinearity='relu')
-            else:
-                for w in self.weight:
+                else:
                     init.xavier_normal_(w)
 
     def forward(self, input: Tensor) -> Tensor:
@@ -66,12 +80,25 @@ class Linear(nn.Module):
                 for w in self.weight:
                     h = self.activation(F.linear(h, w, None))
             else:
-                for w, b in zip(self.weight, self.bias):
-                    h = self.activation(F.linear(h, w, b))
+                for w, b, a in zip(self.weight, self.bias, self.activation):
+                    h = a(F.linear(h, w, b))
             return h
 
     def extra_repr(self) -> str:
         if self.activation is None:
             return 'in_features={}, out_features={}, bias={}'.format(self.in_features, self.out_features, self.bias is not None)
         else:
-            return 'in_features={}, out_features={}, bias={}, activation={}'.format(self.in_features, self.out_features, self.bias is not None, self.activation)
+            ret = 'in_features={}, out_features={}, bias={}, activation={}\n'.format(self.in_features, self.out_features, self.bias is not None, self.activation.map(lambda x: x.__name__))
+            ret += "{}".format(self.in_features)
+            for d, a in zip(self.dims[1:], self.activation):
+                ret += '->{}->{}'.format(d, a.__name__)
+            return ret
+
+class test(nn.Module):
+
+    def __init__(self):
+        super(test, self).__init__()
+        self.l = Linear(4, 5)
+
+    def forward(self, x):
+        return self.l(x)
