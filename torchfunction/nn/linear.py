@@ -18,7 +18,7 @@ def get_activation_layer(activation):
         return F.sigmoid
     if activation == "tanh":
         return F.tanh
-    if activation is None:
+    if activation is None or activation == "none":
         return identity
     raise ValueError
 
@@ -98,7 +98,10 @@ class Linear(nn.Module):
         if self.hidden_dim is None:
             return self.weight.norm(p=p)
         else:
-            return self.weight.map(lambda x: x.norm(p=p)).sum()
+            reg = []
+            for w in self.weight:
+                reg.append(w.norm(p=p))
+            return sum(reg)
 
 class test(nn.Module):
 
