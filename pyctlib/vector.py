@@ -979,14 +979,23 @@ class vector(list):
 
                 raise RuntimeError(error_information)
 
-    def map_k(self, func, k):
+    def map_k(self, func, k, overlap=True, split_tuple=True):
         if self.length < k:
             return
         assert k > 0
         t = vector()
-        for index in range(self.length - k + 1):
-            t.append(super().__getitem__(slice(index, index+k)))
-        return t.map(lambda x: func(*x))
+        if overlap:
+            for index in range(self.length - k + 1):
+                t.append(super().__getitem__(slice(index, index+k)))
+        else:
+            index = 0
+            while index <= self.length - k:
+                t.append(super().__getitem__(slice(index, index+k)))
+                index += k
+        if split_tuple:
+            return t.map(lambda x: func(*x))
+        else:
+            return t.map(lambda x: func(vector(x)))
 
     def map_(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False):
         """
