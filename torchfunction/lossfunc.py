@@ -46,3 +46,25 @@ def softmax_cross_entropy_with_logits_sparse(x: torch.Tensor, target: torch.Long
             return ret
         else:
             raise ValueError
+
+def entropy(x: torch.Tensor, normalized=True, dim=-1, reduction: str="none"):
+    if not normalized:
+        x = x.softmax(dim)
+    entropy = - (x * torch.log(x + 1e-30)).sum(dim=dim)
+    if reduction == "none":
+        return entropy
+    elif reduction == "mean":
+        return entropy.mean()
+    elif reduction == "sum":
+        return entropy.sum()
+    raise ValueError
+
+def kl_divergence_with_logits(x: torch.Tensor, target: torch.Tensor, reduction: str="mean"):
+    ret = torch.nn.functional.kl_div(x - torch.logsumexp(x, dim=-1, keepdim=True), target, reduction="none")
+    if reduction == "mean":
+        return ret.sum(-1).mean()
+    elif reduction == "sum":
+        return ret.sum()
+    elif reduction == "none":
+        return ret.sum(-1)
+    raise ValueError

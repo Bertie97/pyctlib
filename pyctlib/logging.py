@@ -120,6 +120,7 @@ class Logger:
                 return '"{}"'.format(s)
             else:
                 return str(s)
+        self.logger
         self.__logger.info("Argument Parser:")
         self.__logger.info("-" * 30)
         self.__logger.info("> Specified Vars:")
