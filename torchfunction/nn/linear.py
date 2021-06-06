@@ -94,6 +94,12 @@ class Linear(nn.Module):
                 ret += '->{}->{}'.format(d, a.__name__)
             return ret
 
+    def regulization_loss(self, p=2):
+        if self.hidden_dim is None:
+            return self.weight.norm(p=p)
+        else:
+            return self.weight.map(lambda x: x.norm(p=p)).sum()
+
 class test(nn.Module):
 
     def __init__(self):
