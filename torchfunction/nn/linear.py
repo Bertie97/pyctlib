@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 import torch.nn.init as init
 import torch.nn.functional as F
-from pyctlib import vector
+from pyctlib import vector, touch
 
 def identity(x):
     return x
@@ -88,13 +88,13 @@ class Linear(nn.Module):
         if self.activation is None:
             return 'in_features={}, out_features={}, bias={}'.format(self.in_features, self.out_features, self.bias is not None)
         elif isinstance(self.activation, vector):
-            ret = 'in_features={}, out_features={}, bias={}, activation={}\n'.format(self.in_features, self.out_features, self.bias is not None, self.activation.map(lambda x: x.__name__))
+            ret = 'in_features={}, out_features={}, bias={}, activation={}\n'.format(self.in_features, self.out_features, self.bias is not None, self.activation.map(lambda x: touch(lambda: x.__name__, str(x))))
             ret += "{}".format(self.in_features)
             for d, a in zip(self.dims[1:], self.activation):
                 ret += '->{}->{}'.format(d, a.__name__)
             return ret
         else:
-            ret = 'in_features={}, out_features={}, bias={}, activation={}\n'.format(self.in_features, self.out_features, self.bias is not None, self.activation.__name__)
+            ret = 'in_features={}, out_features={}, bias={}, activation={}'.format(self.in_features, self.out_features, self.bias is not None, touch(lambda: self.activation.__name__, str(self.activation)))
             return ret
 
     def regulization_loss(self, p=2):
