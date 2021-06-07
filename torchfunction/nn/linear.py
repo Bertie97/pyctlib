@@ -87,11 +87,14 @@ class Linear(nn.Module):
     def extra_repr(self) -> str:
         if self.activation is None:
             return 'in_features={}, out_features={}, bias={}'.format(self.in_features, self.out_features, self.bias is not None)
-        else:
+        elif isinstance(self.activation, vector):
             ret = 'in_features={}, out_features={}, bias={}, activation={}\n'.format(self.in_features, self.out_features, self.bias is not None, self.activation.map(lambda x: x.__name__))
             ret += "{}".format(self.in_features)
             for d, a in zip(self.dims[1:], self.activation):
                 ret += '->{}->{}'.format(d, a.__name__)
+            return ret
+        else:
+            ret = 'in_features={}, out_features={}, bias={}, activation={}\n'.format(self.in_features, self.out_features, self.bias is not None, self.activation.__name__)
             return ret
 
     def regulization_loss(self, p=2):
