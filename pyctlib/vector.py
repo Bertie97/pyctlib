@@ -36,7 +36,7 @@ import curses
 import re
 import sys
 import math
-from typing import overload, Callable, Iterable, Union, Dict, Any
+from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple
 import traceback
 import inspect
 import os
@@ -1460,6 +1460,9 @@ class vector(list):
             return self.map_index(index)
         return super().__getitem__(index)
 
+    def select_index(self, index_list):
+        return self.map_index(IndexMapping(index_list, self.length, True))
+
     def getitem(self, index: int, index_mapping: IndexMapping=None, outboundary_value=OutBoundary):
         if index < 0 or index >= self.length:
             return outboundary_value
@@ -2790,7 +2793,7 @@ class vector(list):
         ret = ret_split.map(lambda x: self.map_index(x))
         return ret
 
-    def split_random(self, *args):
+    def split_random(self, *args) -> Tuple:
         args = totuple(args)
         args = vector(args).sort(lambda x: -x).normalization(p=1)
         sorted_index_mapping = args.index_mapping
@@ -2804,7 +2807,7 @@ class vector(list):
             args.pop()
         assert split_num.sum() == self.length
         cumsum = split_num.cumsum()
-        return self.shuffle().split_index(cumsum).map_index(sorted_index_mapping.reverse())
+        return tuple(self.shuffle().split_index(cumsum).map_index(sorted_index_mapping.reverse()))
 
     def copy(self, deep_copy=False):
         if not deep_copy:

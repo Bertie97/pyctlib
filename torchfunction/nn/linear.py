@@ -12,6 +12,8 @@ def identity(x):
 def get_activation_layer(activation):
     if isinstance(activation, nn.Module):
         return activation
+    if callable(activation):
+        return activation
     if activation == "ReLU":
         return torch.relu
     if activation == "sigmoid":
