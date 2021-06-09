@@ -1320,6 +1320,17 @@ class vector(list):
             ret._index_mapping = index_mapping
         return ret
 
+    def zip_split(self):
+        """
+        Usage:
+        x, y, z = vector([(1,2,3), (4,5,6)])
+        then:
+        x = [1,4]
+        y = [2,5]
+        z = [3,6]
+        """
+        return zip(*self)
+
     def __pow__(self, other):
         """__pow__.
         Cartesian Product of two vector

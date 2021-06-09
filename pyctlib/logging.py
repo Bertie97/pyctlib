@@ -97,6 +97,8 @@ class Logger:
             for handler in self.__logger.handlers:
                 handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
             self.__logger.info("start logging")
+            if self.f_handler is not None:
+                self.__logger.info("logging file: {}".format(self.get_f_fullpath()))
             self.__logger.info("sys.argv: {}".format(sys.argv))
             self.sysargv = self.parser.parse_known_args(sys.argv)[0]
             self.log_parser(self.parser)
@@ -239,13 +241,17 @@ class Logger:
         self._f_name = datetime.now().strftime(self._f_name)
 
     def get_f_fullpath(self):
+        if hasattr(self, "_Logger__f_fullpath"):
+            return self.__f_fullpath
         if not (self.f_path / self.f_name).isfile():
-            return self.f_path / self.f_name
+            self.__f_fullpath = self.f_path / self.f_name
+            return self.__f_fullpath
         index = 1
         while True:
             temp_path = self.f_path / (self.f_name[:-4] + "-{}".format(index) + ".log")
             if not temp_path.isfile():
-                return temp_path
+                self.__f_fullpath = temp_path
+                return self.__f_fullpath
             index += 1
 
     def from_level(self, logging_level):
