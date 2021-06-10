@@ -1322,7 +1322,7 @@ class vector(list):
             ret._index_mapping = index_mapping
         return ret
 
-    def zip_split(self):
+    def zip_split(self) -> Tuple["vector"]:
         """
         Usage:
         x, y, z = vector([(1,2,3), (4,5,6)])
