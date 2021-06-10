@@ -692,7 +692,7 @@ class vector(list):
             list.__init__(self, args)
 
     @staticmethod
-    def map_from(vectors, reduce_func):
+    def map_from(vectors, reduce_func) -> "vector":
         assert any(isinstance(x, list) for x in vectors)
         for vec in vectors:
             if isinstance(vec, list):
@@ -713,7 +713,7 @@ class vector(list):
         """
         return touch(lambda: self._index_mapping, IndexMapping())
 
-    def filter(self, func=None, ignore_error=True, func_self=None, register_result=None):
+    def filter(self, func=None, ignore_error=True, func_self=None, register_result=None) -> "vector":
         """
         filter element in the vector with which func(x) is True
 
@@ -771,8 +771,9 @@ class vector(list):
                     error_information = "Error info: {}. \nException raised in filter function at location {} for element {}".format(error_info, index, "<unknown>")
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
+        return vector()
 
-    def filter_(self, func=None, ignore_error=True):
+    def filter_(self, func=None, func_self=None, ignore_error=True) -> None:
         """
         **Inplace** function: filter element in the vector with which func(x) is True
 
@@ -817,7 +818,7 @@ class vector(list):
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
 
-    def test(self, func, *args):
+    def test(self, func, *args) -> "vector":
         """
         filter element with which func will not produce Error
 
@@ -836,7 +837,7 @@ class vector(list):
             func = chain_function((func, *args))
         return self.filter(lambda x: touch(lambda: (func(x), True)[-1], False))
 
-    def testnot(self, func, *args):
+    def testnot(self, func, *args) -> "vector":
         """testnot
         filter element with which func will produce Error
 
@@ -856,7 +857,7 @@ class vector(list):
             func = chain_function((func, *args))
         return self.filter(lambda x: not touch(lambda: (func(x), True)[-1], False))
 
-    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False, split_tuple=False, filter_function=None):
+    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False, split_tuple=False, filter_function=None) -> "vector":
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -978,8 +979,9 @@ class vector(list):
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
 
                 raise RuntimeError(error_information)
+        return vector()
 
-    def map_k(self, func, k, overlap=True, split_tuple=True):
+    def map_k(self, func, k, overlap=True, split_tuple=True) -> "vector":
         if self.length < k:
             return
         assert k > 0
@@ -997,7 +999,7 @@ class vector(list):
         else:
             return t.map(lambda x: func(vector(x)))
 
-    def map_(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False):
+    def map_(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False) -> None:
         """
         **Inplace function**: generate a new vector with each element x are replaced with func(x)
 
@@ -1054,7 +1056,7 @@ class vector(list):
                 error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
                 raise RuntimeError(error_information)
 
-    def insert_between(self, func_element=None, func_space=None):
+    def insert_between(self, func_element=None, func_space=None) -> "vector":
         """
         x, y, z -> {1} x' {2} y' {3} z' {4}
         where
@@ -1079,7 +1081,7 @@ class vector(list):
         ret.append(touch(lambda: func_space(self, vector())), refuse_value=None)
         return ret
 
-    def rmap(self, func, *args, default=NoDefault):
+    def rmap(self, func, *args, default=NoDefault) -> "vector":
         """rmap
         recursively map each element in vector
 
@@ -1103,7 +1105,7 @@ class vector(list):
             func = chain_function((func, *args))
         return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(x), default=default)
 
-    def replace(self, element, toelement=NoDefault):
+    def replace(self, element, toelement=NoDefault) -> "vector":
         """
         replace element in vector with to element
 
@@ -1147,7 +1149,7 @@ class vector(list):
                     ret[index] = toelement
         return ret
 
-    def replace_(self, element, toelement=NoDefault):
+    def replace_(self, element, toelement=NoDefault) -> None:
         """
         **Inplace function**: inplace replace element in vector with to element
 
@@ -1247,7 +1249,7 @@ class vector(list):
             self.__type_recursive = ret
         return self.__type_recursive
 
-    def check_type(self, instance, recursive=False):
+    def check_type(self, instance, recursive=False) -> bool:
         """check_type
         check if all the element in the vector is of type instance
 
@@ -1311,7 +1313,7 @@ class vector(list):
             return vector(zip(self, other))
 
     @staticmethod
-    def zip(*args, index_mapping=NoDefault):
+    def zip(*args, index_mapping=NoDefault) -> "vector":
         args = totuple(args)
         ret = vector(zip(*args)).map(lambda x: totuple(x), split_tuple=False)
         if isinstance(index_mapping, EmptyClass):
@@ -1471,7 +1473,7 @@ class vector(list):
             return self.map_index(index)
         return super().__getitem__(index)
 
-    def select_index(self, index_list):
+    def select_index(self, index_list) -> "vector":
         return self.map_index(IndexMapping(index_list, self.length, True))
 
     def getitem(self, index: int, index_mapping: IndexMapping=None, outboundary_value=OutBoundary):
@@ -1543,7 +1545,7 @@ class vector(list):
             raise TypeError("only support the following usages: \n [int] = \n [slice] = \n [list] = ")
 
 
-    def ishashable(self):
+    def ishashable(self) -> bool:
         """ishashable.
         chech whether every element in the vector is hashable
         """
@@ -1601,7 +1603,7 @@ class vector(list):
         else:
             return Counter(dict(self.unique().map(lambda x: (x, self.count(x)))))
 
-    def count(self, *args):
+    def count(self, *args) -> int:
         """count.
 
         Parameters
@@ -1626,7 +1628,7 @@ class vector(list):
             return len(self.filter(args[0]))
         return super().count(args[0])
 
-    def index(self, element):
+    def index(self, element) -> int:
         """index.
 
         Parameters
@@ -1653,7 +1655,7 @@ class vector(list):
         else:
             return super().index(element)
 
-    def findall(self, element):
+    def findall(self, element) -> "vector":
         """findall.
 
         Parameters
@@ -1677,7 +1679,7 @@ class vector(list):
         else:
             return vector([index for index in range(len(self)) if self[index] == element], recursive=False)
 
-    def findall_crash(self, func):
+    def findall_crash(self, func) -> "vector":
         """findall_crash.
         get all indexs of elements with which func will cause an error
 
@@ -1694,7 +1696,7 @@ class vector(list):
         assert callable(func)
         return vector([index for index in range(len(self)) if crash(lambda: func(self[index]))], recursive=False)
 
-    def all(self, func=lambda x: x):
+    def all(self, func=lambda x: x) -> bool:
         """all.
         check if all element in vector are True or all func(element) for element in vector are True
 
@@ -1708,7 +1710,7 @@ class vector(list):
                 return False
         return True
 
-    def any(self, func=lambda x: x):
+    def any(self, func=lambda x: x) -> bool:
         """any.
         check if any element in vector are True or any func(element) for element in vector are True
 
@@ -1783,7 +1785,7 @@ class vector(list):
             return self[m_index], m_index
         return self[m_index]
 
-    def map_numba_function(self, numba_function, *args):
+    def map_numba_function(self, numba_function, *args) -> "vector":
         assert self.check_type(int) or self.check_type(float)
         ret = numba_function(self.to_numpy(), *args)
         if isinstance(ret, np.ndarray):
@@ -1791,29 +1793,29 @@ class vector(list):
         else:
             return ret
 
-    def exp(self):
+    def exp(self) -> "vector":
         return self.map_numba_function(numba_exp)
 
-    def sin(self):
+    def sin(self) -> "vector":
         return self.map_numba_function(numba_sin)
 
-    def cos(self):
+    def cos(self) -> "vector":
         return self.map_numba_function(numba_cos)
 
-    def log(self):
+    def log(self) -> "vector":
         return self.map_numba_function(numba_log)
 
-    def plus(self, element):
+    def plus(self, element) -> "vector":
         return self.map_numba_function(numba_plus, element)
 
     @overload
-    def clip(self, min_value): ...
+    def clip(self, min_value) -> "vector": ...
 
     @overload
-    def clip(self, min_value, max_value): ...
+    def clip(self, min_value, max_value) -> "vector": ...
 
     @overload
-    def clip(self, min_value: float=None, max_value: float=None): ...
+    def clip(self, min_value: float=None, max_value: float=None) -> "vector": ...
 
     def clip(self, *args, **kwargs):
         min_value = max_value = None
@@ -1835,7 +1837,7 @@ class vector(list):
         if max_value is not None:
             return self.map_numba_function(numba_minimum, max_value)
 
-    def relu(self):
+    def relu(self) -> "vector":
         return self.map_numba_function(numba_relu)
 
     def sum(self, default=None):
@@ -1861,7 +1863,7 @@ class vector(list):
             return default
         return self.sum() / self.length
 
-    def variance(self, default=NoDefault):
+    def variance(self, default=NoDefault) -> float:
         if self.length == 0:
             if isinstance(default, EmptyClass):
                 raise TypeError("vector is empty, plz set default to prevent error")
@@ -1869,11 +1871,12 @@ class vector(list):
         if hasattr(self, "_vector__variance"):
             return self.__variance
         if self.check_type(int) or self.check_type(float):
-            return numba_variance(np.array(self))
+            self.__variance = numba_variance(np.array(self))
         else:
-            return self.map(lambda x: x ** 2).mean() - (self.mean()) ** 2
+            self.__variance = self.map(lambda x: x ** 2).mean() - (self.mean()) ** 2
+        return self.__variance
 
-    def std(self, default=NoDefault):
+    def std(self, default=NoDefault) -> float:
         if self.length == 0:
             if isinstance(default, EmptyClass):
                 raise TypeError("vector is empty, plz set default to prevent error")
@@ -2492,13 +2495,13 @@ class vector(list):
 
     @overload
     @staticmethod
-    def range(stop): ...
+    def range(stop) -> "vector": ...
 
     @overload
-    def range(start, stop): ...
+    def range(start, stop) -> "vector": ...
 
     @overload
-    def range(start, stop, step): ...
+    def range(start, stop, step) -> "vector": ...
 
     @staticmethod
     def range(*args):
@@ -3331,7 +3334,7 @@ class vector(list):
             pickle.dump(self.index_mapping, output)
 
     @staticmethod
-    def load(filepath):
+    def load(filepath) -> "vector":
         try:
             import pickle
         except:
