@@ -10,9 +10,12 @@ __all__ = """
     touch
     crash
     no_print
+    retru
 """.split()
 
 import sys
+from typing import Callable
+from time import sleep
 
 _mid = lambda x: x[1] if len(x) > 1 else x[0]
 _rawname = lambda s: _mid(str(s).split("'"))
@@ -102,6 +105,28 @@ def touch(v: [callable, str], default=None):
     else:
         try: return v()
         except: return default
+
+def retry(func: Callable, max_num=10, interval=0.5, gamma=1.2, logger=None, logger_str=None, reject_func=None):
+    step = 0
+    while max_num < 0 or step < max_num - 1:
+        try:
+            ret = func()
+            if reject_func is not None and touch(lambda: reject_func(ret)):
+                logger.debug("return value is rejected", ret, "[%d/%d]" % (step, max_num), loc_bias=1)
+                pass
+            else:
+                return ret
+        except:
+            if logger is not None:
+                if logger_str:
+                    logger.debug("encounter error, try again [%d/%d]" % (step, max_num), logger_str, loc_bias=1)
+                else:
+                    logger.debug("encounter error, try again [%d/%d]" % (step, max_num), loc_bias=1)
+            pass
+        step += 1
+        sleep(interval)
+        interval *= gamma
+    return func()
 
 def crash(func):
     try:
