@@ -266,78 +266,78 @@ class Logger:
         if logging_level == CRITICAL:
             return self.logger.critical
 
-    def debug(self, *msgs, sep=" "):
+    def debug(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
             return
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2].tb_frame.f_back
+            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
         if sep == "\n":
             for msg in msgs:
                 self.logger.debug("{}[line:{}] - DEBUG: {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
             self.logger.debug("{}[line:{}] - DEBUG: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def info(self, *msgs, sep=" "):
+    def info(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
             return
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2].tb_frame.f_back
+            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
         if sep == "\n":
             for msg in msgs:
                 self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
             self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def warning(self, *msgs, sep=" "):
+    def warning(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
             return
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2].tb_frame.f_back
+            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
         if sep == "\n":
             for msg in msgs:
                 self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
             self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def critical(self, *msgs, sep=" "):
+    def critical(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
             return
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2].tb_frame.f_back
+            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
         if sep == "\n":
             for msg in msgs:
                 self.logger.critical("{}[line:{}] - CRITICAL: {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
             self.logger.critical("{}[line:{}] - CRITICAL: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def error(self, *msgs, sep=" "):
+    def error(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
             return
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2].tb_frame.f_back
+            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
         if sep == "\n":
             for msg in msgs:
                 self.logger.error("{}[line:{}] - ERROR: {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
             self.logger.error("{}[line:{}] - ERROR: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
-    def exception(self, *msgs, sep=" "):
+    def exception(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
             return
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2].tb_frame.f_back
+            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
         if sep == "\n":
             for msg in msgs:
                 self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, msg))
