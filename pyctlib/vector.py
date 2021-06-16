@@ -2566,7 +2566,7 @@ class vector(list):
         """
         self.clear_appendix()
         self._index_mapping = IndexMapping()
-        if not isinstance(self.content_type, EmptyClass):
+        if hasattr(self, "content_type") and not isinstance(self.content_type, EmptyClass):
             assert vector(other).check_type(self.content_type)
         super().extend(other)
         return self

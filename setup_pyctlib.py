@@ -11,11 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "pyctlib",
-<<<<<<< HEAD
-    version = "0.3.22",
-=======
-    version = "0.3.25",
->>>>>>> 82998e9374715cc538fc3831a66c3b0e2189b0f5
+    version = "0.3.28",
     keywords = ("pip", "pyctlib"),
     description = "This is A foundamental package containing some basic self-designed functions and types for Project PyCTLib. ",
     long_description = open("./pyctlib/README.md").read(),
