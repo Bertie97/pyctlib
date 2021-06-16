@@ -6,7 +6,7 @@
 ## Package <main>
 ##############################
 
-from .touch import touch, crash
+from .touch import touch, crash, retry
 from .vector import totuple, recursive_apply, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass, vhelp, fuzzy_obj
 from .basicwrapper import *
 from .wrapper import *
