@@ -10,7 +10,7 @@ __all__ = """
     touch
     crash
     no_print
-    retru
+    retry
 """.split()
 
 import sys

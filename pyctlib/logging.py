@@ -272,7 +272,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.debug("{}[line:{}] - DEBUG: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -285,7 +288,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -298,7 +304,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -311,7 +320,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.critical("{}[line:{}] - CRITICAL: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -324,7 +336,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.error("{}[line:{}] - ERROR: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -337,7 +352,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, msg))
