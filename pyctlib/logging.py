@@ -44,7 +44,7 @@ def empty_func(*args, **kwargs):
 
 class Logger:
 
-    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None):
+    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False):
         self.name = name
         if stream_log_level is True:
             self.stream_log_level = logging.DEBUG
@@ -58,7 +58,7 @@ class Logger:
         self.f_name = file_name
         self.c_format = c_format
         self.f_format = f_format
-        self.__disabled = False
+        self.__disabled = disable
         self.start_time = time.time()
         self._parser = argparse.ArgumentParser(add_help=False)
         self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
