@@ -13,6 +13,7 @@ from pyctlib import path, get_relative_path, file
 from pyctlib import touch
 from pyctlib.wrapper import generate_typehint_wrapper
 import argparse
+from time import sleep
 
 print(pyctlib.__file__)
 
@@ -20,6 +21,7 @@ from pyctlib import Logger
 logger = Logger(True, file_name="vector_test_{time}")
 
 vec = vector.range(10).shuffle()
+vec.map(lambda x: sleep(0.5), processing_bar=True)
 
 vec.insert_between((lambda x, y, z: x), (lambda x, y: x[-1] + y[0]))
 

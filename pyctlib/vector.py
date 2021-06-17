@@ -913,9 +913,9 @@ class vector(list):
             if filter_function is None:
                 if processing_bar:
                     if split_tuple and self.check_type(tuple):
-                        ret = vector([touch(lambda: new_func(*a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([touch(lambda: new_func(*a), default=default) for a in tqdm(super().__iter__(), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
-                        ret = vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__(), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
                     if split_tuple and self.check_type(tuple):
                         ret = vector([touch(lambda: new_func(*a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
@@ -924,9 +924,9 @@ class vector(list):
             else:
                 if processing_bar:
                     if split_tuple and self.check_type(tuple):
-                        ret = vector([touch(lambda: new_func(*a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([touch(lambda: new_func(*a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
-                        ret = vector([touch(lambda: new_func(a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([touch(lambda: new_func(a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
                     if split_tuple and self.check_type(tuple):
                         ret = vector([touch(lambda: new_func(*a), default=default) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
@@ -941,9 +941,9 @@ class vector(list):
             if filter_function is None:
                 if processing_bar:
                     if split_tuple and self.check_type(tuple):
-                        ret = vector([new_func(*a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([new_func(*a) for a in tqdm(super().__iter__(), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
-                        ret = vector([new_func(a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([new_func(a) for a in tqdm(super().__iter__(), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
                     if split_tuple and self.check_type(tuple):
                         ret = vector([new_func(*a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
@@ -952,9 +952,9 @@ class vector(list):
             else:
                 if processing_bar:
                     if split_tuple and self.check_type(tuple):
-                        ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
-                        ret = vector([new_func(a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([new_func(a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
                     if split_tuple and self.check_type(tuple):
                         ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
@@ -983,7 +983,7 @@ class vector(list):
 
     def map_k(self, func, k, overlap=True, split_tuple=True) -> "vector":
         if self.length < k:
-            return
+            return vector()
         assert k > 0
         t = vector()
         if overlap:
