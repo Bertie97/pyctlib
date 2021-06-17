@@ -1,4 +1,5 @@
 import torch
+from pyctlib import vector
 
 def get_shape(input):
     if isinstance(input, list):
