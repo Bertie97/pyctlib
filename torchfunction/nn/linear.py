@@ -79,8 +79,8 @@ class Linear(nn.Module):
         else:
             h = input
             if self.bias is None:
-                for w in self.weight:
-                    h = self.activation(F.linear(h, w, None))
+                for w, a in zip(self.weight, self.activation):
+                    h = a(F.linear(h, w, None))
             else:
                 for w, b, a in zip(self.weight, self.bias, self.activation):
                     h = a(F.linear(h, w, b))
