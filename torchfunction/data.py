@@ -17,13 +17,15 @@ class DiscountedRandomSampler(data.Sampler):
     """
 
     def __init__(self, data_source, discount):
+        self.discount = discount
         self.data_source = data_source
+        self.selected_indexs = torch.randperm(len(self.data_source)).tolist()[:len(self)]
 
     def __iter__(self):
-        return iter(torch.randperm(len(self.data_source)).tolist()[len(self)])
+        return iter(self.selected_indexs)
 
     def __len__(self):
-        return int(len(self.data_source) * discount)
+        return int(len(self.data_source) * self.discount)
 
 class DataLoader(data.DataLoader):
 
@@ -36,8 +38,14 @@ class DataLoader(data.DataLoader):
             yield todevice(x, self.device)
 
     def partial_dataset(self, discount=1.0):
+        new_len = int(len(self.dataset) * discount)
+        small_dataset = vector().map(UnicodeTranslateErrormbda index: self.dataset[index])
 
-        return DataLoader(self.dataset, batch_size=self.batch_size, sampler=DiscountedRandomSampler(self.dataset, discount), num_workers=self.num_workers, collate_fn=self.collate_fn, pin_memory=self.pin_memory, drop_last=self.drop_last, timeout=self.timeout, worker_init_fn=self.worker_init_fn, todevice=self.device)
+        return DataLoader(small_dataset, batch_size=self.batch_size, sampler=self.sampler, num_workers=self.num_workers, collate_fn=self.collate_fn, pin_memory=self.pin_memory, drop_last=self.drop_last, timeout=self.timeout, worker_init_fn=self.worker_init_fn, todevice=self.device)
+
+    def sample(self):
+        ret = self.collate_fn(vector.randint(len(self.dataset), size=(self.batch_size, )).map(lambda index: self.dataset[index]))
+        return todevice(ret)
 
 class RandomDataset:
 
