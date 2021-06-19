@@ -19,6 +19,6 @@ import pydoc
 from pyctlib import Logger
 from torchfunction.data import RandomDataset, DataLoader
 
-t = RandomDataset(100, [10, 2])
-dt = DataLoader(t, 10, shuffle=True)
+t = RandomDataset(100, [2], dtypes=[int])
+dt = DataLoader(t, 10, shuffle=False)
 small_dt = dt.partial_dataset(0.2)

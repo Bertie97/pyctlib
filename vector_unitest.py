@@ -22,7 +22,6 @@ logger = Logger(True, file_name="vector_test_{time}")
 
 vec = vector.range(10).shuffle()
 vec.map(lambda x: sleep(0.5), processing_bar=True)
-
 vec.insert_between((lambda x, y, z: x), (lambda x, y: x[-1] + y[0]))
 
 with scope("all"):
