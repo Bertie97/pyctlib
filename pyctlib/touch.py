@@ -11,6 +11,7 @@ __all__ = """
     crash
     no_print
     retry
+    empty_function
 """.split()
 
 import sys
@@ -137,6 +138,9 @@ def retry(func: Callable, max_num=10, interval=0.5, logger=None, logger_str=None
         step += 1
         sleep(interval)
     return func()
+
+def empty_function(*args, **kwargs):
+    return
 
 class _strIO:
     def __init__(self): self._str_ = ''
