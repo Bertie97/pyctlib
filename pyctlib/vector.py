@@ -1468,7 +1468,10 @@ class vector(list):
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
         if isinstance(index, tuple):
-            return super().__getitem__(index[0])[index[1:]]
+            if len(index) == 1:
+                return super().__getitem__(index[0])
+            else:
+                return super().__getitem__(index[0])[index[1:]]
         if isinstance(index, IndexMapping):
             return self.map_index(index)
         return super().__getitem__(index)
@@ -2458,6 +2461,19 @@ class vector(list):
         ret = vector.from_numpy(np.ones(args))
         ret._shape = args
         return ret
+
+    @staticmethod
+    def linespace(self, low, high, nbins):
+        return vector.from_numpy(np.linespace(low, high, nbins))
+
+    @staticmethod
+    def meshgrid(*args):
+        if len(args) == 0:
+            return vector()
+        if isinstance(args[0], int):
+            return vector.meshgrid(*[vector.range(d) for d in args])
+        import itertools
+        return vector(itertools.product(*args)).map(lambda x: x)
 
     @staticmethod
     def rand(*args):
