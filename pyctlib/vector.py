@@ -37,6 +37,7 @@ import re
 import sys
 import math
 from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple
+import types
 import traceback
 import inspect
 import os
@@ -77,10 +78,14 @@ def list_like(obj):
     return "__getitem__" in dir(obj) and "__len__" in dir(obj) and "__iter__" in dir(obj)
 
 def totuple(x, depth=1):
+    if isinstance(x, types.GeneratorType):
+        x = tuple(x)
     if not iterable(x):
         x = (x, )
     if depth == 1:
         if iterable(x) and len(x) == 1 and iterable(x[0]):
+            return tuple(x[0])
+        if iterable(x) and len(x) == 1 and isinstance(x, types.GeneratorType):
             return tuple(x[0])
         else:
             return tuple(x)
@@ -2463,11 +2468,12 @@ class vector(list):
         return ret
 
     @staticmethod
-    def linespace(self, low, high, nbins):
-        return vector.from_numpy(np.linespace(low, high, nbins))
+    def linspace(low, high, nbins):
+        return vector.from_numpy(np.linspace(low, high, nbins))
 
     @staticmethod
     def meshgrid(*args):
+        args = totuple(args)
         if len(args) == 0:
             return vector()
         if isinstance(args[0], int):
