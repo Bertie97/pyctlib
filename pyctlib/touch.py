@@ -155,20 +155,36 @@ class Once:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back.f_back
         return (f.f_code.co_filename, f.f_lineno)
 
-    def __enter__(self):
+    def __bool__(self):
         f_name, l_nu = self.filename_and_linenu()
         if (f_name, l_nu) in self.history:
-            raise OnceError
+            return False
         self.history.add((f_name, l_nu))
+        return True
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None and exc_val is None and exc_tb is None:
-            return
-        if isinstance(exc_val, OnceError):
-            return True
+    # def __enter__(self):
+    #     f_name, l_nu = self.filename_and_linenu()
+    #     if (f_name, l_nu) in self.history:
+    #         raise OnceError
+    #     self.history.add((f_name, l_nu))
+
+    # def __exit__(self, exc_type, exc_val, exc_tb):
+    #     print('__exit__ called')
+    #     # if exc_type:
+    #     print(f'exc_type: {exc_type}')
+    #     print(f'exc_value: {exc_value}')
+    #     print(f'exc_traceback: {exc_traceback}')
+    #     print('exception handled')
+    #     return True
+    #     # if exc_type is None and exc_val is None and exc_tb is None:
+    #     #     return
+    #     # if isinstance(exc_type, OnceError):
+    #     #     return True
+    #     # if isinstance(exc_val, OnceError):
+    #     #     return True
 
 once = Once()
 
