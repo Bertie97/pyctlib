@@ -60,6 +60,11 @@ def entropy(x: torch.Tensor, normalized=True, dim=-1, reduction: str="none"):
     raise ValueError
 
 def kl_divergence_with_logits(x: torch.Tensor, target: torch.Tensor, reduction: str="mean"):
+    """
+    x: shape[..., n], unnormalized log of probability of Q
+    target: same shape as x, probability of P
+    KL(p, q) = p log(p/q) = target log(target / softmax(x))
+    """
     ret = torch.nn.functional.kl_div(x - torch.logsumexp(x, dim=-1, keepdim=True), target, reduction="none")
     if reduction == "mean":
         return ret.sum(-1).mean()
