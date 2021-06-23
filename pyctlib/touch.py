@@ -12,6 +12,7 @@ __all__ = """
     no_print
     retry
     empty_function
+    once
 """.split()
 
 import sys
@@ -141,6 +142,35 @@ def retry(func: Callable, max_num=10, interval=0.5, logger=None, logger_str=None
 
 def empty_function(*args, **kwargs):
     return
+
+class OnceError(Exception):
+    pass
+
+class Once:
+
+    def __init__(self):
+        self.history = set()
+
+    def filename_and_linenu(self):
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        return (f.f_code.co_filename, f.f_lineno)
+
+    def __enter__(self):
+        f_name, l_nu = self.filename_and_linenu()
+        if (f_name, l_nu) in self.history:
+            raise OnceError
+        self.history.add((f_name, l_nu))
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None and exc_val is None and exc_tb is None:
+            return
+        if isinstance(exc_val, OnceError):
+            return True
+
+once = Once()
 
 class _strIO:
     def __init__(self): self._str_ = ''
