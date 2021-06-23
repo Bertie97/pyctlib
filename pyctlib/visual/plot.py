@@ -26,6 +26,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 def plot_ratemaps(ratemaps, cols=None, titles=None, interpolation="spline36", cmap="jet", saved_path=None):
     ratemaps = vector(ratemaps)
+    vmin = ratemaps.map(lambda x: float(x.min())).min()
+    vmax = ratemaps.map(lambda x: float(x.max())).max()
     N = len(ratemaps)
     assert N >= 1
     if cols is None:
@@ -34,7 +36,7 @@ def plot_ratemaps(ratemaps, cols=None, titles=None, interpolation="spline36", cm
     fig = plt.figure(figsize=(cols * 2, rows * 2))
     for index in range(N):
         ax = plt.subplot(rows, cols, index + 1)
-        ax.imshow(ratemaps[index], interpolation=interpolation, cmap=cmap)
+        pos = ax.imshow(ratemaps[index], interpolation=interpolation, cmap=cmap, vmin=vmin, vmax=vmax)
         ax.set_title(touch(lambda: titles[index], default=str(index + 1)))
         ax.axis('off')
     plt.tight_layout()

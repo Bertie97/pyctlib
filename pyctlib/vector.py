@@ -2425,6 +2425,9 @@ class vector(list):
                 ret.append(item)
         return ret
 
+    def numpy(self):
+        return np.array(self)
+
     @overload
     @staticmethod
     def zeros(size: Iterable): ...
