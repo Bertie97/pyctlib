@@ -1,6 +1,7 @@
 import logging
 from .filemanager import path
 from .touch import touch
+from .vector import vector
 import time
 from datetime import timedelta
 from datetime import datetime
@@ -11,6 +12,7 @@ from typing import Callable
 import random
 import string
 import argparse
+import re
 
 __all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger"]
 
@@ -63,6 +65,7 @@ class Logger:
         self._parser = argparse.ArgumentParser(add_help=False)
         self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
         self.sysargv = self._parser.parse_known_args(sys.argv)[0]
+        self.variable_dict = {}
         atexit.register(self.record_elapsed)
 
     @property
@@ -361,6 +364,50 @@ class Logger:
                 self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
             self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
+
+    def variable(self, variable_name: str, variable):
+        if self.disabled:
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        self.logger.info("{}[line:{}] - VARIABLE<{}>: {}".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
+        if variable_name not in  self.variable_dict:
+            self.variable_dict[variable_name] = variable
+        else:
+            if isinstance(self.variable_dict[variable_name], vector):
+                self.variable_dict[variable_name] = self.variable_dict[variable_name].append(variable)
+            else:
+                self.variable_dict[variable_name] = vector([self.variable_dict[variable_name], variable])
+
+    @staticmethod
+    def variable_from_logging_file(f_name):
+        variable_dict = dict()
+        with open(f_name, "r") as finput:
+            for line in finput.readlines():
+                if "VARIABLE<" in line:
+                    match = re.search(r"VARIABLE<(.+)>: (.+)", line.rstrip())
+                    if match:
+                        variable_name = match.group(1)
+                        variable_str = match.group(2)
+                        if not variable_name or not variable_str:
+                            continue
+                        if variable_str[0].isdigit() or variable_str[0] == "-":
+                            variable = float(variable_str)
+                        elif variable_str[0] == "[" and variable_str[-1] == "]":
+                            variable = vector([float(x.strip()) for x in line.split(",")])
+                        else:
+                            print("unknown variable", variable_str)
+                            continue
+                        if variable_name not in variable_dict:
+                            variable_dict[variable_name] = variable
+                        else:
+                            if isinstance(variable_dict[variable_name], vector):
+                                variable_dict[variable_name] = variable_dict[variable_name].append(variable)
+                            else:
+                                variable_dict[variable_name] = vector([variable_dict[variable_name], variable])
+        return variable_dict
 
     def wrapper_function_input_output(self, *args, logging_level=INFO):
         if len(args) == 1:
