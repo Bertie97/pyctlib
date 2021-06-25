@@ -8,11 +8,13 @@ from datetime import datetime
 import atexit
 import sys
 from functools import wraps
-from typing import Callable
+from typing import Callable, Dict
 import random
 import string
 import argparse
 import re
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 __all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger"]
 
@@ -396,7 +398,7 @@ class Logger:
                         if variable_str[0].isdigit() or variable_str[0] == "-":
                             variable = float(variable_str)
                         elif variable_str[0] == "[" and variable_str[-1] == "]":
-                            variable = vector([float(x.strip()) for x in line.split(",")])
+                            variable = vector([float(x.strip()) for x in variable_str[1:-1].split(",")])
                         else:
                             print("unknown variable", variable_str)
                             continue
@@ -408,6 +410,31 @@ class Logger:
                             else:
                                 variable_dict[variable_name] = vector([variable_dict[variable_name], variable])
         return variable_dict
+
+    @staticmethod
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None):
+        float_variable = vector()
+        for key, value in variable_dict.items():
+            if value.check_type(float):
+                float_variable.append(key)
+        n = len(float_variable)
+        cols = 3
+        rows = (n + 2) // 3
+        fig = plt.figure(figsize=(24, (rows) * 4))
+        if title is not None:
+            fig.suptitle(title)
+        for index in range(n):
+            ax = plt.subplot(rows, cols, index + 1)
+            ax.plot(variable_dict[float_variable[index]].smooth(5))
+            ax.set_title(float_variable[index])
+        if saved_path is not None:
+            if saved_path.endswith("pdf"):
+                with PdfPages(saved_path, "w") as f:
+                    plt.savefig(f, format="pdf")
+            else:
+                plt.savefig(saved_path, dpi=300)
+        else:
+            plt.show()
 
     def wrapper_function_input_output(self, *args, logging_level=INFO):
         if len(args) == 1:
