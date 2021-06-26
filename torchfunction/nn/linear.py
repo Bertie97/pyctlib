@@ -79,8 +79,8 @@ class Linear(nn.Module):
         else:
             h = input
             if self.bias is None:
-                for w in self.weight:
-                    h = self.activation(F.linear(h, w, None))
+                for w, a in zip(self.weight, self.activation):
+                    h = a(F.linear(h, w, None))
             else:
                 for w, b, a in zip(self.weight, self.bias, self.activation):
                     h = a(F.linear(h, w, b))
@@ -93,7 +93,7 @@ class Linear(nn.Module):
             ret = 'in_features={}, out_features={}, bias={}, activation={}\n'.format(self.in_features, self.out_features, self.bias is not None, self.activation.map(lambda x: touch(lambda: x.__name__, str(x))))
             ret += "{}".format(self.in_features)
             for d, a in zip(self.dims[1:], self.activation):
-                ret += '->{}->{}'.format(d, a.__name__)
+                ret += '->{}->{}'.format(d, touch(lambda: a.__name__, str(a)))
             return ret
         else:
             ret = 'in_features={}, out_features={}, bias={}, activation={}'.format(self.in_features, self.out_features, self.bias is not None, touch(lambda: self.activation.__name__, str(self.activation)))
