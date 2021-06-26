@@ -37,6 +37,7 @@ import re
 import sys
 import math
 from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple
+import types
 import traceback
 import inspect
 import os
@@ -77,10 +78,14 @@ def list_like(obj):
     return "__getitem__" in dir(obj) and "__len__" in dir(obj) and "__iter__" in dir(obj)
 
 def totuple(x, depth=1):
+    if isinstance(x, types.GeneratorType):
+        x = tuple(x)
     if not iterable(x):
         x = (x, )
     if depth == 1:
         if iterable(x) and len(x) == 1 and iterable(x[0]):
+            return tuple(x[0])
+        if iterable(x) and len(x) == 1 and isinstance(x, types.GeneratorType):
             return tuple(x[0])
         else:
             return tuple(x)
@@ -913,9 +918,9 @@ class vector(list):
             if filter_function is None:
                 if processing_bar:
                     if split_tuple and self.check_type(tuple):
-                        ret = vector([touch(lambda: new_func(*a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([touch(lambda: new_func(*a), default=default) for a in tqdm(super().__iter__(), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
-                        ret = vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([touch(lambda: new_func(a), default=default) for a in tqdm(super().__iter__(), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
                     if split_tuple and self.check_type(tuple):
                         ret = vector([touch(lambda: new_func(*a), default=default) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
@@ -924,9 +929,9 @@ class vector(list):
             else:
                 if processing_bar:
                     if split_tuple and self.check_type(tuple):
-                        ret = vector([touch(lambda: new_func(*a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([touch(lambda: new_func(*a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
-                        ret = vector([touch(lambda: new_func(a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([touch(lambda: new_func(a), default=default) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
                     if split_tuple and self.check_type(tuple):
                         ret = vector([touch(lambda: new_func(*a), default=default) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
@@ -941,9 +946,9 @@ class vector(list):
             if filter_function is None:
                 if processing_bar:
                     if split_tuple and self.check_type(tuple):
-                        ret = vector([new_func(*a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([new_func(*a) for a in tqdm(super().__iter__(), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
-                        ret = vector([new_func(a) for a in tqdm(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([new_func(a) for a in tqdm(super().__iter__(), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
                     if split_tuple and self.check_type(tuple):
                         ret = vector([new_func(*a) for a in super().__iter__()], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
@@ -952,9 +957,9 @@ class vector(list):
             else:
                 if processing_bar:
                     if split_tuple and self.check_type(tuple):
-                        ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                     else:
-                        ret = vector([new_func(a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()))], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
+                        ret = vector([new_func(a) if filter_function(index, a) else a for index, a in tqdm(enumerate(super().__iter__()), total=self.length)], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
                 else:
                     if split_tuple and self.check_type(tuple):
                         ret = vector([new_func(*a) if filter_function(index, a) else a for index, a in enumerate(super().__iter__())], recursive=self._recursive, index_mapping=self.index_mapping, allow_undefined_value=self.allow_undefined_value)
@@ -983,7 +988,7 @@ class vector(list):
 
     def map_k(self, func, k, overlap=True, split_tuple=True) -> "vector":
         if self.length < k:
-            return
+            return vector()
         assert k > 0
         t = vector()
         if overlap:
@@ -1468,7 +1473,10 @@ class vector(list):
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
         if isinstance(index, tuple):
-            return super().__getitem__(index[0])[index[1:]]
+            if len(index) == 1:
+                return super().__getitem__(index[0])
+            else:
+                return super().__getitem__(index[0])[index[1:]]
         if isinstance(index, IndexMapping):
             return self.map_index(index)
         return super().__getitem__(index)
@@ -2417,6 +2425,9 @@ class vector(list):
                 ret.append(item)
         return ret
 
+    def numpy(self):
+        return np.array(self)
+
     @overload
     @staticmethod
     def zeros(size: Iterable): ...
@@ -2458,6 +2469,20 @@ class vector(list):
         ret = vector.from_numpy(np.ones(args))
         ret._shape = args
         return ret
+
+    @staticmethod
+    def linspace(low, high, nbins):
+        return vector.from_numpy(np.linspace(low, high, nbins))
+
+    @staticmethod
+    def meshgrid(*args):
+        args = totuple(args)
+        if len(args) == 0:
+            return vector()
+        if isinstance(args[0], int):
+            return vector.meshgrid(*[vector.range(d) for d in args])
+        import itertools
+        return vector(itertools.product(*args)).map(lambda x: x)
 
     @staticmethod
     def rand(*args):
@@ -2566,7 +2591,7 @@ class vector(list):
         """
         self.clear_appendix()
         self._index_mapping = IndexMapping()
-        if not isinstance(self.content_type, EmptyClass):
+        if hasattr(self, "content_type") and not isinstance(self.content_type, EmptyClass):
             assert vector(other).check_type(self.content_type)
         super().extend(other)
         return self

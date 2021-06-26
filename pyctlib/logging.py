@@ -1,16 +1,20 @@
 import logging
 from .filemanager import path
 from .touch import touch
+from .vector import vector
 import time
 from datetime import timedelta
 from datetime import datetime
 import atexit
 import sys
 from functools import wraps
-from typing import Callable
+from typing import Callable, Dict
 import random
 import string
 import argparse
+import re
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 __all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger"]
 
@@ -44,7 +48,7 @@ def empty_func(*args, **kwargs):
 
 class Logger:
 
-    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None):
+    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False):
         self.name = name
         if stream_log_level is True:
             self.stream_log_level = logging.DEBUG
@@ -58,11 +62,12 @@ class Logger:
         self.f_name = file_name
         self.c_format = c_format
         self.f_format = f_format
-        self.__disabled = False
+        self.__disabled = disable
         self.start_time = time.time()
         self._parser = argparse.ArgumentParser(add_help=False)
         self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
         self.sysargv = self._parser.parse_known_args(sys.argv)[0]
+        self.variable_dict = {}
         atexit.register(self.record_elapsed)
 
     @property
@@ -272,7 +277,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.debug("{}[line:{}] - DEBUG: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -285,7 +293,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -298,7 +309,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -311,7 +325,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.critical("{}[line:{}] - CRITICAL: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -324,7 +341,10 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.error("{}[line:{}] - ERROR: {}".format(f.f_code.co_filename, f.f_lineno, msg))
@@ -337,12 +357,84 @@ class Logger:
         try:
             raise Exception
         except:
-            f = sys.exc_info()[2 + loc_bias].tb_frame.f_back
+            f = sys.exc_info()[2].tb_frame.f_back
+            while loc_bias > 0:
+                f = f.f_back
+                loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
                 self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
             self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
+
+    def variable(self, variable_name: str, variable):
+        if self.disabled:
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        self.logger.info("{}[line:{}] - VARIABLE<{}>: {}".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
+        if variable_name not in  self.variable_dict:
+            self.variable_dict[variable_name] = variable
+        else:
+            if isinstance(self.variable_dict[variable_name], vector):
+                self.variable_dict[variable_name] = self.variable_dict[variable_name].append(variable)
+            else:
+                self.variable_dict[variable_name] = vector([self.variable_dict[variable_name], variable])
+
+    @staticmethod
+    def variable_from_logging_file(f_name):
+        variable_dict = dict()
+        with open(f_name, "r") as finput:
+            for line in finput.readlines():
+                if "VARIABLE<" in line:
+                    match = re.search(r"VARIABLE<(.+)>: (.+)", line.rstrip())
+                    if match:
+                        variable_name = match.group(1)
+                        variable_str = match.group(2)
+                        if not variable_name or not variable_str:
+                            continue
+                        if variable_str[0].isdigit() or variable_str[0] == "-":
+                            variable = float(variable_str)
+                        elif variable_str[0] == "[" and variable_str[-1] == "]":
+                            variable = vector([float(x.strip()) for x in variable_str[1:-1].split(",")])
+                        else:
+                            print("unknown variable", variable_str)
+                            continue
+                        if variable_name not in variable_dict:
+                            variable_dict[variable_name] = variable
+                        else:
+                            if isinstance(variable_dict[variable_name], vector):
+                                variable_dict[variable_name] = variable_dict[variable_name].append(variable)
+                            else:
+                                variable_dict[variable_name] = vector([variable_dict[variable_name], variable])
+        return variable_dict
+
+    @staticmethod
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None):
+        float_variable = vector()
+        for key, value in variable_dict.items():
+            if value.check_type(float):
+                float_variable.append(key)
+        n = len(float_variable)
+        cols = 3
+        rows = (n + 2) // 3
+        fig = plt.figure(figsize=(24, (rows) * 4))
+        if title is not None:
+            fig.suptitle(title)
+        for index in range(n):
+            ax = plt.subplot(rows, cols, index + 1)
+            ax.plot(variable_dict[float_variable[index]].smooth(5))
+            ax.set_title(float_variable[index])
+        if saved_path is not None:
+            if saved_path.endswith("pdf"):
+                with PdfPages(saved_path, "w") as f:
+                    plt.savefig(f, format="pdf")
+            else:
+                plt.savefig(saved_path, dpi=300)
+        else:
+            plt.show()
 
     def wrapper_function_input_output(self, *args, logging_level=INFO):
         if len(args) == 1:

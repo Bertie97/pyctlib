@@ -10,26 +10,28 @@ __all__ = """
     touch
     crash
     no_print
-    retru
+    retry
+    empty_function
+    once
 """.split()
 
 import sys
-from typing import Callable
 from time import sleep
+from typing import Callable, Union
 
-_mid = lambda x: x[1] if len(x) > 1 else x[0]
-_rawname = lambda s: _mid(str(s).split("'"))
+def _mid(x): return x[1] if len(x) > 1 else x[0]
+def _rawname(s): return _mid(str(s).split("'"))
 
 class get_environ_vars(dict):
     """
     get_environ_vars(pivot) -> dict
 
-    Returns a list of dictionaries containing the environment variables, 
-        i.e. the variables defined in the most reasonable user environments. 
-    
+    Returns a list of dictionaries containing the environment variables,
+        i.e. the variables defined in the most reasonable user environments.
+
     Note:
-        It search for the environment where the pivot is defined. 
-        Please do not use it abusively as it is currently provided for private use in project PyCTLib only. 
+        It search for the environment where the pivot is defined.
+        Please do not use it abusively as it is currently provided for private use in project PyCTLib only.
 
     Example::
         In file `main.py`:
@@ -41,8 +43,8 @@ class get_environ_vars(dict):
             def function(f): return get_environ_vars(f)
         Output:
             {
-                'function': <function 'function'>,
-                'pivot': <function 'pivot'>,
+                'function': < function 'function' >,
+                'pivot': < function 'pivot' >,
                 '__name__': "__main__",
                 ...
             }
@@ -71,15 +73,19 @@ class get_environ_vars(dict):
         return self
 
     def __init__(self): pass
-    
+
     def __getitem__(self, k):
         for varset in self.all_vars:
-            if k in varset: return varset[k]; break
+            if k in varset:
+                return varset[k]
+                break
         else: raise IndexError(f"No '{k}' found in the environment. ")
 
     def __setitem__(self, k, v):
         for varset in self.all_vars:
-            if k in varset: varset[k] = v; break
+            if k in varset:
+                varset[k] = v
+                break
         else: self.all_vars[0][k] = v
 
     def __contains__(self, x):
@@ -95,7 +101,7 @@ class get_environ_vars(dict):
         for varset in self.all_vars[::-1]: collector.update(varset)
         return collector
 
-def touch(v: [callable, str], default=None):
+def touch(v: Union[Callable, str], default=None):
     if isinstance(v, str):
         local_vars = get_environ_vars()
         local_vars.update(locals())
@@ -106,34 +112,69 @@ def touch(v: [callable, str], default=None):
         try: return v()
         except: return default
 
-def retry(func: Callable, max_num=10, interval=0.5, gamma=1.2, logger=None, logger_str=None, reject_func=None):
-    step = 0
-    while max_num < 0 or step < max_num - 1:
-        try:
-            ret = func()
-            if reject_func is not None and touch(lambda: reject_func(ret)):
-                logger.debug("return value is rejected", ret, "[%d/%d]" % (step, max_num), loc_bias=1)
-                pass
-            else:
-                return ret
-        except:
-            if logger is not None:
-                if logger_str:
-                    logger.debug("encounter error, try again [%d/%d]" % (step, max_num), logger_str, loc_bias=1)
-                else:
-                    logger.debug("encounter error, try again [%d/%d]" % (step, max_num), loc_bias=1)
-            pass
-        step += 1
-        sleep(interval)
-        interval *= gamma
-    return func()
-
 def crash(func):
     try:
         func()
     except:
         return True
     return False
+
+def retry(func: Callable, max_num=10, interval=0.5, logger=None, logger_str=None, reject_func=None):
+    step = 0
+    while max_num < 0 or step < max_num - 1:
+        try:
+            ret = func()
+            if reject_func is not None and touch(lambda: reject_func(ret)):
+                logger.debug("return value is rejected", ret, "[%d/%d]" % (step, max_num))
+                pass
+            else:
+                return ret
+        except:
+            if logger is not None:
+                if logger_str:
+                    logger.debug("encounter error, try again [%d/%d]" % (step, max_num), logger_str)
+                else:
+                    logger.debug("encounter error, try again [%d/%d]" % (step, max_num))
+            pass
+        step += 1
+        sleep(interval)
+    return func()
+
+def empty_function(*args, **kwargs):
+    return
+
+class OnceError(Exception):
+    pass
+
+class Once:
+
+    def __init__(self):
+        self.history = set()
+        self._disabled = False
+
+    def filename_and_linenu(self):
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back.f_back
+        return (f.f_code.co_filename, f.f_lineno)
+
+    def enable(self):
+        self._disabled = False
+
+    def disable(self):
+        self._disabled = True
+
+    def __bool__(self):
+        if self._disabled:
+            return False
+        f_name, l_nu = self.filename_and_linenu()
+        if (f_name, l_nu) in self.history:
+            return False
+        self.history.add((f_name, l_nu))
+        return True
+
+once = Once()
 
 class _strIO:
     def __init__(self): self._str_ = ''

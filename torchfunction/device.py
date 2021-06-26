@@ -42,7 +42,31 @@ else:
 
 DeviceCPU = torch.device("cpu")
 
+def todevice(x, device="cuda"):
+    if device == "cuda":
+        return todevice(x, AutoDevice)
+    elif device == "cpu":
+        return todevice(x, DeviceCPU)
+    else:
+        if isinstance(x, torch.Tensor):
+            return x.to(device)
+        elif isinstance(x, tuple):
+            return tuple([todevice(t, device) for t in x])
+        elif isinstance(x, vector):
+            return x.map(lambda x: todevice(x, device))
+        elif isinstance(x, list):
+            return [todevice(t, device) for t in x]
+    raise ValueError
+
+def str_2_device(device):
+    if device == "cuda":
+        return AutoDevice
+    elif device == "cpu":
+        return DeviceCPU
+    else:
+        return device
+
 def recursive_autodevice(container):
     return recursive_apply(container, lambda x: x.to(AutoDevice))
 
-__all__ = ["available_gpus", "AutoDevice", "warning_free_memory_threshold", "available_gpus_memory", "all_gpus_memory", "DeviceCPU", "recursive_autodevice", "AutoDeviceId"]
+__all__ = ["available_gpus", "AutoDevice", "warning_free_memory_threshold", "available_gpus_memory", "all_gpus_memory", "DeviceCPU", "recursive_autodevice", "AutoDeviceId", "todevice", "str_2_device"]

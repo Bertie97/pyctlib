@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "torchfunction",
-    version = "0.0.21",
+    version = "0.0.27",
     keywords = ("pip", "pyctlib", "pytorch"),
     description = "This package is based on pytorch and try to provide a more user-friendly interface for pytorch. ",
     long_description = open("./torchplus/README.md").read(),

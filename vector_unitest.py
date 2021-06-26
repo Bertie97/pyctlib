@@ -9,19 +9,26 @@ import numpy as np
 from pyctlib import vector, IndexMapping, scope, vhelp
 from pyctlib.vector import chain_function
 from fuzzywuzzy import fuzz
-from pyctlib import path, get_relative_path, file
+from pyctlib.filemanager import path, get_relative_path, file
 from pyctlib import touch
 from pyctlib.wrapper import generate_typehint_wrapper
 import argparse
+from time import sleep
+from pyctlib import totuple
+from pyctlib.touch import once
+
+with once:
+    print(1)
 
 print(pyctlib.__file__)
 
 from pyctlib import Logger
 logger = Logger(True, file_name="vector_test_{time}")
 
-vec = vector.range(10).shuffle()
-
-vec.insert_between((lambda x, y, z: x), (lambda x, y: x[-1] + y[0]))
+for x in vector.randn(10):
+    print(x)
+    logger.variable("randn.1", x)
+    logger.variable("randn.2", x+1)
 
 with scope("all"):
     vec = vector(1, 2, 3)
