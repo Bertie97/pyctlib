@@ -2403,6 +2403,31 @@ class vector(list):
         self.__numpy = ret
         return ret
 
+    def to_dict(self, key_func, value_func) -> Dict:
+        return {key_func(x): value_func(x) for x in super().__iter__()}
+
+    def plot(self, ax=None, title=None, smooth=-1, saved_path=None):
+        from matplotlib import pyplot as plt
+        assert self.check_type(float) or self.check_type(int)
+        _has_ax = ax is not None
+        if ax is None:
+            ax = plt.gca()
+        else:
+            assert saved_path is None
+        ax.plot(self.smooth(smooth))
+        if title:
+            ax.title(title)
+        if not _has_ax:
+            if saved_path is not None:
+                if saved_path.endswith("pdf"):
+                    with PdfPages(saved_path, "w") as f:
+                        plt.savefig(f, format="pdf")
+                else:
+                    plt.savefig(saved_path, dpi=300)
+            else:
+                plt.show()
+        return ax
+
     @staticmethod
     def from_list(array):
         """from_list.
