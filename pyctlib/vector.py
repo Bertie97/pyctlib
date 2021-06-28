@@ -2415,7 +2415,7 @@ class vector(list):
             assert saved_path is None
         if self.check_type(float) or self.check_type(int):
             ax.plot(self.smooth(smooth))
-        elif self.check_type(list) and self.map(len).all_equal():
+        elif (self.check_type(list) or self.check_type(tuple)) and self.map(len).all_equal():
             splited_vector = self.zip_split()
             for sv in splited_vector:
                 ax.plot(sv.smooth(smooth))
@@ -2425,7 +2425,7 @@ class vector(list):
             raise ValueError
 
         if title:
-            ax.title(title)
+            ax.set_title(title)
         if legend:
             ax.legend(legend)
         if not _has_ax:

@@ -15,6 +15,9 @@ import argparse
 import re
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+"""
+from pyctlib import vector, touch
+"""
 
 __all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger"]
 
@@ -371,6 +374,16 @@ class Logger:
         else:
             self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
+    @staticmethod
+    def _update_variable_dict(variable_dict, variable_name, variable):
+        if variable_name not in variable_dict:
+            variable_dict[variable_name] = variable
+        else:
+            if isinstance(variable_dict[variable_name], vector):
+                variable_dict[variable_name] = variable_dict[variable_name].append(variable)
+            else:
+                variable_dict[variable_name] = vector([variable_dict[variable_name], variable])
+
     def variable(self, variable_name: str, variable):
         if self.disabled:
             return
@@ -379,13 +392,16 @@ class Logger:
         except:
             f = sys.exc_info()[2].tb_frame.f_back
         self.logger.info("{}[line:{}] - VARIABLE<{}>: {}".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
-        if variable_name not in  self.variable_dict:
-            self.variable_dict[variable_name] = variable
+        regex = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
+        m = regex.match(variable_name)
+        if not m:
+            Logger._update_variable_dict(self.variable_dict, variable_name, variable)
         else:
-            if isinstance(self.variable_dict[variable_name], vector):
-                self.variable_dict[variable_name] = self.variable_dict[variable_name].append(variable)
-            else:
-                self.variable_dict[variable_name] = vector([self.variable_dict[variable_name], variable])
+            group_name = m.group(1)
+            variable_name = m.group(2)
+            if group_name not in self.variable_dict:
+                self.variable_dict[group_name] = dict()
+            Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
     @staticmethod
     def variable_from_logging_file(f_name):
@@ -406,31 +422,54 @@ class Logger:
                         else:
                             print("unknown variable", variable_str)
                             continue
-                        if variable_name not in variable_dict:
-                            variable_dict[variable_name] = variable
+                        regex = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
+                        m = regex.match(variable_name)
+                        if not m:
+                            Logger._update_variable_dict(variable_dict, variable_name, variable)
                         else:
-                            if isinstance(variable_dict[variable_name], vector):
-                                variable_dict[variable_name] = variable_dict[variable_name].append(variable)
-                            else:
-                                variable_dict[variable_name] = vector([variable_dict[variable_name], variable])
+                            group_name = m.group(1)
+                            variable_name = m.group(2)
+                            if group_name not in variable_dict:
+                                variable_dict[group_name] = dict()
+                            Logger._update_variable_dict(variable_dict[group_name], variable_name, variable)
         return variable_dict
 
     @staticmethod
-    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None):
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=5, ignore=None, tight_layout=False):
         float_variable = vector()
         for key, value in variable_dict.items():
-            if value.check_type(float):
+            if ignore is not None and key in ignore:
+                continue
+            if isinstance(value, vector) and (value.check_type(float) or value.check_type(int)):
+                float_variable.append(key)
+            if isinstance(value, dict) and len(value) > 0 and touch(lambda: vector(value.values()).map(len).all_equal(), False):
                 float_variable.append(key)
         n = len(float_variable)
-        cols = 3
-        rows = (n + 2) // 3
-        fig = plt.figure(figsize=(24, (rows) * 4))
+        if n == 0:
+            return
+        if n <= 2:
+            cols = 1
+        elif n <= 4:
+            cols = 2
+        elif n <= 15:
+            cols = 3
+        else:
+            cols = 4
+        rows = (n + cols - 1) // cols
+        fig = plt.figure(figsize=(8 * cols, (rows) * 4))
         if title is not None:
             fig.suptitle(title)
         for index in range(n):
             ax = plt.subplot(rows, cols, index + 1)
-            ax.plot(variable_dict[float_variable[index]].smooth(5))
-            ax.set_title(float_variable[index])
+            if isinstance(variable_dict[float_variable[index]], vector):
+                variable_dict[float_variable[index]].plot(ax, title=float_variable[index], smooth=smooth)
+            elif isinstance(variable_dict[float_variable[index]], dict):
+                temp: dict = variable_dict[float_variable[index]]
+                x = vector.zip(temp.values())
+                legend = vector(temp.keys())
+                x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend)
+        if tight_layout:
+            plt.tight_layout()
         if saved_path is not None:
             if saved_path.endswith("pdf"):
                 with PdfPages(saved_path, "w") as f:
@@ -479,6 +518,7 @@ class Logger:
                     ret = func(*args, **kwargs)
                     logging_func("{}[line:{}] - {}: function [{}] return of {}: {}".format(f.f_code.co_filename, f.f_lineno, level_to_name[logging_level], random_id, func.__name__, ret))
                 return wrapper
+
             return temp_wrapper_function_input_output
         else:
             raise TypeError
