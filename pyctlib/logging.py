@@ -8,13 +8,16 @@ from datetime import datetime
 import atexit
 import sys
 from functools import wraps
-from typing import Callable, Dict
+from typing import Callable, Dict, Union
 import random
 import string
 import argparse
 import re
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+"""
+from pyctlib import vector, touch
+"""
 
 __all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger"]
 
@@ -48,7 +51,7 @@ def empty_func(*args, **kwargs):
 
 class Logger:
 
-    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False):
+    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False):
         self.name = name
         if stream_log_level is True:
             self.stream_log_level = logging.DEBUG
@@ -68,6 +71,7 @@ class Logger:
         self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
         self.sysargv = self._parser.parse_known_args(sys.argv)[0]
         self.variable_dict = {}
+        self.autoplot_variable = autoplot_variable
         atexit.register(self.record_elapsed)
 
     @property
@@ -92,6 +96,10 @@ class Logger:
             return self.__logger
         else:
             self.__logger = logging.getLogger(self.name)
+            for handler in self.__logger.handlers[:]:
+                self.__logger.removeHandler(handler)
+            for f in self.__logger.filters[:]:
+                self.__logger.removeFilter(f)
             self.__logger.setLevel(logging.DEBUG)
             if self.c_handler is not None:
                 self.__logger.addHandler(self.c_handler)
@@ -245,17 +253,19 @@ class Logger:
         self._f_name = self._f_name.replace("{time}", "%Y-%m%d-%H")
         self._f_name = datetime.now().strftime(self._f_name)
 
-    def get_f_fullpath(self):
+    def get_f_fullpath(self) -> Union[path, None]:
+        if self.f_handler is None:
+            return None
         if hasattr(self, "_Logger__f_fullpath"):
             return self.__f_fullpath
         if not (self.f_path / self.f_name).isfile():
-            self.__f_fullpath = self.f_path / self.f_name
+            self.__f_fullpath: path = self.f_path / self.f_name
             return self.__f_fullpath
         index = 1
         while True:
             temp_path = self.f_path / (self.f_name[:-4] + "-{}".format(index) + ".log")
             if not temp_path.isfile():
-                self.__f_fullpath = temp_path
+                self.__f_fullpath: path = temp_path
                 return self.__f_fullpath
             index += 1
 
@@ -385,16 +395,16 @@ class Logger:
         except:
             f = sys.exc_info()[2].tb_frame.f_back
         self.logger.info("{}[line:{}] - VARIABLE<{}>: {}".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
-        regex = re.compile(r"([^\[\]]*)\[([^\[\]]+)\]")
+        regex = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
         m = regex.match(variable_name)
         if not m:
-            self._update_variable_dict(self.variable_dict, variable_name, variable)
+            Logger._update_variable_dict(self.variable_dict, variable_name, variable)
         else:
             group_name = m.group(1)
             variable_name = m.group(2)
             if group_name not in self.variable_dict:
                 self.variable_dict[group_name] = dict()
-            self._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
+            Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
     @staticmethod
     def variable_from_logging_file(f_name):
@@ -415,8 +425,7 @@ class Logger:
                         else:
                             print("unknown variable", variable_str)
                             continue
-
-                        regex = re.compile(r"([^\[\]]*)\[([^\[\]]+)\]")
+                        regex = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
                         m = regex.match(variable_name)
                         if not m:
                             Logger._update_variable_dict(variable_dict, variable_name, variable)
@@ -429,31 +438,41 @@ class Logger:
         return variable_dict
 
     @staticmethod
-    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, ignore=None):
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=5, ignore=None, tight_layout=False):
         float_variable = vector()
         for key, value in variable_dict.items():
             if ignore is not None and key in ignore:
                 continue
-            if isinstance(value, vector) and value.check_type(float):
+            if isinstance(value, vector) and (value.check_type(float) or value.check_type(int)):
                 float_variable.append(key)
-            if isinstance(value, dict) and vector(value.keys()).map(len).all_equal():
+            if isinstance(value, dict) and len(value) > 0 and touch(lambda: vector(value.values()).map(len).all_equal(), False):
                 float_variable.append(key)
         n = len(float_variable)
-        cols = 3
-        rows = (n + 2) // 3
-        fig = plt.figure(figsize=(24, (rows) * 4))
+        if n == 0:
+            return False
+        if n <= 2:
+            cols = 1
+        elif n <= 4:
+            cols = 2
+        elif n <= 15:
+            cols = 3
+        else:
+            cols = 4
+        rows = (n + cols - 1) // cols
+        fig = plt.figure(figsize=(8 * cols, (rows) * 4))
         if title is not None:
             fig.suptitle(title)
         for index in range(n):
             ax = plt.subplot(rows, cols, index + 1)
-            variable = variable_dict[float_variable[index]]
-            if isinstance(variable, vector):
-                ax.plot(variable.smooth(5))
-            elif isinstance(variable, dict):
-                for key, value in variable.items():
-                    ax.plot(value.smooth(5))
-                ax.legend(list(variable.keys()))
-            ax.set_title(float_variable[index])
+            if isinstance(variable_dict[float_variable[index]], vector):
+                variable_dict[float_variable[index]].plot(ax, title=float_variable[index], smooth=smooth)
+            elif isinstance(variable_dict[float_variable[index]], dict):
+                temp: dict = variable_dict[float_variable[index]]
+                x = vector.zip(temp.values())
+                legend = vector(temp.keys())
+                x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend)
+        if tight_layout:
+            plt.tight_layout()
         if saved_path is not None:
             if saved_path.endswith("pdf"):
                 with PdfPages(saved_path, "w") as f:
@@ -462,6 +481,7 @@ class Logger:
                 plt.savefig(saved_path, dpi=300)
         else:
             plt.show()
+        return True
 
     def wrapper_function_input_output(self, *args, logging_level=INFO):
         if len(args) == 1:
@@ -502,6 +522,7 @@ class Logger:
                     ret = func(*args, **kwargs)
                     logging_func("{}[line:{}] - {}: function [{}] return of {}: {}".format(f.f_code.co_filename, f.f_lineno, level_to_name[logging_level], random_id, func.__name__, ret))
                 return wrapper
+
             return temp_wrapper_function_input_output
         else:
             raise TypeError
@@ -542,6 +563,12 @@ class Logger:
         if not self.already_logging:
             return
 
+        if self.autoplot_variable:
+            saved_plot_path = self.get_f_fullpath().with_ext("pdf")
+            is_plot = Logger.plot_variable_dict(self.variable_dict, saved_plot_path)
+            if is_plot:
+                self.info("plot figure of variable_dict, with variable:", vector(self.variable_dict.keys()))
+
         for handler in self.logger.handlers:
             handler.setFormatter(logging.Formatter("%(message)s"))
 
@@ -555,4 +582,11 @@ class Logger:
         if days != 0 or hours != 0 or minutes != 0:
             str_time += "{}minute{}, ".format(minutes, "s" if minutes > 1 else "")
         str_time += "{}seconds{}".format(seconds, "s" if seconds > 1 else "")
+        self.logger.info("Finish Logging")
+        if self.f_handler is not None:
+            self.__logger.info("logging file: {}".format(self.get_f_fullpath()))
         self.logger.info("Elapsed time: " + str_time)
+        for handler in self.__logger.handlers[:]:
+            self.__logger.removeHandler(handler)
+        for f in self.__logger.filters[:]:
+            self.__logger.removeFilter(f)

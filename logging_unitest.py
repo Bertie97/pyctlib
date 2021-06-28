@@ -36,5 +36,3 @@ for step in range(100):
     logger.variable("train.w[d]", 1)
 
 
-# variable_dict = Logger.variable_from_logging_file("Log/2021-0626-23.log")
-# Logger.plot_variable_dict(variable_dict, "save.pdf")
