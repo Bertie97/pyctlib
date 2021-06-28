@@ -17,6 +17,24 @@ from time import sleep
 from pyctlib import totuple
 from pyctlib.touch import once
 from pyctlib import Logger
+import math
 
-variable_dict = Logger.variable_from_logging_file("log_2021-0624-16.log")
-Logger.plot_variable_dict(variable_dict, saved_path="log_2021-0624-16.pdf")
+logger = Logger(True, True)
+
+for step in range(100):
+
+    logger.variable("train.loss", step ** 0.5)
+    logger.variable("val.loss", step ** 0.5)
+    logger.variable("loss[train]", step ** 0.5)
+    logger.variable("loss[val]", step ** 0.5)
+    logger.variable("train.x", step ** 0.5)
+    logger.variable("train.y", step ** 0.5)
+    logger.variable("train.z", step ** 0.5)
+    logger.variable("train.w[a]", 1)
+    logger.variable("train.w[b]", 1)
+    logger.variable("train.w[c]", 1)
+    logger.variable("train.w[d]", 1)
+
+
+# variable_dict = Logger.variable_from_logging_file("Log/2021-0626-23.log")
+# Logger.plot_variable_dict(variable_dict, "save.pdf")

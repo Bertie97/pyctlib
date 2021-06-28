@@ -367,6 +367,16 @@ class Logger:
         else:
             self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
+    @staticmethod
+    def _update_variable_dict(variable_dict, variable_name, variable):
+        if variable_name not in variable_dict:
+            variable_dict[variable_name] = variable
+        else:
+            if isinstance(variable_dict[variable_name], vector):
+                variable_dict[variable_name].append(variable)
+            else:
+                variable_dict[variable_name] = vector([variable_dict[variable_name], variable])
+
     def variable(self, variable_name: str, variable):
         if self.disabled:
             return
@@ -375,13 +385,16 @@ class Logger:
         except:
             f = sys.exc_info()[2].tb_frame.f_back
         self.logger.info("{}[line:{}] - VARIABLE<{}>: {}".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
-        if variable_name not in  self.variable_dict:
-            self.variable_dict[variable_name] = variable
+        regex = re.compile(r"([^\[\]]*)\[([^\[\]]+)\]")
+        m = regex.match(variable_name)
+        if not m:
+            self._update_variable_dict(self.variable_dict, variable_name, variable)
         else:
-            if isinstance(self.variable_dict[variable_name], vector):
-                self.variable_dict[variable_name] = self.variable_dict[variable_name].append(variable)
-            else:
-                self.variable_dict[variable_name] = vector([self.variable_dict[variable_name], variable])
+            group_name = m.group(1)
+            variable_name = m.group(2)
+            if group_name not in self.variable_dict:
+                self.variable_dict[group_name] = dict()
+            self._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
     @staticmethod
     def variable_from_logging_file(f_name):
@@ -402,20 +415,28 @@ class Logger:
                         else:
                             print("unknown variable", variable_str)
                             continue
-                        if variable_name not in variable_dict:
-                            variable_dict[variable_name] = variable
+
+                        regex = re.compile(r"([^\[\]]*)\[([^\[\]]+)\]")
+                        m = regex.match(variable_name)
+                        if not m:
+                            Logger._update_variable_dict(variable_dict, variable_name, variable)
                         else:
-                            if isinstance(variable_dict[variable_name], vector):
-                                variable_dict[variable_name] = variable_dict[variable_name].append(variable)
-                            else:
-                                variable_dict[variable_name] = vector([variable_dict[variable_name], variable])
+                            group_name = m.group(1)
+                            variable_name = m.group(2)
+                            if group_name not in variable_dict:
+                                variable_dict[group_name] = dict()
+                            Logger._update_variable_dict(variable_dict[group_name], variable_name, variable)
         return variable_dict
 
     @staticmethod
-    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None):
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, ignore=None):
         float_variable = vector()
         for key, value in variable_dict.items():
-            if value.check_type(float):
+            if ignore is not None and key in ignore:
+                continue
+            if isinstance(value, vector) and value.check_type(float):
+                float_variable.append(key)
+            if isinstance(value, dict) and vector(value.keys()).map(len).all_equal():
                 float_variable.append(key)
         n = len(float_variable)
         cols = 3
@@ -425,7 +446,13 @@ class Logger:
             fig.suptitle(title)
         for index in range(n):
             ax = plt.subplot(rows, cols, index + 1)
-            ax.plot(variable_dict[float_variable[index]].smooth(5))
+            variable = variable_dict[float_variable[index]]
+            if isinstance(variable, vector):
+                ax.plot(variable.smooth(5))
+            elif isinstance(variable, dict):
+                for key, value in variable.items():
+                    ax.plot(value.smooth(5))
+                ax.legend(list(variable.keys()))
             ax.set_title(float_variable[index])
         if saved_path is not None:
             if saved_path.endswith("pdf"):
