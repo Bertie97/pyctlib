@@ -1330,13 +1330,13 @@ class vector(list):
     def zip_split(self) -> Tuple["vector"]:
         """
         Usage:
-        x, y, z = vector([(1,2,3), (4,5,6)])
+        x, y, z = vector([(1,2,3), (4,5,6)]).zip_split()
         then:
         x = [1,4]
         y = [2,5]
         z = [3,6]
         """
-        return zip(*self)
+        return vector(zip(*self)).map(lambda x: vector(x))
 
     def __pow__(self, other):
         """__pow__.
@@ -2406,17 +2406,28 @@ class vector(list):
     def to_dict(self, key_func, value_func) -> Dict:
         return {key_func(x): value_func(x) for x in super().__iter__()}
 
-    def plot(self, ax=None, title=None, smooth=-1, saved_path=None):
+    def plot(self, ax=None, title=None, smooth=-1, saved_path=None, legend=None):
         from matplotlib import pyplot as plt
-        assert self.check_type(float) or self.check_type(int)
         _has_ax = ax is not None
         if ax is None:
             ax = plt.gca()
         else:
             assert saved_path is None
-        ax.plot(self.smooth(smooth))
+        if self.check_type(float) or self.check_type(int):
+            ax.plot(self.smooth(smooth))
+        elif self.check_type(list) and self.map(len).all_equal():
+            splited_vector = self.zip_split()
+            for sv in splited_vector:
+                ax.plot(sv.smooth(smooth))
+            if not legend:
+                legend = vector.range(len(splited_vector)).map(str)
+        else:
+            raise ValueError
+
         if title:
             ax.title(title)
+        if legend:
+            ax.legend(legend)
         if not _has_ax:
             if saved_path is not None:
                 if saved_path.endswith("pdf"):
