@@ -8,7 +8,7 @@ from datetime import datetime
 import atexit
 import sys
 from functools import wraps
-from typing import Callable, Dict
+from typing import Callable, Dict, Union
 import random
 import string
 import argparse
@@ -253,7 +253,9 @@ class Logger:
         self._f_name = self._f_name.replace("{time}", "%Y-%m%d-%H")
         self._f_name = datetime.now().strftime(self._f_name)
 
-    def get_f_fullpath(self) -> path:
+    def get_f_fullpath(self) -> Union[path, None]:
+        if self.f_handler is None:
+            return None
         if hasattr(self, "_Logger__f_fullpath"):
             return self.__f_fullpath
         if not (self.f_path / self.f_name).isfile():
@@ -580,6 +582,9 @@ class Logger:
         if days != 0 or hours != 0 or minutes != 0:
             str_time += "{}minute{}, ".format(minutes, "s" if minutes > 1 else "")
         str_time += "{}seconds{}".format(seconds, "s" if seconds > 1 else "")
+        self.logger.info("Finish Logging")
+        if self.f_handler is not None:
+            self.__logger.info("logging file: {}".format(self.get_f_fullpath()))
         self.logger.info("Elapsed time: " + str_time)
         for handler in self.__logger.handlers[:]:
             self.__logger.removeHandler(handler)
