@@ -254,7 +254,7 @@ class Logger:
         self._f_name = datetime.now().strftime(self._f_name)
 
     def get_f_fullpath(self) -> Union[path, None]:
-        if self.f_handler is None:
+        if self.file_log_level is None:
             return None
         if hasattr(self, "_Logger__f_fullpath"):
             return self.__f_fullpath

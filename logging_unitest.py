@@ -35,4 +35,4 @@ for step in range(100):
     logger.variable("train.w[c]", 1)
     logger.variable("train.w[d]", 1)
 
-
+Logger.plot_variable_dict(logger.variable_dict)
