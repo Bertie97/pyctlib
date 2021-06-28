@@ -92,6 +92,10 @@ class Logger:
             return self.__logger
         else:
             self.__logger = logging.getLogger(self.name)
+            for handler in self.__logger.handlers[:]:
+                self.__logger.removeHandler(handler)
+            for f in self.__logger.filters[:]:
+                self.__logger.removeFilter(f)
             self.__logger.setLevel(logging.DEBUG)
             if self.c_handler is not None:
                 self.__logger.addHandler(self.c_handler)
