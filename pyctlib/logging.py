@@ -51,7 +51,7 @@ def empty_func(*args, **kwargs):
 
 class Logger:
 
-    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False):
+    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False):
         self.name = name
         if stream_log_level is True:
             self.stream_log_level = logging.DEBUG
@@ -71,6 +71,7 @@ class Logger:
         self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
         self.sysargv = self._parser.parse_known_args(sys.argv)[0]
         self.variable_dict = {}
+        self.autoplot_variable = autoplot_variable
         atexit.register(self.record_elapsed)
 
     @property
@@ -252,17 +253,17 @@ class Logger:
         self._f_name = self._f_name.replace("{time}", "%Y-%m%d-%H")
         self._f_name = datetime.now().strftime(self._f_name)
 
-    def get_f_fullpath(self):
+    def get_f_fullpath(self) -> path:
         if hasattr(self, "_Logger__f_fullpath"):
             return self.__f_fullpath
         if not (self.f_path / self.f_name).isfile():
-            self.__f_fullpath = self.f_path / self.f_name
+            self.__f_fullpath: path = self.f_path / self.f_name
             return self.__f_fullpath
         index = 1
         while True:
             temp_path = self.f_path / (self.f_name[:-4] + "-{}".format(index) + ".log")
             if not temp_path.isfile():
-                self.__f_fullpath = temp_path
+                self.__f_fullpath: path = temp_path
                 return self.__f_fullpath
             index += 1
 
@@ -446,7 +447,7 @@ class Logger:
                 float_variable.append(key)
         n = len(float_variable)
         if n == 0:
-            return
+            return False
         if n <= 2:
             cols = 1
         elif n <= 4:
@@ -478,6 +479,7 @@ class Logger:
                 plt.savefig(saved_path, dpi=300)
         else:
             plt.show()
+        return True
 
     def wrapper_function_input_output(self, *args, logging_level=INFO):
         if len(args) == 1:
@@ -559,6 +561,12 @@ class Logger:
         if not self.already_logging:
             return
 
+        if self.autoplot_variable:
+            saved_plot_path = self.get_f_fullpath().with_ext("pdf")
+            is_plot = Logger.plot_variable_dict(self.variable_dict, saved_plot_path)
+            if is_plot:
+                self.info("plot figure of variable_dict, with variable:", vector(self.variable_dict.keys()))
+
         for handler in self.logger.handlers:
             handler.setFormatter(logging.Formatter("%(message)s"))
 
@@ -573,3 +581,7 @@ class Logger:
             str_time += "{}minute{}, ".format(minutes, "s" if minutes > 1 else "")
         str_time += "{}seconds{}".format(seconds, "s" if seconds > 1 else "")
         self.logger.info("Elapsed time: " + str_time)
+        for handler in self.__logger.handlers[:]:
+            self.__logger.removeHandler(handler)
+        for f in self.__logger.filters[:]:
+            self.__logger.removeFilter(f)
