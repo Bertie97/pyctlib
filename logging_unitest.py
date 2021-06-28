@@ -20,12 +20,12 @@ from pyctlib import Logger
 import random
 
 variable_dict = Logger.variable_from_logging_file("Log/2021-0628-13-2.log")
-Logger.plot_variable_dict(variable_dict)
-logger = Logger(True, True)
+Logger.plot_variable_dict(variable_dict, "saved.pdf")
+# logger = Logger(True, True)
 
-for i in range(100):
-    logger.variable("train.loss", random.random())
-    logger.variable("val.loss", random.random())
+# for i in range(100):
+#     logger.variable("train.loss", random.random())
+#     logger.variable("val.loss", random.random())
 
-    logger.variable("loss[train]", random.random())
-    logger.variable("loss[val]", random.random())
+#     logger.variable("loss[train]", random.random())
+#     logger.variable("loss[val]", random.random())
