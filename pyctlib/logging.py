@@ -438,15 +438,18 @@ class Logger:
         return variable_dict
 
     @staticmethod
-    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=5, ignore=None, tight_layout=False):
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=5, ignore=None, multi_vector=None, tight_layout=False):
         float_variable = vector()
         for key, value in variable_dict.items():
             if ignore is not None and key in ignore:
                 continue
             if isinstance(value, vector) and (value.check_type(float) or value.check_type(int)):
                 float_variable.append(key)
-            if isinstance(value, dict) and len(value) > 0 and touch(lambda: vector(value.values()).map(len).all_equal(), False):
+            elif isinstance(value, dict) and len(value) > 0 and touch(lambda: vector(value.values()).map(len).all_equal(), False):
                 float_variable.append(key)
+            elif multi_vector is not None and key in multi_vector and isinstance(value, vector) and len(value) > 0 and touch(lambda: value.map(len).all_equal(), False) and all(value.map(lambda x: x.check_type(int) or x.check_type(float))):
+                float_variable.append(key)
+        float_variable.sort_()
         n = len(float_variable)
         if n == 0:
             return False
@@ -464,10 +467,10 @@ class Logger:
             fig.suptitle(title)
         for index in range(n):
             ax = plt.subplot(rows, cols, index + 1)
-            if isinstance(variable_dict[float_variable[index]], vector):
-                variable_dict[float_variable[index]].plot(ax, title=float_variable[index], smooth=smooth)
-            elif isinstance(variable_dict[float_variable[index]], dict):
-                temp: dict = variable_dict[float_variable[index]]
+            temp = variable_dict[float_variable[index]]
+            if isinstance(temp, vector):
+                temp.plot(ax, title=float_variable[index], smooth=smooth)
+            elif isinstance(temp, dict):
                 x = vector.zip(temp.values())
                 legend = vector(temp.keys())
                 x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend)
