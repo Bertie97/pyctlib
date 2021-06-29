@@ -18,6 +18,7 @@ from pyctlib import totuple
 from pyctlib.touch import once
 from pyctlib import Logger
 import math
+import random
 
 logger = Logger(True, True)
 
@@ -25,14 +26,14 @@ for step in range(100):
 
     logger.variable("train.loss", step ** 0.5)
     logger.variable("val.loss", step ** 0.5)
-    logger.variable("loss[train]", step ** 0.5)
-    logger.variable("loss[val]", step ** 0.5)
+    logger.variable("loss[train]", step ** 0.5 + random.random())
+    logger.variable("loss[val]", step ** 0.5 + 0.5 * random.random())
     logger.variable("train.x", step ** 0.5)
     logger.variable("train.y", step ** 0.5)
     logger.variable("train.z", step ** 0.5)
-    logger.variable("train.w[a]", 1)
-    logger.variable("train.w[b]", 1)
-    logger.variable("train.w[c]", 1)
-    logger.variable("train.w[d]", 1)
+    logger.variable("train.w[a]", 1 + random.random())
+    logger.variable("train.w[b]", 2 + random.random())
+    logger.variable("train.w[c]", 3 + random.random())
+    logger.variable("train.w[d]", 4 + random.random())
 
 Logger.plot_variable_dict(logger.variable_dict)
