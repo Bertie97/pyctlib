@@ -1069,7 +1069,7 @@ class Tensor(torch.Tensor):
         try:
             return super().__getattr__(key)
         except:
-            raise RuntimeError("{} is not a method/attribute of Tensor, the most similar name is {}".format(key, vector(dir(self)).fuzzy_search(key, 3)))
+            raise AttributeError("{} is not a method/attribute of Tensor, the most similar name is {}".format(key, vector(dir(self)).fuzzy_search(key, 3)))
 
     def __matmul__(self, other, **kwargs):
         if isinstance(other, torch.Tensor) and self.has_special or isinstance(other, Tensor) and other.has_special:

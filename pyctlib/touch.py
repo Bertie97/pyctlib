@@ -8,6 +8,7 @@
 __all__ = """
     get_environ_vars
     touch
+    check
     crash
     no_print
     retry
@@ -176,6 +177,10 @@ class Once:
 
 once = Once()
 
+def check(v: bool, assertion=""):
+    if not v:
+        raise AssertionError(assertion)
+
 class _strIO:
     def __init__(self): self._str_ = ''
     def write(self, s): self._str_ += s
@@ -191,3 +196,30 @@ class NoPrint:
         sys.stdout = self.old_io
 
 no_print = NoPrint()
+
+class SPrint:
+    """
+    Print to a string.
+
+    example:
+    ----------
+    >>> output = SPrint("!>> ")
+    >>> output("Use it", "like", 'the function', "'print'.", sep=' ')
+    !>> Use it like the function 'print'.
+    >>> output("A return is added automatically each time", end=".")
+    !>> Use it like the function 'print'.
+    A return is added automatically each time.
+    >>> output.text
+    !>> Use it like the function 'print'.
+    A return is added automatically each time.
+    """
+
+    def __init__(self, init_text=''):
+        self.text = init_text
+
+    def __call__(self, *parts, sep=' ', end='\n'):
+        if not parts: end = ''
+        self.text += sep.join([str(x) for x in parts if str(x)]) + end
+        return self.text
+
+    def __str__(self): return self.text

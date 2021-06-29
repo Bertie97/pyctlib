@@ -8,6 +8,7 @@
 
 # from pyctlib.basics.touch import *
 from ..touch import touch
+from .display import *
 
 if touch(lambda: __import__("line_profiler")):
     # from pyctlib.watch import debugger
