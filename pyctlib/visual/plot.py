@@ -51,3 +51,5 @@ def plot_ratemaps(ratemaps, cols=None, titles=None, interpolation="spline36", cm
             plt.savefig(saved_path, dpi=300)
     else:
         plt.show()
+
+def plot_multiple_figure(subfigure_names, )
