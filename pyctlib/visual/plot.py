@@ -63,7 +63,7 @@ def plot_multiple_figure(figure_names: vector, plot_handler, tight_layout=False,
     else:
         cols = min(math.floor(math.sqrt(N)), max_cols)
     rows = (N + cols - 1) // cols
-    print(rows, cols)
+    plt.clear()
     fig = plt.figure(figsize=(cols * 4, rows * 4))
     for index in range(N):
         ax = plt.subplot(rows, cols, index + 1)
