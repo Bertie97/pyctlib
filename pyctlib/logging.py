@@ -380,7 +380,10 @@ class Logger:
     @staticmethod
     def _update_variable_dict(variable_dict, variable_name, variable):
         if variable_name not in variable_dict:
-            variable_dict[variable_name] = variable
+            if not isinstance(variable, list):
+                variable_dict[variable_name] = variable
+            else:
+                variable_dict[variable_name] = vector([vector(variable)])
         else:
             if isinstance(variable_dict[variable_name], vector):
                 variable_dict[variable_name].append(variable)

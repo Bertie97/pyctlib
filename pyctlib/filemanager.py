@@ -374,8 +374,11 @@ class path(str):
         if not "/" in self:
             return self.abs().with_name(name)
         return (self @ Folder) / path.extsep.join(vector(["name", self.ext]).filter(len))
-    def with_ext(self, ext: str):
-        assert "/" in self
+    def with_ext(self, ext: str=""):
+        if not "/" in self:
+            return self.bas().with_name(ext=ext)
+        if ext == "":
+            return (self @ Folder) / self.name
         return (self @ Folder) / path.extsep.join([self.name, ext])
 
     @property
