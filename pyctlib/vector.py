@@ -22,10 +22,9 @@ __all__ = """
 """.split()
 
 from types import GeneratorType
-from typing import List
 from collections import Counter
 from functools import wraps, reduce, partial
-from .touch import touch, crash
+from .touch import touch, crash, once
 import copy
 import numpy as np
 from pyoverload import iterable
@@ -36,14 +35,13 @@ import curses
 import re
 import sys
 import math
-from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple
+from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple, Optional
 import types
 import traceback
 import inspect
 import os
 from .strtools import delete_surround
 from .wrapper import empty_wrapper
-import logging  # 引入logging模块
 import os.path
 import time
 import pydoc
@@ -53,20 +51,6 @@ try:
     jit = nb.jit
 except:
     jit = empty_wrapper
-
-# from .visual.debugger import profile
-
-# logger = logging.getLogger()
-# logger.setLevel(logging.INFO)  # Log等级总开关
-# rq = time.strftime('%Y%m%d%H', time.localtime(time.time()))
-# log_path = os.path.dirname(os.getcwd()) + '/Logs/'
-# log_name = log_path + rq + '.log'
-# logfile = log_name
-# fh = logging.FileHandler(logfile, mode='w')
-# fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
-# formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-# fh.setFormatter(formatter)
-# logger.addHandler(fh)
 
 """
 Usage:
@@ -1732,7 +1716,7 @@ class vector(list):
                 return True
         return False
 
-    def max(self, key=None, with_index=False):
+    def max(self, key=None, with_index=False, recursive=False):
         """max.
 
         Parameters
@@ -1744,6 +1728,8 @@ class vector(list):
         """
         if len(self) == 0:
             return None
+        if recursive:
+            return self.flatten().max(key=key, with_index=False)
         if key is None and not with_index:
             if hasattr(self, "_vector__max"):
                 return self.__max
@@ -1764,7 +1750,7 @@ class vector(list):
         return self[m_index]
 
 
-    def min(self, key=None, with_index=False):
+    def min(self, key=None, with_index=False, recursive=False):
         """min.
 
         Parameters
@@ -1776,6 +1762,8 @@ class vector(list):
         """
         if len(self) == 0:
             return None
+        if recursive:
+            return self.flatten().min(key=key, with_index=False)
         if key is None and not with_index:
             if hasattr(self, "_vector__min"):
                 return self.__min
@@ -2406,11 +2394,20 @@ class vector(list):
     def to_dict(self, key_func, value_func) -> Dict:
         return {key_func(x): value_func(x) for x in super().__iter__()}
 
-    def plot(self, ax=None, title=None, smooth=-1, saved_path=None, legend=None):
+    def plot(self, ax=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None):
+        """
+        plot line graph for vector
+        title: title of the graph
+        smooth: windows size of smoothing
+        saved_path: path to save the graph
+        legend: list of legend string
+        hline: list, can be None or contains "top" or/and "bottom", to plot a horizontal line corresponding to the biggest or smallest value
+        """
         from matplotlib import pyplot as plt
         _has_ax = ax is not None
         if ax is None:
             ax = plt.gca()
+            ax.clear()
         else:
             assert saved_path is None
         if self.check_type(float) or self.check_type(int):
@@ -2423,11 +2420,23 @@ class vector(list):
                 legend = vector.range(len(splited_vector)).map(str)
         else:
             raise ValueError
+        plt.xlim(-0.5, self.length - 0.5)
 
         if title:
             ax.set_title(title)
         if legend:
             ax.legend(legend)
+        for index in range(2):
+            if index == 0 and touch(lambda: "top" in hline):
+                h_line = self.max(recursive=True)
+                text = "max: {:.4g}".format(h_line)
+            elif index == 1 and touch(lambda: "bottom" in hline):
+                h_line = self.min(recursive=True)
+                text = "min: {:.4g}".format(h_line)
+            else:
+                break
+            ax.plot([-0.5, self.length-0.5], [h_line, h_line], "-.", linewidth=0.5, color="gray")
+            ax.text(-0.5, h_line + 0.05, text, color="gray", fontsize=10)
         if not _has_ax:
             if saved_path is not None:
                 if saved_path.endswith("pdf"):

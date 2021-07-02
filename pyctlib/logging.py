@@ -441,7 +441,7 @@ class Logger:
         return variable_dict
 
     @staticmethod
-    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=5, ignore=None, multi_vector=None, tight_layout=False):
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=5, ignore=None, multi_vector=None, tight_layout=False, hline=None):
         float_variable = vector()
         for key, value in variable_dict.items():
             if ignore is not None and key in ignore:
@@ -472,11 +472,11 @@ class Logger:
             ax = plt.subplot(rows, cols, index + 1)
             temp = variable_dict[float_variable[index]]
             if isinstance(temp, vector):
-                temp.plot(ax, title=float_variable[index], smooth=smooth)
+                temp.plot(ax, title=float_variable[index], smooth=smooth, hline=hline)
             elif isinstance(temp, dict):
                 x = vector.zip(temp.values())
                 legend = vector(temp.keys())
-                x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend)
+                x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend, hline=hline)
         if tight_layout:
             plt.tight_layout()
         if saved_path is not None:
