@@ -71,18 +71,18 @@ class Logger:
             self.file_log_level = logging.DEBUG
         else:
             self.file_log_level = file_log_level
+        self.__disabled = disable
+        self._deltatime = deltatime
         self.f_path = file_path
         self.f_name = file_name
         self.c_format = c_format
         self.f_format = f_format
-        self.__disabled = disable
         self.start_time = time.time()
         self._parser = argparse.ArgumentParser(add_help=False)
         self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
         self.sysargv = self._parser.parse_known_args(sys.argv)[0]
         self.variable_dict = {}
         self.autoplot_variable = autoplot_variable
-        self._deltatime = deltatime
         atexit.register(self.record_elapsed)
 
     @property
@@ -187,6 +187,9 @@ class Logger:
     def f_handler(self):
         if touch(lambda: self._f_handler, UnDefined) is not UnDefined:
             return self._f_handler
+        if self.file_log_level is False:
+            self._f_handler = None
+            return None
         if self.file_log_level is None:
             self._f_handler = None
             return None
@@ -224,7 +227,9 @@ class Logger:
     @f_format.setter
     def f_format(self, value):
         if value is None:
-            return
+            return None
+        if self.file_log_level is False:
+            return None
         if self.file_log_level is None:
             self.file_log_level = logging.DEBUG
         self._f_format = value
@@ -233,13 +238,15 @@ class Logger:
     def f_path(self):
         if touch(lambda: self._f_path, None) is not None:
             return self._f_path
+        if self.file_log_level is False:
+            return None
         self._f_path = path("Log").mkdir()
         return self._f_path
 
     @f_path.setter
     def f_path(self, value):
         if value is None:
-            return
+            return None
         if self.file_log_level is None:
             self.file_log_level = logging.DEBUG
         if value.endswith(".log"):
@@ -254,6 +261,8 @@ class Logger:
     def f_name(self):
         if touch(lambda: self.__f_real_name, None) is not None:
             return self.__f_real_name
+        if self.file_log_level is False:
+            return None
         self.__f_real_name = self.get_f_fullpath().fullname
         return self.__f_real_name
 
@@ -278,6 +287,8 @@ class Logger:
 
     def get_f_fullpath(self) -> Union[path, None]:
         if self.file_log_level is None:
+            return None
+        if self.file_log_level is False:
             return None
         if hasattr(self, "_Logger__f_fullpath"):
             return self.__f_fullpath

@@ -22,7 +22,7 @@ from pyctlib import Logger
 import math
 import random
 
-logger = Logger(True, True, deltatime=True)
+logger = Logger(True, False, deltatime=True)
 
 for step in range(20):
 
