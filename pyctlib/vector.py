@@ -2436,8 +2436,9 @@ class vector(list):
                 text = "min: {:.4g}".format(h_line)
             else:
                 continue
+            ymin, ymax = ax.get_ylim()
             ax.plot([-0.5, self.length-0.5], [h_line, h_line], "-.", linewidth=0.5, color="gray")
-            ax.text(-0.5, h_line + 0.05, text, color="gray", fontsize=10)
+            ax.text(-0.4, h_line + (ymax - ymin) / 100, text, color="gray", fontsize=10)
         if not _has_ax:
             if saved_path is not None:
                 if saved_path.endswith("pdf"):
