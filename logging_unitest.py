@@ -20,7 +20,7 @@ from pyctlib import Logger
 import math
 import random
 
-logger = Logger(True, True)
+logger = Logger(True, False)
 
 for step in range(100):
 
@@ -36,4 +36,4 @@ for step in range(100):
     logger.variable("train.w[c]", 3 + random.random())
     logger.variable("train.w[d]", 4 + random.random())
 
-Logger.plot_variable_dict(logger.variable_dict)
+Logger.plot_variable_dict(logger.variable_dict, hline=["bottom"])

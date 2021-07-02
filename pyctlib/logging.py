@@ -441,7 +441,7 @@ class Logger:
         return variable_dict
 
     @staticmethod
-    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=5, ignore=None, multi_vector=None, tight_layout=False, hline=None):
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=0, ignore=None, multi_vector=None, tight_layout=False, hline=None):
         float_variable = vector()
         for key, value in variable_dict.items():
             if ignore is not None and key in ignore:
@@ -474,7 +474,7 @@ class Logger:
             if isinstance(temp, vector):
                 temp.plot(ax, title=float_variable[index], smooth=smooth, hline=hline)
             elif isinstance(temp, dict):
-                x = vector.zip(temp.values())
+                x = vector.zip(temp.values()).map(lambda x: vector(x))
                 legend = vector(temp.keys())
                 x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend, hline=hline)
         if tight_layout:

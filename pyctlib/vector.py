@@ -46,6 +46,7 @@ import os.path
 import time
 import pydoc
 from collections.abc import Hashable
+from matplotlib.axes._subplots import Axes
 try:
     import numba as nb
     jit = nb.jit
@@ -2394,7 +2395,7 @@ class vector(list):
     def to_dict(self, key_func, value_func) -> Dict:
         return {key_func(x): value_func(x) for x in super().__iter__()}
 
-    def plot(self, ax=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None):
+    def plot(self, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None):
         """
         plot line graph for vector
         title: title of the graph
@@ -2434,7 +2435,7 @@ class vector(list):
                 h_line = self.min(recursive=True)
                 text = "min: {:.4g}".format(h_line)
             else:
-                break
+                continue
             ax.plot([-0.5, self.length-0.5], [h_line, h_line], "-.", linewidth=0.5, color="gray")
             ax.text(-0.5, h_line + 0.05, text, color="gray", fontsize=10)
         if not _has_ax:
