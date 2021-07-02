@@ -3,8 +3,7 @@ from .filemanager import path
 from .touch import touch
 from .vector import vector
 import time
-from datetime import timedelta
-from datetime import datetime
+from datetime import timedelta, datetime
 import atexit
 import sys
 from functools import wraps
@@ -49,9 +48,20 @@ UnDefined = EmptyClass("Not Defined")
 def empty_func(*args, **kwargs):
     return
 
+class ElapsedFormatter():
+
+    def __init__(self):
+        self.start_time = time.time()
+
+    def format(self, record):
+        elapsed_seconds = record.created - self.start_time
+        #using timedelta here for convenient default formatting
+        elapsed = timedelta(seconds = elapsed_seconds)
+        return "{} - {}".format(elapsed, record.getMessage())
+
 class Logger:
 
-    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False):
+    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, deltatime: bool=False, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False):
         self.name = name
         if stream_log_level is True:
             self.stream_log_level = logging.DEBUG
@@ -72,6 +82,7 @@ class Logger:
         self.sysargv = self._parser.parse_known_args(sys.argv)[0]
         self.variable_dict = {}
         self.autoplot_variable = autoplot_variable
+        self._deltatime = deltatime
         atexit.register(self.record_elapsed)
 
     @property
@@ -169,7 +180,7 @@ class Logger:
             return None
         self._c_handler = logging.StreamHandler()
         self._c_handler.setLevel(self.stream_log_level)
-        self._c_handler.setFormatter(logging.Formatter(self.c_format))
+        self._c_handler.setFormatter(self.c_format)
         return self._c_handler
 
     @property
@@ -181,15 +192,17 @@ class Logger:
             return None
         self._f_handler = logging.FileHandler(self.get_f_fullpath(), "w")
         self._f_handler.setLevel(self.file_log_level)
-        self._f_handler.setFormatter(logging.Formatter(self.f_format))
+        self._f_handler.setFormatter(self.f_format)
         return self._f_handler
 
     @property
     def c_format(self):
         if touch(lambda: self._c_format, None) is not None:
             return self._c_format
-        # self._c_format = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
-        self._c_format = "%(asctime)s - %(message)s"
+        if not self._deltatime:
+            self._c_format = logging.Formatter("%(asctime)s - %(message)s")
+        else:
+            self._c_format = ElapsedFormatter()
         return self._c_format
 
     @c_format.setter
@@ -202,7 +215,10 @@ class Logger:
     def f_format(self):
         if touch(lambda: self._f_format, None) is not None:
             return self._f_format
-        self._f_format = "%(asctime)s - %(message)s"
+        if not self._deltatime:
+            self._f_format = logging.Formatter("%(asctime)s - %(message)s")
+        else:
+            self._f_format = ElapsedFormatter()
         return self._f_format
 
     @f_format.setter
@@ -236,10 +252,17 @@ class Logger:
 
     @property
     def f_name(self):
-        if touch(lambda: self._f_name, None) is not None:
-            return self._f_name
-        self._f_name = time.strftime("%Y-%m%d-%H", time.localtime(time.time())) + ".log"
-        return self._f_name
+        if touch(lambda: self.__f_real_name, None) is not None:
+            return self.__f_real_name
+        self.__f_real_name = self.get_f_fullpath().fullname
+        return self.__f_real_name
+
+    @property
+    def _f_name(self):
+        if touch(lambda: self.__f_name, None) is not None:
+            return self.__f_name
+        self.__f_name = time.strftime("%Y-%m%d-%H", time.localtime(time.time())) + ".log"
+        return self.__f_name
 
     @f_name.setter
     def f_name(self, value: str):
@@ -248,22 +271,22 @@ class Logger:
         if self.file_log_level is None:
             self.file_log_level = logging.DEBUG
         if value.endswith(".log"):
-            self._f_name = value
-        self._f_name = value + ".log"
-        self._f_name = self._f_name.replace("{time}", "%Y-%m%d-%H")
-        self._f_name = datetime.now().strftime(self._f_name)
+            self.__f_name = value
+        self.__f_name = value + ".log"
+        self.__f_name = self.__f_name.replace("{time}", "%Y-%m%d-%H")
+        self.__f_name = datetime.now().strftime(self.__f_name)
 
     def get_f_fullpath(self) -> Union[path, None]:
         if self.file_log_level is None:
             return None
         if hasattr(self, "_Logger__f_fullpath"):
             return self.__f_fullpath
-        if not (self.f_path / self.f_name).isfile():
-            self.__f_fullpath: path = self.f_path / self.f_name
+        if not (self.f_path / self._f_name).isfile():
+            self.__f_fullpath: path = self.f_path / self._f_name
             return self.__f_fullpath
         index = 1
         while True:
-            temp_path = self.f_path / (self.f_name[:-4] + "-{}".format(index) + ".log")
+            temp_path = self.f_path / (self._f_name[:-4] + "-{}".format(index) + ".log")
             if not temp_path.isfile():
                 self.__f_fullpath: path = temp_path
                 return self.__f_fullpath

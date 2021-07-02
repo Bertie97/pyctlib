@@ -26,11 +26,6 @@ print(pyctlib.__file__)
 from pyctlib import Logger
 logger = Logger(True, file_name="vector_test_{time}")
 
-for x in vector.randn(10):
-    print(x)
-    logger.variable("randn.1", x)
-    logger.variable("randn.2", x+1)
-
 vector.zeros(10).map(lambda x: 1./x)
 
 with scope("all"):

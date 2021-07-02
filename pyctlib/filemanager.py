@@ -239,7 +239,9 @@ class path(str):
         elif len(init_texts) == 1 and init_texts[0] == "~":
             self = super().__new__(cls, path.homedir)
         elif len(init_texts) == 1 and init_texts[0][0] == "~":
-            self = super().__new__(cls, path.homedir + init_texts[0][1:])
+            self = super().__new__(cls, os.path.join(path.homedir, *init_texts[0][1:]))
+        elif len(init_texts) > 1 and init_texts[0] == "~":
+            self = super().__new__(cls, os.path.join(path.homedir, *[str(x) for x in init_texts[1:]]).strip())
         else:
             self = super().__new__(cls, os.path.join(*[str(x).replace('$', '') for x in init_texts]).strip())
         self.init()
@@ -374,6 +376,7 @@ class path(str):
         if not "/" in self:
             return self.abs().with_name(name)
         return (self @ Folder) / path.extsep.join(vector(["name", self.ext]).filter(len))
+
     def with_ext(self, ext: str=""):
         if not "/" in self:
             return self.bas().with_name(ext=ext)

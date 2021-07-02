@@ -13,6 +13,8 @@ from pyctlib.filemanager import path, get_relative_path, file
 from pyctlib import touch
 from pyctlib.wrapper import generate_typehint_wrapper
 import argparse
+import time
+from datetime import timedelta
 from time import sleep
 from pyctlib import totuple
 from pyctlib.touch import once
@@ -20,9 +22,9 @@ from pyctlib import Logger
 import math
 import random
 
-logger = Logger(True, False)
+logger = Logger(True, True, deltatime=True)
 
-for step in range(100):
+for step in range(20):
 
     logger.variable("train.loss", step ** 0.5)
     logger.variable("val.loss", step ** 0.5)

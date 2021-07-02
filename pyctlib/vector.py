@@ -2421,7 +2421,10 @@ class vector(list):
                 legend = vector.range(len(splited_vector)).map(str)
         else:
             raise ValueError
-        plt.xlim(-0.5, self.length - 0.5)
+        ymin, ymax = ax.get_ylim()
+        xmin, xmax = ax.get_xlim()
+        boundary_margin = 1 / 30 * (xmax - xmin)
+        plt.xlim(-boundary_margin, self.length - 1 + boundary_margin)
 
         if title:
             ax.set_title(title)
@@ -2436,9 +2439,8 @@ class vector(list):
                 text = "min: {:.4g}".format(h_line)
             else:
                 continue
-            ymin, ymax = ax.get_ylim()
-            ax.plot([-0.5, self.length-0.5], [h_line, h_line], "-.", linewidth=0.5, color="gray")
-            ax.text(-0.4, h_line + (ymax - ymin) / 100, text, color="gray", fontsize=10)
+            ax.plot([-boundary_margin, self.length - 1 + boundary_margin], [h_line, h_line], "-.", linewidth=0.5, color="gray")
+            ax.text(-boundary_margin / 2, h_line + (ymax - ymin) / 100, text, color="gray", fontsize=10)
         if not _has_ax:
             if saved_path is not None:
                 if saved_path.endswith("pdf"):
