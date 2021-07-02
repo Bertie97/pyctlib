@@ -2588,6 +2588,15 @@ class vector(list):
         """
         return vector(range(*args))
 
+    @staticmethod
+    def from_randomwalk(start, transition_function, length):
+        ret = vector([start])
+        temp = start
+        for index in range(length-1):
+            temp = transition_function(start)
+            ret.append(temp)
+        return ret
+
     def iid(self, sample_func, length, args=()):
         return vector([sample_func(*args) for _ in range(length)])
 
