@@ -447,11 +447,15 @@ class Logger:
     def update_notion(self, variable_name: str, variable):
         if not hasattr(self, "_notion_client"):
             import os
+            import notion
+            from notion.client import NotionClient
             if "NOTION_TOKEN_V2" in os.environ:
+                self.debug("trying to connect to notion client")
                 self._notion_client = NotionClient(token_v2=os.environ["NOTION_TOKEN_V2"])
             else:
                 self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
                 return
+            self.debug("successfully connect to notion client", self._notion_client)
         if self.notion_page_link is None or self.notion_page_link == "":
             self.warning("plz provide notion_page_link for logger object to use notion_update")
             return
