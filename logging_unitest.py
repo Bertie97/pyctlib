@@ -1,5 +1,6 @@
 import sys
 import os
+import logging as syslogging
 from sys import getsizeof
 
 sys.path.append(os.path.abspath("."))
@@ -22,7 +23,7 @@ from pyctlib import Logger
 import math
 import random
 
-logger = Logger(True, False, deltatime=True)
+logger = Logger(True, False, deltatime=True, notion_page_link="https://www.notion.so/zhangyiteng/3758b7927f2041dfa67f2eec55d3b1d8")
 
 for step in range(20):
 

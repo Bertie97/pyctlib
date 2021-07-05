@@ -11,6 +11,7 @@ from typing import Callable, Dict, Union
 import random
 import string
 import argparse
+from wrapt_timeout_decorator import timeout
 import re
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -84,6 +85,7 @@ class Logger:
         self.variable_dict = {}
         self.autoplot_variable = autoplot_variable
         self.notion_page_link = notion_page_link
+        self.__update_notion_buffer = dict()
         atexit.register(self.record_elapsed)
 
     @property
@@ -108,6 +110,7 @@ class Logger:
             return self.__logger
         else:
             self.__logger = logging.getLogger(self.name)
+            self.__logger.propagate = False
             for handler in self.__logger.handlers[:]:
                 self.__logger.removeHandler(handler)
             for f in self.__logger.filters[:]:
@@ -445,28 +448,34 @@ class Logger:
             Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
     def update_notion(self, variable_name: str, variable):
-        if not hasattr(self, "_notion_client"):
-            import os
-            import notion
-            from notion.client import NotionClient
-            if "NOTION_TOKEN_V2" in os.environ:
-                self.debug("trying to connect to notion client")
-                self._notion_client = NotionClient(token_v2=os.environ["NOTION_TOKEN_V2"])
-            else:
-                self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
-                return
-            self.debug("successfully connect to notion client", self._notion_client)
+        import os
+        if "NOTION_TOKEN_V2" not in os.environ:
+            self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
         if self.notion_page_link is None or self.notion_page_link == "":
             self.warning("plz provide notion_page_link for logger object to use notion_update")
             return
-        if not hasattr(self, "_notion_page"):
-            self._notion_page = self._notion_client.get_block(self.notion_page_link)
+        self.__update_notion_buffer[variable_name] = variable
         try:
-            old_variable = getattr(self._notion_page, variable_name)
-            setattr(self._notion_page, variable_name, variable)
+            self.__update_notion()
+        except TimeoutError:
+            self.warning("update notion database Timeout", self.__update_notion_buffer)
+        else:
+            self.__update_notion_buffer = dict()
+        return
+
+    @timeout(20)
+    def __update_notion(self):
+        import os
+        import notion
+        from notion.client import NotionClient
+        self.debug("trying to connect to notion client")
+        notion_client = NotionClient(token_v2=os.environ["NOTION_TOKEN_V2"])
+        self.debug("successfully connect to notion client", notion_client)
+        notion_page = notion_client.get_block(self.notion_page_link)
+        for variable_name, variable in self.__update_notion_buffer.items():
+            old_variable = getattr(notion_page, variable_name)
+            setattr(notion_page, variable_name, variable)
             self.info("update notion page, property name {}, from {} to {}".format(variable_name, old_variable, variable))
-        except:
-            self.warning("update notion page failed", variable_name, variable)
 
     @staticmethod
     def variable_from_logging_file(f_name):
