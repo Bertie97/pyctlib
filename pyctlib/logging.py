@@ -463,7 +463,7 @@ class Logger:
             self.__update_notion_buffer = dict()
         return
 
-    @timeout(20)
+    @timeout(10)
     def __update_notion(self):
         import os
         import notion
