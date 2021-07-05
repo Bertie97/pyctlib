@@ -444,7 +444,7 @@ class Logger:
                 self.variable_dict[group_name] = dict()
             Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
-    def notion_update(variable_name: str, variable):
+    def update_notion(self, variable_name: str, variable):
         if not hasattr(self, "_notion_client"):
             import os
             if "NOTION_TOKEN_V2" in os.environ:
