@@ -61,7 +61,7 @@ class ElapsedFormatter():
 
 class Logger:
 
-    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, deltatime: bool=False, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False):
+    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, deltatime: bool=False, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False, notion_page_link=None):
         self.name = name
         if stream_log_level is True:
             self.stream_log_level = logging.DEBUG
@@ -83,6 +83,7 @@ class Logger:
         self.sysargv = self._parser.parse_known_args(sys.argv)[0]
         self.variable_dict = {}
         self.autoplot_variable = autoplot_variable
+        self.notion_page_link = notion_page_link
         atexit.register(self.record_elapsed)
 
     @property
@@ -442,6 +443,26 @@ class Logger:
             if group_name not in self.variable_dict:
                 self.variable_dict[group_name] = dict()
             Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
+
+    def notion_update(variable_name: str, variable):
+        if not hasattr(self, "_notion_client"):
+            import os
+            if "NOTION_TOKEN_V2" in os.environ:
+                self._notion_client = NotionClient(token_v2=os.environ["NOTION_TOKEN_V2"])
+            else:
+                self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
+                return
+        if self.notion_page_link is None or self.notion_page_link == "":
+            self.warning("plz provide notion_page_link for logger object to use notion_update")
+            return
+        if not hasattr(self, "_notion_page"):
+            self._notion_page = self._notion_client.get_block(self.notion_page_link)
+        try:
+            old_variable = getattr(self._notion_page, variable_name)
+            setattr(self._notion_page, variable_name, variable)
+            self.info("update notion page, property name {}, from {} to {}".format(variable_name, old_variable, variable))
+        except:
+            self.warning("update notion page failed", variable_name, variable)
 
     @staticmethod
     def variable_from_logging_file(f_name):
