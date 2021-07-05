@@ -459,6 +459,8 @@ class Logger:
             self.__update_notion()
         except TimeoutError:
             self.warning("update notion database Timeout", self.__update_notion_buffer)
+        except Exception as e:
+            self.exception("exception", e)
         else:
             self.__update_notion_buffer = dict()
         return
