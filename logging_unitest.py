@@ -22,8 +22,14 @@ from pyctlib.touch import once
 from pyctlib import Logger
 import math
 import random
+from termcolor import colored
 
-logger = Logger(True, False, deltatime=True, notion_page_link="https://www.notion.so/zhangyiteng/3758b7927f2041dfa67f2eec55d3b1d8")
+logger = Logger(True, False)
+
+logger.info("test")
+logger.info(colored('hello', 'red'), colored('world', 'green'))
+
+# logger = Logger(True, False, deltatime=True, notion_page_link="https://www.notion.so/zhangyiteng/3758b7927f2041dfa67f2eec55d3b1d8")
 
 for step in range(20):
 
@@ -39,4 +45,4 @@ for step in range(20):
     logger.variable("train.w[c]", 3 + random.random())
     logger.variable("train.w[d]", 4 + random.random())
 
-Logger.plot_variable_dict(logger.variable_dict, hline=["bottom"])
+# Logger.plot_variable_dict(logger.variable_dict, hline=["bottom"])

@@ -211,7 +211,7 @@ class Logger:
         if touch(lambda: self._c_format, None) is not None:
             return self._c_format
         if not self._deltatime:
-            self._c_format = logging.Formatter("%(asctime)s - %(message)s")
+            self._c_format = logging.Formatter('\x1b[31m' + "%(asctime)s" + '\x1b[0m' + " - %(message)s" )
         else:
             self._c_format = ElapsedFormatter()
         return self._c_format
