@@ -2991,7 +2991,7 @@ class vector(list):
 
     def map_index_from_(self, x):
         assert isinstance(x, vector)
-        self.map_index(x.index_mapping)
+        self.map_index_(x.index_mapping)
 
     def map_reverse_index(self, reverse_index_mapping: "IndexMapping"):
         assert isinstance(reverse_index_mapping, IndexMapping)
