@@ -2215,7 +2215,7 @@ class vector(list):
         """
         return len(self)
 
-    def onehot(self, max_length=-1, default_dict={}):
+    def onehot(self, max_length: int=-1, default_dict: Dict[Any, int]={}):
         """onehot.
         get onehot representation of the vector
 
@@ -2261,22 +2261,22 @@ class vector(list):
             return ret
         return temp_list.map(lambda x: create_onehot_vector(x, max_length))
 
-    def sort(self, key=lambda x: x):
+    def sort(self, key: Callable=lambda x: x, reverse: bool=False):
         if key == None:
             return self
         if self.length == 0:
             return self
-        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
+        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]), reverse=reverse)
         index_mapping_reverse = [x[1] for x in temp]
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
         return self.map_index(index_mapping)
 
-    def sort_(self, key=lambda x: x):
+    def sort_(self, key=lambda x: x, reverse: bool=False):
         if key == None:
             return
         if self.length == 0:
             return
-        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
+        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]), reverse=reverse)
         index_mapping_reverse = [x[1] for x in temp]
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
         self.map_index_(index_mapping)
@@ -2991,7 +2991,7 @@ class vector(list):
 
     def map_index_from_(self, x):
         assert isinstance(x, vector)
-        self.map_index(x.index_mapping)
+        self.map_index_(x.index_mapping)
 
     def map_reverse_index(self, reverse_index_mapping: "IndexMapping"):
         assert isinstance(reverse_index_mapping, IndexMapping)
