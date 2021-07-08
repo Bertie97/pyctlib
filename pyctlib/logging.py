@@ -451,6 +451,36 @@ class Logger:
                 self.variable_dict[group_name] = dict()
             Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
+    def notion_buffer_flush(self):
+        if len(self.__update_notion_buffer) == 0:
+            return
+        if "NOTION_TOKEN_V2" not in os.environ:
+            self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
+        if self.notion_page_link is None or self.notion_page_link == "":
+            self.warning("plz provide notion_page_link for logger object to use notion_update")
+            return
+        flag = False
+        for _ in range(3):
+            try:
+                flag = self.__get_notion_client_and_page()
+            except TimeoutError:
+                pass
+            if flag:
+                break
+        if not flag:
+            self.warning("failed to get notion client and page, exit")
+            return
+        for _ in range(10):
+            try:
+                self.__update_notion()
+            except TimeoutError:
+                self.warning("update notion database Timeout", self.__update_notion_buffer)
+            except Exception as e:
+                self.exception(variable_name, variable, " cause exception: ", e)
+            else:
+                return
+        return
+
     def update_notion(self, variable_name: str, variable):
         if "NOTION_TOKEN_V2" not in os.environ:
             self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
@@ -664,6 +694,8 @@ class Logger:
             return
         if not self.already_logging:
             return
+
+        self.notion_buffer_flush()
 
         if self.autoplot_variable:
             saved_plot_path = self.get_f_fullpath().with_ext("pdf")
