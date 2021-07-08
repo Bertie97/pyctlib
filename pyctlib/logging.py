@@ -452,17 +452,17 @@ class Logger:
             Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
     def update_notion(self, variable_name: str, variable):
-        if "NOTION_TOKEN_V2" not in os.environ:
-            self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
-        if self.notion_page_link is None or self.notion_page_link == "":
+        if "notion_token_v2" not in os.environ:
+            self.warning("there is no $notion_token_v2 in system path. please check it")
+        if self.notion_page_link is none or self.notion_page_link == "":
             self.warning("plz provide notion_page_link for logger object to use notion_update")
             return
         self.__update_notion_buffer[variable_name] = variable
-        flag = False
+        flag = false
         for _ in range(3):
             try:
                 flag = self.__get_notion_client_and_page()
-            except TimeoutError:
+            except timeouterror:
                 pass
             if flag:
                 break
@@ -470,12 +470,43 @@ class Logger:
             return
         try:
             self.__update_notion()
-        except TimeoutError:
-            self.warning("update notion database Timeout", self.__update_notion_buffer)
-        except Exception as e:
+        except timeouterror:
+            self.warning("update notion database timeout", self.__update_notion_buffer)
+        except exception as e:
             self.exception("exception", e)
         else:
             self.__update_notion_buffer = dict()
+        return
+
+    def notion_buffer_flush(self) -> None:
+        if len(self.__update_notion_buffer) == 0:
+            return
+        if "notion_token_v2" not in os.environ:
+            self.warning("there is no $notion_token_v2 in system path. please check it")
+        if self.notion_page_link is none or self.notion_page_link == "":
+            self.warning("plz provide notion_page_link for logger object to use notion_update")
+            return
+        flag = false
+        for _ in range(3):
+            try:
+                flag = self.__get_notion_client_and_page()
+            except timeouterror:
+                pass
+            if flag:
+                break
+        if not flag:
+            return
+        for _ in range(10):
+            if len(self.__update_notion_buffer) == 0:
+                break
+            try:
+                self.__update_notion()
+            except timeouterror:
+                self.warning("update notion database timeout", self.__update_notion_buffer)
+            except exception as e:
+                self.exception("exception", e)
+            else:
+                self.__update_notion_buffer = dict()
         return
 
     @timeout(10)
@@ -665,6 +696,7 @@ class Logger:
             return
         if not self.already_logging:
             return
+        self.notion_buffer_flush()
 
         if self.autoplot_variable:
             saved_plot_path = self.get_f_fullpath().with_ext("pdf")
