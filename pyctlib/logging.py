@@ -473,7 +473,7 @@ class Logger:
         except TimeoutError:
             self.warning("update notion database Timeout", self.__update_notion_buffer)
         except Exception as e:
-            self.exception("exception", e)
+            self.exception(variable_name, variable, " cause exception: ", e)
         else:
             self.__update_notion_buffer = dict()
         return
@@ -487,7 +487,6 @@ class Logger:
                 self.debug("successfully connect to notion client", self._notion_client)
                 self._notion_page = self._notion_client.get_block(self.notion_page_link)
                 self.debug("successfully get notion page")
-                time.sleep(12)
             except TimeoutError:
                 self.debug("get notion page Timeout")
                 return False
