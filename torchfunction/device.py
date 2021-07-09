@@ -5,20 +5,28 @@ from pynvml import *
 available_gpu_ids = list(range(torch.cuda.device_count()))
 available_gpus = [torch.cuda.device(i) for i in available_gpu_ids]
 
+nvmlInit()
+
 def free_memory_amount(device_number):
-    nvmlInit()
     h = nvmlDeviceGetHandleByIndex(device_number)
     info = nvmlDeviceGetMemoryInfo(h)
     return info.free
 
 def all_memory_amount(device_number):
-    nvmlInit()
     h = nvmlDeviceGetHandleByIndex(device_number)
     info = nvmlDeviceGetMemoryInfo(h)
     return info.total
 
+def device_name(device_number):
+    h = nvmlDeviceGetHandleByIndex(device_number)
+    name = nvmlDeviceGetName(h)
+    return name
+
 available_gpus_memory = vector([free_memory_amount(i) for i in available_gpu_ids])
 all_gpus_memory = vector([all_memory_amount(i) for i in available_gpu_ids])
+available_gpu_name = vector(available_gpu_ids).map(device_name)
+
+nvmlShutdown()
 
 warning_free_memory_threshold = eval(os.environ.get('CUDA_RUN_MEMORY', '5'))
 
