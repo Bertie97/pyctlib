@@ -559,7 +559,7 @@ class Logger:
         for variable_name, variable in self.__update_notion_buffer.items():
             old_variable = getattr(self._notion_page, variable_name)
             setattr(self._notion_page, variable_name, variable)
-            self.info("update notion page, property name {}, from {} to {}".format(variable_name, old_variable, variable))
+            self.info("update notion page, property name (%RED){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
 
     @staticmethod
     def variable_from_logging_file(f_name):
