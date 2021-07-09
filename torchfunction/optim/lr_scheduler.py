@@ -132,29 +132,3 @@ class PowerDecayLRWrapper(_LRScheduler):
             temp.lr_scheduler.last_epoch = self.last_epoch + 1
             temp = temp.lr_scheduler
         super(PowerDecayLRWrapper, self).step()
-
-if True:
-    from torch.optim.sgd import SGD
-    from pyctlib import vector
-    model = [torch.nn.Parameter(torch.randn(2, 2, requires_grad=True))]
-    optim = SGD(model, 0.1)
-
-    # scheduler_warmup is chained with schduler_steplr
-    # scheduler_steplr = LinearWarmupLRWrapper(CosineAnnealingLR(optim, T_max=20), 10)
-    scheduler_steplr = PowerDecayLRWrapper(LinearWarmupLRWrapper(CosineAnnealingLR(optim, T_max=100), 40), 1000, 0.01)
-    # scheduler_steplr = ExponentialDecayLRWrapper(ConstantLR(optim), 10, 0.1)
-    # scheduler_warmup = GradualWarmupScheduler(optim, multiplier=1, total_epoch=5, after_scheduler=scheduler_steplr)
-
-    # this zero gradient update is needed to avoid a warning message, issue #8.
-    optim.zero_grad()
-    optim.step()
-    l_v = vector()
-
-    for epoch in range(0, 1000):
-        print(epoch, optim.param_groups[0]['lr'])
-        l_v.append(optim.param_groups[0]['lr'])
-
-        optim.step()    # backward pass (update network)
-        # print(scheduler_steplr.last_epoch, "!")
-        scheduler_steplr.step()
-        # print(scheduler_steplr.last_epoch, "?")
