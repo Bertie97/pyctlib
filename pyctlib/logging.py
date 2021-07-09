@@ -508,37 +508,6 @@ class Logger:
             self.__update_notion_buffer = dict()
         return
 
-    def notion_buffer_flush(self) -> None:
-        if len(self.__update_notion_buffer) == 0:
-            return
-        if "notion_token_v2" not in os.environ:
-            self.warning("there is no $notion_token_v2 in system path. please check it")
-        if self.notion_page_link is None or self.notion_page_link == "":
-            self.warning("plz provide notion_page_link for logger object to use notion_update")
-            return
-        flag = false
-        for _ in range(3):
-            try:
-                flag = self.__get_notion_client_and_page()
-            except timeouterror:
-                pass
-            if flag:
-                break
-        if not flag:
-            return
-        for _ in range(10):
-            if len(self.__update_notion_buffer) == 0:
-                break
-            try:
-                self.__update_notion()
-            except timeouterror:
-                self.warning("update notion database timeout", self.__update_notion_buffer)
-            except exception as e:
-                self.exception("exception", e)
-            else:
-                self.__update_notion_buffer = dict()
-        return
-
     @timeout(10)
     def __get_notion_client_and_page(self):
         if not hasattr(self, "_notion_client") or not hasattr(self, "_notion_page"):
@@ -725,7 +694,6 @@ class Logger:
             return
         if not self.already_logging:
             return
-        self.notion_buffer_flush()
 
         self.notion_buffer_flush()
 
