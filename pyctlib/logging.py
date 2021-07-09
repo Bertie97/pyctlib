@@ -211,7 +211,7 @@ class Logger:
         if touch(lambda: self._c_format, None) is not None:
             return self._c_format
         if not self._deltatime:
-            self._c_format = logging.Formatter("%(asctime)s - %(message)s")
+            self._c_format = logging.Formatter('\x1b[31m' + "%(asctime)s" + '\x1b[0m' + " - %(message)s" )
         else:
             self._c_format = ElapsedFormatter()
         return self._c_format
@@ -451,10 +451,40 @@ class Logger:
                 self.variable_dict[group_name] = dict()
             Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
+    def notion_buffer_flush(self):
+        if len(self.__update_notion_buffer) == 0:
+            return
+        if "NOTION_TOKEN_V2" not in os.environ:
+            self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
+        if self.notion_page_link is None or self.notion_page_link == "":
+            self.warning("plz provide notion_page_link for logger object to use notion_update")
+            return
+        flag = False
+        for _ in range(3):
+            try:
+                flag = self.__get_notion_client_and_page()
+            except TimeoutError:
+                pass
+            if flag:
+                break
+        if not flag:
+            self.warning("failed to get notion client and page, exit")
+            return
+        for _ in range(10):
+            try:
+                self.__update_notion()
+            except TimeoutError:
+                self.warning("update notion database Timeout", self.__update_notion_buffer)
+            except Exception as e:
+                self.exception(variable_name, variable, " cause exception: ", e)
+            else:
+                return
+        return
+
     def update_notion(self, variable_name: str, variable):
         if "notion_token_v2" not in os.environ:
             self.warning("there is no $notion_token_v2 in system path. please check it")
-        if self.notion_page_link is none or self.notion_page_link == "":
+        if self.notion_page_link is None or self.notion_page_link == "":
             self.warning("plz provide notion_page_link for logger object to use notion_update")
             return
         self.__update_notion_buffer[variable_name] = variable
@@ -470,10 +500,10 @@ class Logger:
             return
         try:
             self.__update_notion()
-        except timeouterror:
-            self.warning("update notion database timeout", self.__update_notion_buffer)
-        except exception as e:
-            self.exception("exception", e)
+        except TimeoutError:
+            self.warning("update notion database Timeout", self.__update_notion_buffer)
+        except Exception as e:
+            self.exception(variable_name, variable, " cause exception: ", e)
         else:
             self.__update_notion_buffer = dict()
         return
@@ -483,7 +513,7 @@ class Logger:
             return
         if "notion_token_v2" not in os.environ:
             self.warning("there is no $notion_token_v2 in system path. please check it")
-        if self.notion_page_link is none or self.notion_page_link == "":
+        if self.notion_page_link is None or self.notion_page_link == "":
             self.warning("plz provide notion_page_link for logger object to use notion_update")
             return
         flag = false
@@ -518,7 +548,6 @@ class Logger:
                 self.debug("successfully connect to notion client", self._notion_client)
                 self._notion_page = self._notion_client.get_block(self.notion_page_link)
                 self.debug("successfully get notion page")
-                time.sleep(12)
             except TimeoutError:
                 self.debug("get notion page Timeout")
                 return False
@@ -696,6 +725,8 @@ class Logger:
             return
         if not self.already_logging:
             return
+        self.notion_buffer_flush()
+
         self.notion_buffer_flush()
 
         if self.autoplot_variable:

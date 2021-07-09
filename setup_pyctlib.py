@@ -11,7 +11,11 @@ from setuptools import setup, find_packages
  
 setup(
     name = "pyctlib",
+<<<<<<< HEAD
     version = "0.3.90",
+=======
+    version = "0.3.92",
+>>>>>>> 2475c6b5468c5c53e5fd079bcb438d3532bf3ea8
     keywords = ("pip", "pyctlib"),
     description = "This is A foundamental package containing some basic self-designed functions and types for Project PyCTLib. ",
     long_description = open("./pyctlib/README.md").read(),
@@ -25,5 +29,5 @@ setup(
     packages = find_packages(),
     include_package_data = True,
     platforms = "any",
-    install_requires = ["pyoverload", "rapidfuzz", "numpy", "wrapt_timeout_decorator"]
+    install_requires = ["pyoverload", "rapidfuzz", "numpy", "wrapt_timeout_decorator", "notion"]
 )
