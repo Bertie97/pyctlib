@@ -22,16 +22,21 @@ def device_name(device_number):
     name = nvmlDeviceGetName(h)
     return name
 
+def power_usage(device_number):
+    h = nvmlDeviceGetHandleByIndex(device_number)
+    return nvmlDeviceGetPowerUsage(h) / nvmlDeviceGetPowerManagementLimit(h)
+
 available_gpus_memory = vector([free_memory_amount(i) for i in available_gpu_ids])
 all_gpus_memory = vector([all_memory_amount(i) for i in available_gpu_ids])
 available_gpu_name = vector(available_gpu_ids).map(device_name)
+gpu_power_usage = vector(available_gpu_ids).map(power_usage)
 
 nvmlShutdown()
 
 warning_free_memory_threshold = eval(os.environ.get('CUDA_RUN_MEMORY', '5'))
 
 if torch.cuda.is_available():
-    most_available_gpus = available_gpus_memory.max(with_index=True)[1]
+    most_available_gpus = vector.map_from([available_gpus_memory, gpu_power_usage], lambda m, p: m * max(1 - p, 0)**0.5).max(with_index=True)[1]
 
     if available_gpus_memory[most_available_gpus] < warning_free_memory_threshold * 1.074e+9:
         print("Warning: the best gpu device is device {}".format(most_available_gpus))
@@ -40,7 +45,7 @@ if torch.cuda.is_available():
         if tag.lower() not in ["yes", "y"]:
             raise RuntimeError("There are no enough free memory left.")
 
-    igpu = available_gpus_memory.index(max(available_gpus_memory))
+    igpu = most_available_gpus
     os.environ['CUDA_VISIBLE_DEVICES'] = ', '.join([f'{i}' for i in available_gpu_ids])
     AutoDeviceId = igpu
     AutoDevice = torch.device(f"cuda:{igpu}")
@@ -77,4 +82,4 @@ def str_2_device(device):
 def recursive_autodevice(container):
     return recursive_apply(container, lambda x: x.to(AutoDevice))
 
-__all__ = ["available_gpus", "AutoDevice", "warning_free_memory_threshold", "available_gpus_memory", "all_gpus_memory", "DeviceCPU", "recursive_autodevice", "AutoDeviceId", "todevice", "str_2_device"]
+__all__ = ["available_gpus", "AutoDevice", "warning_free_memory_threshold", "available_gpus_memory", "all_gpus_memory", "DeviceCPU", "recursive_autodevice", "AutoDeviceId", "todevice", "str_2_device", "gpu_power_usage"]
