@@ -507,17 +507,18 @@ class Logger:
         return
 
     def update_notion(self, variable_name: str, variable):
-        if "notion_token_v2" not in os.environ:
+        if "NOTION_TOKEN_V2" not in os.environ:
             self.warning("there is no $notion_token_v2 in system path. please check it")
+            return
         if self.notion_page_link is None or self.notion_page_link == "":
             self.warning("plz provide notion_page_link for logger object to use notion_update")
             return
         self.__update_notion_buffer[variable_name] = variable
-        flag = false
+        flag = False
         for _ in range(3):
             try:
                 flag = self.__get_notion_client_and_page()
-            except timeouterror:
+            except TimeoutError:
                 pass
             if flag:
                 break
