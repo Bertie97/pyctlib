@@ -34,6 +34,8 @@ NOTSET = logging.NOTSET
 
 level_to_name = {DEBUG:     "DEBUG", INFO:     "INFO", WARNING:     "WARNING", CRITICAL:     "CRITICAL", ERROR:     "ERROR", NOTSET:     "NOTSET"}
 
+color_dict = {c: "\033[1;%dm" % (30+index) for index, c in enumerate(["BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE"])}
+
 class EmptyClass:
 
     def __init__(self, name="EmptyClass"):
@@ -63,6 +65,35 @@ class ElapsedFormatter():
         #using timedelta here for convenient default formatting
         elapsed = timedelta(seconds = elapsed_seconds)
         return "{} - {}".format(elapsed, record.getMessage())
+
+class ColoredFormatter:
+
+    def __init__(self, use_color: bool=True, deltatime: bool=False):
+        self.use_color = use_color
+        self.deltatime = deltatime
+        self.start_time = time.time()
+
+    @staticmethod
+    def formatter_message(message: str, use_color: bool=True):
+        if use_color:
+            for color, seq in color_dict.items():
+                message = message.replace("(%{})".format(color), seq)
+            message = message.replace("(%RESET)", "\033[0m")
+        else:
+            for color, seq in color_dict.items():
+                message = message.replace("(%{})".format(color), "")
+            message = message.replace("(%RESET)", "")
+        return message
+
+    def format(self, record):
+        if self.deltatime:
+            elapsed_seconds = record.created - self.start_time
+            displaied_time = timedelta(seconds= elapsed_seconds)
+        else:
+            displaied_time = str(datetime.now())[:-3]
+        ret = "(%BLUE){}(%RESET) - {}".format(displaied_time, record.getMessage())
+        ret = self.formatter_message(ret, self.use_color)
+        return ret
 
 class Logger:
 
@@ -210,10 +241,7 @@ class Logger:
     def c_format(self):
         if touch(lambda: self._c_format, None) is not None:
             return self._c_format
-        if not self._deltatime:
-            self._c_format = logging.Formatter('\x1b[31m' + "%(asctime)s" + '\x1b[0m' + " - %(message)s" )
-        else:
-            self._c_format = ElapsedFormatter()
+        self._c_format = ColoredFormatter(True, self._deltatime)
         return self._c_format
 
     @c_format.setter
@@ -226,10 +254,7 @@ class Logger:
     def f_format(self):
         if touch(lambda: self._f_format, None) is not None:
             return self._f_format
-        if not self._deltatime:
-            self._f_format = logging.Formatter("%(asctime)s - %(message)s")
-        else:
-            self._f_format = ElapsedFormatter()
+        self._f_format = ColoredFormatter(False, self._deltatime)
         return self._f_format
 
     @f_format.setter
@@ -351,9 +376,9 @@ class Logger:
                 loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
-                self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+                self.logger.info("{}[line:{}] - (%WHITE)INFO(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
-            self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
+            self.logger.info("{}[line:{}] - (%WHITE)INFO(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
     def warning(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
@@ -439,7 +464,7 @@ class Logger:
             raise Exception
         except:
             f = sys.exc_info()[2].tb_frame.f_back
-        self.logger.info("{}[line:{}] - VARIABLE<{}>: {}".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
+        self.logger.info("{}[line:{}] - VARIABLE<(%MAGENTA){}(%RESET)>: (%CYAN){}(%RESET)".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
         regex = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
         m = regex.match(variable_name)
         if not m:
