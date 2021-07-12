@@ -49,10 +49,14 @@ def decorator(*wrapper_func, use_raw = True):
         return decorator(wrapper_func(*args, **kwargs))
     return wraps(wrapper_func)(wrapper)
 
+
+class TimeoutException(Exception):
+    pass
+
 def timeout(seconds_before_timeout):
     def decorate(f):
         def handler(signum, frame):
-            raise TimeoutError
+            raise TimeoutException
         def new_f(*args, **kwargs):
             old = signal.signal(signal.SIGALRM, handler)
             signal.alarm(seconds_before_timeout)

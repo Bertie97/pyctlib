@@ -12,7 +12,7 @@ import random
 import string
 import argparse
 # from wrapt_timeout_decorator import timeout
-from .basicwrapper import timeout
+from .basicwrapper import timeout, TimeoutException
 import re
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -21,9 +21,10 @@ import notion
 from notion.client import NotionClient
 """
 from pyctlib import vector, touch
+from pyctlib.basicwrapper import timeout, TimeoutException
 """
 
-__all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger"]
+__all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger", "TimeoutException"]
 
 DEBUG = logging.DEBUG
 INFO = logging.INFO
@@ -488,7 +489,7 @@ class Logger:
         for _ in range(3):
             try:
                 flag = self.__get_notion_client_and_page()
-            except TimeoutError:
+            except TimeoutException:
                 pass
             if flag:
                 break
@@ -498,7 +499,7 @@ class Logger:
         for _ in range(10):
             try:
                 self.__update_notion()
-            except TimeoutError:
+            except TimeoutException:
                 self.warning("update notion database Timeout", self.__update_notion_buffer)
             except Exception as e:
                 self.exception(variable_name, variable, " cause exception: ", e)
@@ -515,10 +516,12 @@ class Logger:
             return
         self.__update_notion_buffer[variable_name] = variable
         flag = False
+        self.info("start update notion", variable, variable_name)
         for _ in range(3):
             try:
                 flag = self.__get_notion_client_and_page()
-            except TimeoutError:
+            except TimeoutException:
+                self.warning("Timeout, try again")
                 pass
             if flag:
                 break
@@ -526,12 +529,13 @@ class Logger:
             return
         try:
             self.__update_notion()
-        except TimeoutError:
+        except TimeoutException:
             self.warning("update notion database Timeout", self.__update_notion_buffer)
         except Exception as e:
             self.exception(variable_name, variable, " cause exception: ", e)
         else:
             self.__update_notion_buffer = dict()
+        self.info("finish update notion")
         return
 
     @timeout(10)
@@ -543,7 +547,7 @@ class Logger:
                 self.debug("successfully connect to notion client", self._notion_client)
                 self._notion_page = self._notion_client.get_block(self.notion_page_link)
                 self.debug("successfully get notion page")
-            except TimeoutError:
+            except TimeoutException:
                 self.debug("get notion page Timeout")
                 return False
             except Exception as e:
@@ -557,6 +561,7 @@ class Logger:
     @timeout(5)
     def __update_notion(self):
         for variable_name, variable in self.__update_notion_buffer.items():
+            self.info("start update notion page, property name (%RED){}(%RESET), to {}".format(variable_name, variable))
             old_variable = getattr(self._notion_page, variable_name)
             setattr(self._notion_page, variable_name, variable)
             self.info("update notion page, property name (%RED){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
