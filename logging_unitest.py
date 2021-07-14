@@ -1,5 +1,6 @@
 import sys
 import os
+import logging as syslogging
 from sys import getsizeof
 
 sys.path.append(os.path.abspath("."))
@@ -13,16 +14,24 @@ from pyctlib.filemanager import path, get_relative_path, file
 from pyctlib import touch
 from pyctlib.wrapper import generate_typehint_wrapper
 import argparse
+import time
+from datetime import timedelta
 from time import sleep
 from pyctlib import totuple
 from pyctlib.touch import once
 from pyctlib import Logger
 import math
 import random
+from termcolor import colored
 
-logger = Logger(True, True)
+logger = Logger(True, False)
 
-for step in range(100):
+logger.info("test")
+logger.info(colored('hello', 'red'), colored('world', 'green'))
+
+# logger = Logger(True, False, deltatime=True, notion_page_link="https://www.notion.so/zhangyiteng/3758b7927f2041dfa67f2eec55d3b1d8")
+
+for step in range(20):
 
     logger.variable("train.loss", step ** 0.5)
     logger.variable("val.loss", step ** 0.5)
@@ -36,4 +45,4 @@ for step in range(100):
     logger.variable("train.w[c]", 3 + random.random())
     logger.variable("train.w[d]", 4 + random.random())
 
-Logger.plot_variable_dict(logger.variable_dict)
+# Logger.plot_variable_dict(logger.variable_dict, hline=["bottom"])

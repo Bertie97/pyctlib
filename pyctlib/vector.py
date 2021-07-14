@@ -22,10 +22,9 @@ __all__ = """
 """.split()
 
 from types import GeneratorType
-from typing import List
 from collections import Counter
 from functools import wraps, reduce, partial
-from .touch import touch, crash
+from .touch import touch, crash, once
 import copy
 import numpy as np
 from pyoverload import iterable
@@ -36,37 +35,23 @@ import curses
 import re
 import sys
 import math
-from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple
+from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple, Optional
 import types
 import traceback
 import inspect
 import os
 from .strtools import delete_surround
 from .wrapper import empty_wrapper
-import logging  # 引入logging模块
 import os.path
 import time
 import pydoc
 from collections.abc import Hashable
+from matplotlib.axes._subplots import Axes
 try:
     import numba as nb
     jit = nb.jit
 except:
     jit = empty_wrapper
-
-# from .visual.debugger import profile
-
-# logger = logging.getLogger()
-# logger.setLevel(logging.INFO)  # Log等级总开关
-# rq = time.strftime('%Y%m%d%H', time.localtime(time.time()))
-# log_path = os.path.dirname(os.getcwd()) + '/Logs/'
-# log_name = log_path + rq + '.log'
-# logfile = log_name
-# fh = logging.FileHandler(logfile, mode='w')
-# fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
-# formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-# fh.setFormatter(formatter)
-# logger.addHandler(fh)
 
 """
 Usage:
@@ -1732,7 +1717,7 @@ class vector(list):
                 return True
         return False
 
-    def max(self, key=None, with_index=False):
+    def max(self, key=None, with_index=False, recursive=False):
         """max.
 
         Parameters
@@ -1744,6 +1729,8 @@ class vector(list):
         """
         if len(self) == 0:
             return None
+        if recursive:
+            return self.flatten().max(key=key, with_index=False)
         if key is None and not with_index:
             if hasattr(self, "_vector__max"):
                 return self.__max
@@ -1764,7 +1751,7 @@ class vector(list):
         return self[m_index]
 
 
-    def min(self, key=None, with_index=False):
+    def min(self, key=None, with_index=False, recursive=False):
         """min.
 
         Parameters
@@ -1776,6 +1763,8 @@ class vector(list):
         """
         if len(self) == 0:
             return None
+        if recursive:
+            return self.flatten().min(key=key, with_index=False)
         if key is None and not with_index:
             if hasattr(self, "_vector__min"):
                 return self.__min
@@ -2226,7 +2215,7 @@ class vector(list):
         """
         return len(self)
 
-    def onehot(self, max_length=-1, default_dict={}):
+    def onehot(self, max_length: int=-1, default_dict: Dict[Any, int]={}):
         """onehot.
         get onehot representation of the vector
 
@@ -2272,22 +2261,22 @@ class vector(list):
             return ret
         return temp_list.map(lambda x: create_onehot_vector(x, max_length))
 
-    def sort(self, key=lambda x: x):
+    def sort(self, key: Callable=lambda x: x, reverse: bool=False):
         if key == None:
             return self
         if self.length == 0:
             return self
-        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
+        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]), reverse=reverse)
         index_mapping_reverse = [x[1] for x in temp]
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
         return self.map_index(index_mapping)
 
-    def sort_(self, key=lambda x: x):
+    def sort_(self, key=lambda x: x, reverse: bool=False):
         if key == None:
             return
         if self.length == 0:
             return
-        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]))
+        temp = sorted(vector.zip(self, vector.range(self.length)), key=lambda x: key(x[0]), reverse=reverse)
         index_mapping_reverse = [x[1] for x in temp]
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
         self.map_index_(index_mapping)
@@ -2406,11 +2395,20 @@ class vector(list):
     def to_dict(self, key_func, value_func) -> Dict:
         return {key_func(x): value_func(x) for x in super().__iter__()}
 
-    def plot(self, ax=None, title=None, smooth=-1, saved_path=None, legend=None):
+    def plot(self, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None):
+        """
+        plot line graph for vector
+        title: title of the graph
+        smooth: windows size of smoothing
+        saved_path: path to save the graph
+        legend: list of legend string
+        hline: list, can be None or contains "top" or/and "bottom", to plot a horizontal line corresponding to the biggest or smallest value
+        """
         from matplotlib import pyplot as plt
         _has_ax = ax is not None
         if ax is None:
             ax = plt.gca()
+            ax.clear()
         else:
             assert saved_path is None
         if self.check_type(float) or self.check_type(int):
@@ -2423,11 +2421,26 @@ class vector(list):
                 legend = vector.range(len(splited_vector)).map(str)
         else:
             raise ValueError
+        ymin, ymax = ax.get_ylim()
+        xmin, xmax = ax.get_xlim()
+        boundary_margin = 1 / 30 * (xmax - xmin)
+        plt.xlim(-boundary_margin, self.length - 1 + boundary_margin)
 
         if title:
             ax.set_title(title)
         if legend:
             ax.legend(legend)
+        for index in range(2):
+            if index == 0 and touch(lambda: "top" in hline):
+                h_line = self.max(recursive=True)
+                text = "max: {:.4g}".format(h_line)
+            elif index == 1 and touch(lambda: "bottom" in hline):
+                h_line = self.min(recursive=True)
+                text = "min: {:.4g}".format(h_line)
+            else:
+                continue
+            ax.plot([-boundary_margin, self.length - 1 + boundary_margin], [h_line, h_line], "-.", linewidth=0.5, color="gray")
+            ax.text(-boundary_margin / 2, h_line + (ymax - ymin) / 100, text, color="gray", fontsize=10)
         if not _has_ax:
             if saved_path is not None:
                 if saved_path.endswith("pdf"):
@@ -2574,6 +2587,15 @@ class vector(list):
             args
         """
         return vector(range(*args))
+
+    @staticmethod
+    def from_randomwalk(start, transition_function, length):
+        ret = vector([start])
+        temp = start
+        for index in range(length-1):
+            temp = transition_function(start)
+            ret.append(temp)
+        return ret
 
     def iid(self, sample_func, length, args=()):
         return vector([sample_func(*args) for _ in range(length)])
@@ -2969,7 +2991,7 @@ class vector(list):
 
     def map_index_from_(self, x):
         assert isinstance(x, vector)
-        self.map_index(x.index_mapping)
+        self.map_index_(x.index_mapping)
 
     def map_reverse_index(self, reverse_index_mapping: "IndexMapping"):
         assert isinstance(reverse_index_mapping, IndexMapping)

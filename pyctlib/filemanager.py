@@ -609,6 +609,17 @@ class path(str):
         except AttributeError:
             raise AttributeError("{} is not a method/attribute of path, the most similar name is {}".format(name, vector(dir(self)).fuzzy_search(name, 3)))
 
+    def file_size(self):
+        def convert_bytes(num):
+            """
+            this function will convert bytes to MB.... GB... etc
+            """
+            for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
+                if num < 1000.0:
+                    return "%3.1f %s" % (num, x)
+                num /= 1000.0
+        return convert_bytes(os.stat(str(self)).st_size)
+
 class file(path):
 
     endl = "\n"

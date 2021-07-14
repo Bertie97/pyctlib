@@ -3,8 +3,7 @@ from .filemanager import path
 from .touch import touch
 from .vector import vector
 import time
-from datetime import timedelta
-from datetime import datetime
+from datetime import timedelta, datetime
 import atexit
 import sys
 from functools import wraps
@@ -12,14 +11,23 @@ from typing import Callable, Dict, Union
 import random
 import string
 import argparse
+# from wrapt_timeout_decorator import timeout
+from .basicwrapper import timeout, TimeoutException
 import re
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+import os
+import notion
+from notion.operations import build_operation
+from notion.client import NotionClient
+import mimetypes
+import requests
 """
 from pyctlib import vector, touch
+from pyctlib.basicwrapper import timeout, TimeoutException
 """
 
-__all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger"]
+__all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger", "TimeoutException", "upload_file_to_row_property"]
 
 DEBUG = logging.DEBUG
 INFO = logging.INFO
@@ -29,6 +37,8 @@ ERROR = logging.ERROR
 NOTSET = logging.NOTSET
 
 level_to_name = {DEBUG:     "DEBUG", INFO:     "INFO", WARNING:     "WARNING", CRITICAL:     "CRITICAL", ERROR:     "ERROR", NOTSET:     "NOTSET"}
+
+color_dict = {c: "\033[1;%dm" % (30+index) for index, c in enumerate(["BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE"])}
 
 class EmptyClass:
 
@@ -49,9 +59,65 @@ UnDefined = EmptyClass("Not Defined")
 def empty_func(*args, **kwargs):
     return
 
+class ElapsedFormatter():
+
+    def __init__(self):
+        self.start_time = time.time()
+
+    def format(self, record):
+        elapsed_seconds = record.created - self.start_time
+        #using timedelta here for convenient default formatting
+        elapsed = timedelta(seconds = elapsed_seconds)
+        return "{} - {}".format(elapsed, record.getMessage())
+
+class ColoredFormatter:
+
+    def __init__(self, use_color: bool=True, deltatime: bool=False):
+        self.use_color = use_color
+        self.deltatime = deltatime
+        self.start_time = time.time()
+
+    @staticmethod
+    def formatter_message(message: str, use_color: bool=True):
+        if use_color:
+            for color, seq in color_dict.items():
+                message = message.replace("(%{})".format(color), seq)
+            message = message.replace("(%RESET)", "\033[0m")
+        else:
+            for color, seq in color_dict.items():
+                message = message.replace("(%{})".format(color), "")
+            message = message.replace("(%RESET)", "")
+        return message
+
+    def format(self, record):
+        if self.deltatime:
+            elapsed_seconds = record.created - self.start_time
+            displaied_time = timedelta(seconds= elapsed_seconds)
+        else:
+            displaied_time = str(datetime.now())[:-3]
+        ret = "(%BLUE){}(%RESET) - {}".format(displaied_time, record.getMessage())
+        ret = self.formatter_message(ret, self.use_color)
+        return ret
+
+def upload_file_to_row_property(client, row, path, property_name):
+    mimetype = mimetypes.guess_type(path)[0] or "text/plain"
+    filename = os.path.split(path)[-1]
+    data = client.post("getUploadFileUrl", {"bucket": "secure", "name": filename, "contentType": mimetype}, ).json()
+    # Return url, signedGetUrl, signedPutUrl
+    mangled_property_name = [e["id"] for e in row.schema if e["name"] == property_name][0]
+
+    with open(path, "rb") as f:
+        response = requests.put(data["signedPutUrl"], data=f, headers={"Content-type": mimetype})
+        response.raise_for_status()
+    simpleurl = data['signedGetUrl'].split('?')[0]
+    op1 = build_operation(id=row.id, path=["properties", mangled_property_name], args=[[filename, [["a", simpleurl]]]], table="block", command="set")
+    file_id = simpleurl.split("/")[-2]
+    op2 = build_operation(id=row.id, path=["file_ids"], args={"id": file_id}, table="block", command="listAfter")
+    client.submit_transaction([op1, op2])
+
 class Logger:
 
-    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False):
+    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, deltatime: bool=False, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False, notion_page_link=None):
         self.name = name
         if stream_log_level is True:
             self.stream_log_level = logging.DEBUG
@@ -61,17 +127,21 @@ class Logger:
             self.file_log_level = logging.DEBUG
         else:
             self.file_log_level = file_log_level
+        self.__disabled = disable
+        self._deltatime = deltatime
         self.f_path = file_path
         self.f_name = file_name
         self.c_format = c_format
         self.f_format = f_format
-        self.__disabled = disable
         self.start_time = time.time()
         self._parser = argparse.ArgumentParser(add_help=False)
         self._parser.add_argument("--disable-logging", dest="disabled", action="store_true")
         self.sysargv = self._parser.parse_known_args(sys.argv)[0]
         self.variable_dict = {}
         self.autoplot_variable = autoplot_variable
+        self.notion_page_link = notion_page_link
+        self.__update_notion_buffer = dict()
+        self.__update_notion_file_buffer = dict()
         atexit.register(self.record_elapsed)
 
     @property
@@ -96,6 +166,7 @@ class Logger:
             return self.__logger
         else:
             self.__logger = logging.getLogger(self.name)
+            self.__logger.propagate = False
             for handler in self.__logger.handlers[:]:
                 self.__logger.removeHandler(handler)
             for f in self.__logger.filters[:]:
@@ -169,27 +240,29 @@ class Logger:
             return None
         self._c_handler = logging.StreamHandler()
         self._c_handler.setLevel(self.stream_log_level)
-        self._c_handler.setFormatter(logging.Formatter(self.c_format))
+        self._c_handler.setFormatter(self.c_format)
         return self._c_handler
 
     @property
     def f_handler(self):
         if touch(lambda: self._f_handler, UnDefined) is not UnDefined:
             return self._f_handler
+        if self.file_log_level is False:
+            self._f_handler = None
+            return None
         if self.file_log_level is None:
             self._f_handler = None
             return None
         self._f_handler = logging.FileHandler(self.get_f_fullpath(), "w")
         self._f_handler.setLevel(self.file_log_level)
-        self._f_handler.setFormatter(logging.Formatter(self.f_format))
+        self._f_handler.setFormatter(self.f_format)
         return self._f_handler
 
     @property
     def c_format(self):
         if touch(lambda: self._c_format, None) is not None:
             return self._c_format
-        # self._c_format = "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
-        self._c_format = "%(asctime)s - %(message)s"
+        self._c_format = ColoredFormatter(True, self._deltatime)
         return self._c_format
 
     @c_format.setter
@@ -202,13 +275,15 @@ class Logger:
     def f_format(self):
         if touch(lambda: self._f_format, None) is not None:
             return self._f_format
-        self._f_format = "%(asctime)s - %(message)s"
+        self._f_format = ColoredFormatter(False, self._deltatime)
         return self._f_format
 
     @f_format.setter
     def f_format(self, value):
         if value is None:
-            return
+            return None
+        if self.file_log_level is False:
+            return None
         if self.file_log_level is None:
             self.file_log_level = logging.DEBUG
         self._f_format = value
@@ -217,13 +292,15 @@ class Logger:
     def f_path(self):
         if touch(lambda: self._f_path, None) is not None:
             return self._f_path
+        if self.file_log_level is False:
+            return None
         self._f_path = path("Log").mkdir()
         return self._f_path
 
     @f_path.setter
     def f_path(self, value):
         if value is None:
-            return
+            return None
         if self.file_log_level is None:
             self.file_log_level = logging.DEBUG
         if value.endswith(".log"):
@@ -236,10 +313,19 @@ class Logger:
 
     @property
     def f_name(self):
-        if touch(lambda: self._f_name, None) is not None:
-            return self._f_name
-        self._f_name = time.strftime("%Y-%m%d-%H", time.localtime(time.time())) + ".log"
-        return self._f_name
+        if touch(lambda: self.__f_real_name, None) is not None:
+            return self.__f_real_name
+        if self.file_log_level is False:
+            return None
+        self.__f_real_name = self.get_f_fullpath().fullname
+        return self.__f_real_name
+
+    @property
+    def _f_name(self):
+        if touch(lambda: self.__f_name, None) is not None:
+            return self.__f_name
+        self.__f_name = time.strftime("%Y-%m%d-%H", time.localtime(time.time())) + ".log"
+        return self.__f_name
 
     @f_name.setter
     def f_name(self, value: str):
@@ -248,22 +334,24 @@ class Logger:
         if self.file_log_level is None:
             self.file_log_level = logging.DEBUG
         if value.endswith(".log"):
-            self._f_name = value
-        self._f_name = value + ".log"
-        self._f_name = self._f_name.replace("{time}", "%Y-%m%d-%H")
-        self._f_name = datetime.now().strftime(self._f_name)
+            self.__f_name = value
+        self.__f_name = value + ".log"
+        self.__f_name = self.__f_name.replace("{time}", "%Y-%m%d-%H")
+        self.__f_name = datetime.now().strftime(self.__f_name)
 
     def get_f_fullpath(self) -> Union[path, None]:
         if self.file_log_level is None:
             return None
+        if self.file_log_level is False:
+            return None
         if hasattr(self, "_Logger__f_fullpath"):
             return self.__f_fullpath
-        if not (self.f_path / self.f_name).isfile():
-            self.__f_fullpath: path = self.f_path / self.f_name
+        if not (self.f_path / self._f_name).isfile():
+            self.__f_fullpath: path = self.f_path / self._f_name
             return self.__f_fullpath
         index = 1
         while True:
-            temp_path = self.f_path / (self.f_name[:-4] + "-{}".format(index) + ".log")
+            temp_path = self.f_path / (self._f_name[:-4] + "-{}".format(index) + ".log")
             if not temp_path.isfile():
                 self.__f_fullpath: path = temp_path
                 return self.__f_fullpath
@@ -309,9 +397,9 @@ class Logger:
                 loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
-                self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+                self.logger.info("{}[line:{}] - (%WHITE)INFO(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
-            self.logger.info("{}[line:{}] - INFO: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
+            self.logger.info("{}[line:{}] - (%WHITE)INFO(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
     def warning(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
@@ -325,9 +413,9 @@ class Logger:
                 loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
-                self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+                self.logger.warning("{}[line:{}] - (%YELLOW)WARNING(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
-            self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
+            self.logger.warning("{}[line:{}] - (%YELLOW)WARNING(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
     def critical(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
@@ -373,14 +461,17 @@ class Logger:
                 loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
-                self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+                self.logger.exception("{}[line:{}] - (%RED)EXCEPTION(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
-            self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
+            self.logger.exception("{}[line:{}] - (%RED)EXCEPTION(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
     @staticmethod
     def _update_variable_dict(variable_dict, variable_name, variable):
         if variable_name not in variable_dict:
-            variable_dict[variable_name] = variable
+            if not isinstance(variable, list):
+                variable_dict[variable_name] = variable
+            else:
+                variable_dict[variable_name] = vector([vector(variable)])
         else:
             if isinstance(variable_dict[variable_name], vector):
                 variable_dict[variable_name].append(variable)
@@ -394,7 +485,7 @@ class Logger:
             raise Exception
         except:
             f = sys.exc_info()[2].tb_frame.f_back
-        self.logger.info("{}[line:{}] - VARIABLE<{}>: {}".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
+        self.logger.info("{}[line:{}] - VARIABLE<(%MAGENTA){}(%RESET)>: (%CYAN){}(%RESET)".format(f.f_code.co_filename, f.f_lineno, variable_name, variable))
         regex = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
         m = regex.match(variable_name)
         if not m:
@@ -405,6 +496,138 @@ class Logger:
             if group_name not in self.variable_dict:
                 self.variable_dict[group_name] = dict()
             Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
+
+    def notion_buffer_flush(self, T=10):
+        if len(self.__update_notion_buffer) == 0 and len(self.__update_notion_file_buffer) == 0:
+            return
+        if "NOTION_TOKEN_V2" not in os.environ:
+            self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
+        if self.notion_page_link is None or self.notion_page_link == "":
+            self.warning("plz provide notion_page_link for logger object to use notion_update")
+            return
+        flag = False
+        for _ in range(3):
+            try:
+                flag = self.__get_notion_client_and_page()
+            except TimeoutException:
+                pass
+            if flag:
+                break
+        if not flag:
+            self.warning("failed to get notion client and page, exit")
+            return
+        for _ in range(T):
+            temp_set_variable = set()
+            temp_set_file = set()
+            for variable_name, variable in self.__update_notion_buffer.items():
+                try:
+                    self.__update_notion(variable_name, variable)
+                except TimeoutException:
+                    self.warning("update notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+                except Exception as e:
+                    self.exception(variable_name, variable, " cause exception: ", e)
+                else:
+                    temp_set_variable.add(variable_name)
+            for variable_name, variable in self.__update_notion_file_buffer.items():
+                try:
+                    self.__upload_notion_file(variable_name, variable)
+                except TimeoutException:
+                    self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+                except Exception as e:
+                    self.exception(variable_name, variable, " cause exception: ", e)
+                else:
+                    temp_set_file.add(variable_name)
+            for vm in temp_set_variable:
+                del self.__update_notion_buffer[vm]
+            for vm in temp_set_file:
+                del self.__update_notion_file_buffer[vm]
+            if len(self.__update_notion_buffer) == 0 and len(self.__update_notion_file_buffer) == 0:
+                break
+            time.sleep(10)
+        return
+
+    def update_notion(self, variable_name: str, variable, isfile=False):
+        if "NOTION_TOKEN_V2" not in os.environ:
+            self.warning("there is no $notion_token_v2 in system path. please check it")
+            return
+        if self.notion_page_link is None or self.notion_page_link == "":
+            self.warning("plz provide notion_page_link for logger object to use notion_update")
+            return
+        if not isfile:
+            self.__update_notion_buffer[variable_name] = variable
+        else:
+            self.__update_notion_file_buffer[variable_name] = variable
+        flag = False
+        self.info("start update notion", variable, variable_name)
+        for _ in range(3):
+            try:
+                flag = self.__get_notion_client_and_page()
+            except TimeoutException:
+                self.warning("get notion clinent and page Timeout, try again")
+                pass
+            if flag:
+                break
+        if not flag:
+            return
+        temp_set_variable = set()
+        temp_set_file = set()
+        for variable_name, variable in self.__update_notion_buffer.items():
+            try:
+                self.__update_notion(variable_name, variable)
+            except TimeoutException:
+                self.warning("update notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+            except Exception as e:
+                self.exception(variable_name, variable, " cause exception: ", e)
+            else:
+                temp_set_variable.add(variable_name)
+        for variable_name, variable in self.__update_notion_file_buffer.items():
+            try:
+                self.__upload_notion_file(variable_name, variable)
+            except TimeoutException:
+                self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+            except Exception as e:
+                self.exception(variable_name, variable, " cause exception: ", e)
+            else:
+                temp_set_file.add(variable_name)
+        for vm in temp_set_variable:
+            del self.__update_notion_buffer[vm]
+        for vm in temp_set_file:
+            del self.__update_notion_file_buffer[vm]
+        self.info("finish update notion, left with variable buffer <(%RED)" + str(self.__update_notion_buffer) + "(%RESET)> and file buffer <(%RED)" + str(self.__update_notion_buffer) + "(%RESET)>")
+        return
+
+    @timeout(10)
+    def __get_notion_client_and_page(self):
+        if not hasattr(self, "_notion_client") or not hasattr(self, "_notion_page"):
+            try:
+                self.debug("trying to connect to notion client")
+                self._notion_client = NotionClient(token_v2=os.environ["NOTION_TOKEN_V2"])
+                self.debug("successfully connect to notion client", self._notion_client)
+                self._notion_page = self._notion_client.get_block(self.notion_page_link)
+                self.debug("successfully get notion page")
+            except TimeoutException:
+                self.debug("get notion page Timeout")
+                return False
+            except Exception as e:
+                self.debug("cannot get notion page", type(e), e)
+                return False
+            else:
+                return True
+        else:
+            return True
+
+    @timeout(5)
+    def __update_notion(self, variable_name, variable):
+        self.info("start update notion page, property name (%MAGENTA){}(%RESET), to {}".format(variable_name, variable))
+        old_variable = self._notion_page.get_property(variable_name)
+        self._notion_page.set_property(variable_name, variable)
+        self.info("update notion page, property name (%MAGENTA){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
+
+    @timeout(180)
+    def __upload_notion_file(self, variable_name, variable):
+        self.info("start upload file (%BLUE){}(%RESET) to notion property (%MAGENTA){}(%RESET), file size: (%MAGENTA){}(%RESET)".format(variable, variable_name, path(variable).file_size()))
+        upload_file_to_row_property(self._notion_client, self._notion_page, variable, variable_name)
+        self.info("successfully update file (%BLUE){}(%RESET)".format(variable_name))
 
     @staticmethod
     def variable_from_logging_file(f_name):
@@ -438,7 +661,7 @@ class Logger:
         return variable_dict
 
     @staticmethod
-    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=5, ignore=None, multi_vector=None, tight_layout=False):
+    def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=0, ignore=None, multi_vector=None, tight_layout=False, hline=None):
         float_variable = vector()
         for key, value in variable_dict.items():
             if ignore is not None and key in ignore:
@@ -469,11 +692,11 @@ class Logger:
             ax = plt.subplot(rows, cols, index + 1)
             temp = variable_dict[float_variable[index]]
             if isinstance(temp, vector):
-                temp.plot(ax, title=float_variable[index], smooth=smooth)
+                temp.plot(ax, title=float_variable[index], smooth=smooth, hline=hline)
             elif isinstance(temp, dict):
-                x = vector.zip(temp.values())
+                x = vector.zip(temp.values()).map(lambda x: vector(x))
                 legend = vector(temp.keys())
-                x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend)
+                x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend, hline=hline)
         if tight_layout:
             plt.tight_layout()
         if saved_path is not None:
@@ -565,6 +788,8 @@ class Logger:
             return
         if not self.already_logging:
             return
+
+        self.notion_buffer_flush()
 
         if self.autoplot_variable:
             saved_plot_path = self.get_f_fullpath().with_ext("pdf")

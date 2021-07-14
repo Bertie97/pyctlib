@@ -101,11 +101,15 @@ class Linear(nn.Module):
 
     def regulization_loss(self, p=2):
         if self.hidden_dim is None:
-            return self.weight.norm(p=p)
+            if p == 2:
+                return self.weight.square().sum()
+            if p == 1:
+                return self.weight.abs().sum()
+            return (self.weight.abs() ** p).sum()
         else:
             reg = []
             for w in self.weight:
-                reg.append(w.norm(p=p))
+                reg.append((w.weight.abs() ** p).sum())
             return sum(reg)
 
 class test(nn.Module):

@@ -12,6 +12,7 @@ __all__ = """
 """.split()
 
 from functools import wraps
+import signal
 
 def raw_function(func):
     if "__func__" in dir(func):
@@ -47,3 +48,34 @@ def decorator(*wrapper_func, use_raw = True):
                 return wrapped_func
         return decorator(wrapper_func(*args, **kwargs))
     return wraps(wrapper_func)(wrapper)
+
+
+class TimeoutException(Exception):
+    pass
+
+def timeout(seconds_before_timeout):
+    if seconds_before_timeout == -1:
+        def wrapper(func):
+            @wraps(func)
+            def temp_func(*args, **kwargs):
+                return func(*args, **kwargs)
+            return temp_func
+        return wrapper
+    def decorate(f):
+        def handler(signum, frame):
+            raise TimeoutException
+        def new_f(*args, **kwargs):
+            old = signal.signal(signal.SIGALRM, handler)
+            signal.alarm(seconds_before_timeout)
+            try:
+                result = f(*args, **kwargs)
+            finally:
+                # reinstall the old signal handler
+                signal.signal(signal.SIGALRM, old)
+                # cancel the alarm
+                # this line should be inside the "finally" block (per Sam Kortchmar)
+                signal.alarm(0)
+            return result
+        # new_f.func_name = f.func_name
+        return new_f
+    return decorate

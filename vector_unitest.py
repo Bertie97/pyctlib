@@ -17,18 +17,16 @@ from time import sleep
 from pyctlib import totuple
 from pyctlib.touch import once
 
-with once:
-    print(1)
+for index in range(10):
+    if once:
+        print(1)
 
 print(pyctlib.__file__)
 
 from pyctlib import Logger
 logger = Logger(True, file_name="vector_test_{time}")
 
-for x in vector.randn(10):
-    print(x)
-    logger.variable("randn.1", x)
-    logger.variable("randn.2", x+1)
+vector.zeros(10).map(lambda x: 1./x)
 
 with scope("all"):
     vec = vector(1, 2, 3)

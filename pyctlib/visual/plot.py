@@ -8,6 +8,7 @@
 
 __all__ = """
     plot_ratemaps
+    plot_multiple_figure
 """.split()
 
 try:
@@ -51,3 +52,30 @@ def plot_ratemaps(ratemaps, cols=None, titles=None, interpolation="spline36", cm
             plt.savefig(saved_path, dpi=300)
     else:
         plt.show()
+
+def plot_multiple_figure(figure_names: vector, plot_handler, tight_layout=False, saved_path=None, max_cols=-1):
+    # plt.gca()
+    N = figure_names.length
+    if N == 0:
+        return False
+    if max_cols == -1:
+        cols = math.floor(math.sqrt(N))
+    else:
+        cols = min(math.floor(math.sqrt(N)), max_cols)
+    rows = (N + cols - 1) // cols
+    plt.clear()
+    fig = plt.figure(figsize=(cols * 4, rows * 4))
+    for index in range(N):
+        ax = plt.subplot(rows, cols, index + 1)
+        plot_handler[figure_names[index]](ax)
+    if tight_layout:
+        plt.tight_layout()
+    if saved_path is not None:
+        if saved_path.endswith("pdf"):
+            with PdfPages(saved_path, "w") as f:
+                plt.savefig(f, format="pdf")
+        else:
+            plt.savefig(saved_path, dpi=300)
+    else:
+        plt.show()
+    return True
