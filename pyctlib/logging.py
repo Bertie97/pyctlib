@@ -239,6 +239,9 @@ class Logger:
         if self.stream_log_level is None:
             self._c_handler = None
             return None
+        if self.stream_log_level is False:
+            self._c_handler = None
+            return None
         self._c_handler = logging.StreamHandler()
         self._c_handler.setLevel(self.stream_log_level)
         self._c_handler.setFormatter(self.c_format)
