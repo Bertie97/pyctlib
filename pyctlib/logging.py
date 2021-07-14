@@ -18,13 +18,16 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import os
 import notion
+from notion.operations import build_operation
 from notion.client import NotionClient
+import mimetypes
+import requests
 """
 from pyctlib import vector, touch
 from pyctlib.basicwrapper import timeout, TimeoutException
 """
 
-__all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger", "TimeoutException"]
+__all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger", "TimeoutException", "upload_file_to_row_property"]
 
 DEBUG = logging.DEBUG
 INFO = logging.INFO
@@ -96,6 +99,22 @@ class ColoredFormatter:
         ret = self.formatter_message(ret, self.use_color)
         return ret
 
+def upload_file_to_row_property(client, row, path, property_name):
+    mimetype = mimetypes.guess_type(path)[0] or "text/plain"
+    filename = os.path.split(path)[-1]
+    data = client.post("getUploadFileUrl", {"bucket": "secure", "name": filename, "contentType": mimetype}, ).json()
+    # Return url, signedGetUrl, signedPutUrl
+    mangled_property_name = [e["id"] for e in row.schema if e["name"] == property_name][0]
+
+    with open(path, "rb") as f:
+        response = requests.put(data["signedPutUrl"], data=f, headers={"Content-type": mimetype})
+        response.raise_for_status()
+    simpleurl = data['signedGetUrl'].split('?')[0]
+    op1 = build_operation(id=row.id, path=["properties", mangled_property_name], args=[[filename, [["a", simpleurl]]]], table="block", command="set")
+    file_id = simpleurl.split("/")[-2]
+    op2 = build_operation(id=row.id, path=["file_ids"], args={"id": file_id}, table="block", command="listAfter")
+    client.submit_transaction([op1, op2])
+
 class Logger:
 
     def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, deltatime: bool=False, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False, notion_page_link=None):
@@ -122,6 +141,7 @@ class Logger:
         self.autoplot_variable = autoplot_variable
         self.notion_page_link = notion_page_link
         self.__update_notion_buffer = dict()
+        self.__update_notion_file_buffer = dict()
         atexit.register(self.record_elapsed)
 
     @property
@@ -477,8 +497,8 @@ class Logger:
                 self.variable_dict[group_name] = dict()
             Logger._update_variable_dict(self.variable_dict[group_name], variable_name, variable)
 
-    def notion_buffer_flush(self):
-        if len(self.__update_notion_buffer) == 0:
+    def notion_buffer_flush(self, T=10):
+        if len(self.__update_notion_buffer) == 0 and len(self.__update_notion_file_buffer) == 0:
             return
         if "NOTION_TOKEN_V2" not in os.environ:
             self.warning("there is no $NOTION_TOKEN_V2 in system path. Please check it")
@@ -496,46 +516,84 @@ class Logger:
         if not flag:
             self.warning("failed to get notion client and page, exit")
             return
-        for _ in range(10):
-            try:
-                self.__update_notion()
-            except TimeoutException:
-                self.warning("update notion database Timeout", self.__update_notion_buffer)
-            except Exception as e:
-                self.exception(variable_name, variable, " cause exception: ", e)
-            else:
-                return
+        for _ in range(T):
+            temp_set_variable = set()
+            temp_set_file = set()
+            for variable_name, variable in self.__update_notion_buffer.items():
+                try:
+                    self.__update_notion(variable_name, variable)
+                except TimeoutException:
+                    self.warning("update notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+                except Exception as e:
+                    self.exception(variable_name, variable, " cause exception: ", e)
+                else:
+                    temp_set_variable.add(variable_name)
+            for variable_name, variable in self.__update_notion_file_buffer.items():
+                try:
+                    self.__upload_notion_file(variable_name, variable)
+                except TimeoutException:
+                    self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+                except Exception as e:
+                    self.exception(variable_name, variable, " cause exception: ", e)
+                else:
+                    temp_set_file.add(variable_name)
+            for vm in temp_set_variable:
+                del self.__update_notion_buffer[vm]
+            for vm in temp_set_file:
+                del self.__update_notion_file_buffer[vm]
+            if len(self.__update_notion_buffer) == 0 and len(self.__update_notion_file_buffer) == 0:
+                break
+            time.sleep(10)
         return
 
-    def update_notion(self, variable_name: str, variable):
+    def update_notion(self, variable_name: str, variable, isfile=False):
         if "NOTION_TOKEN_V2" not in os.environ:
             self.warning("there is no $notion_token_v2 in system path. please check it")
             return
         if self.notion_page_link is None or self.notion_page_link == "":
             self.warning("plz provide notion_page_link for logger object to use notion_update")
             return
-        self.__update_notion_buffer[variable_name] = variable
+        if not isfile:
+            self.__update_notion_buffer[variable_name] = variable
+        else:
+            self.__update_notion_file_buffer[variable_name] = variable
         flag = False
         self.info("start update notion", variable, variable_name)
         for _ in range(3):
             try:
                 flag = self.__get_notion_client_and_page()
             except TimeoutException:
-                self.warning("Timeout, try again")
+                self.warning("get notion clinent and page Timeout, try again")
                 pass
             if flag:
                 break
         if not flag:
             return
-        try:
-            self.__update_notion()
-        except TimeoutException:
-            self.warning("update notion database Timeout", self.__update_notion_buffer)
-        except Exception as e:
-            self.exception(variable_name, variable, " cause exception: ", e)
-        else:
-            self.__update_notion_buffer = dict()
-        self.info("finish update notion")
+        temp_set_variable = set()
+        temp_set_file = set()
+        for variable_name, variable in self.__update_notion_buffer.items():
+            try:
+                self.__update_notion(variable_name, variable)
+            except TimeoutException:
+                self.warning("update notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+            except Exception as e:
+                self.exception(variable_name, variable, " cause exception: ", e)
+            else:
+                temp_set_variable.add(variable_name)
+        for variable_name, variable in self.__update_notion_file_buffer.items():
+            try:
+                self.__upload_notion_file(variable_name, variable)
+            except TimeoutException:
+                self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+            except Exception as e:
+                self.exception(variable_name, variable, " cause exception: ", e)
+            else:
+                temp_set_file.add(variable_name)
+        for vm in temp_set_variable:
+            del self.__update_notion_buffer[vm]
+        for vm in temp_set_file:
+            del self.__update_notion_file_buffer[vm]
+        self.info("finish update notion, left with variable buffer <(%RED)" + str(self.__update_notion_buffer) + "(%RESET)> and file buffer <(%RED)" + str(self.__update_notion_buffer) + "(%RESET)>")
         return
 
     @timeout(10)
@@ -559,12 +617,17 @@ class Logger:
             return True
 
     @timeout(5)
-    def __update_notion(self):
-        for variable_name, variable in self.__update_notion_buffer.items():
-            self.info("start update notion page, property name (%MAGENTA){}(%RESET), to {}".format(variable_name, variable))
-            old_variable = getattr(self._notion_page, variable_name)
-            setattr(self._notion_page, variable_name, variable)
-            self.info("update notion page, property name (%MAGENTA){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
+    def __update_notion(self, variable_name, variable):
+        self.info("start update notion page, property name (%MAGENTA){}(%RESET), to {}".format(variable_name, variable))
+        old_variable = self._notion_page.get_property(variable_name)
+        self._notion_page.set_property(variable_name, variable)
+        self.info("update notion page, property name (%MAGENTA){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
+
+    @timeout(180)
+    def __upload_notion_file(self, variable_name, variable):
+        self.info("start upload file (%BLUE){}(%RESET) to notion property (%MAGENTA){}(%RESET), file size: (%MAGENTA){}(%RESET)".format(variable, variable_name, path(variable).file_size()))
+        upload_file_to_row_property(self._notion_client, self._notion_page, variable, variable_name)
+        self.info("successfully update file (%BLUE){}(%RESET)".format(variable_name))
 
     @staticmethod
     def variable_from_logging_file(f_name):

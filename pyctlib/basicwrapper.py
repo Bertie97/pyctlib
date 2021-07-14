@@ -54,6 +54,13 @@ class TimeoutException(Exception):
     pass
 
 def timeout(seconds_before_timeout):
+    if seconds_before_timeout == -1:
+        def wrapper(func):
+            @wraps(func)
+            def temp_func(*args, **kwargs):
+                return func(*args, **kwargs)
+            return temp_func
+        return wrapper
     def decorate(f):
         def handler(signum, frame):
             raise TimeoutException
