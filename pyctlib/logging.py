@@ -393,9 +393,9 @@ class Logger:
                 loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
-                self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+                self.logger.warning("{}[line:{}] - (%YELLOW)WARNING(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
-            self.logger.warning("{}[line:{}] - WARNING: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
+            self.logger.warning("{}[line:{}] - (%YELLOW)WARNING(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
     def critical(self, *msgs, sep=" ", loc_bias=0):
         if self.disabled:
@@ -441,9 +441,9 @@ class Logger:
                 loc_bias -= 1
         if sep == "\n":
             for msg in msgs:
-                self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, msg))
+                self.logger.exception("{}[line:{}] - (%RED)EXCEPTION(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
-            self.logger.exception("{}[line:{}] - EXCEPTION: {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
+            self.logger.exception("{}[line:{}] - (%RED)EXCEPTION(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
     @staticmethod
     def _update_variable_dict(variable_dict, variable_name, variable):
@@ -561,10 +561,10 @@ class Logger:
     @timeout(5)
     def __update_notion(self):
         for variable_name, variable in self.__update_notion_buffer.items():
-            self.info("start update notion page, property name (%RED){}(%RESET), to {}".format(variable_name, variable))
+            self.info("start update notion page, property name (%MAGENTA){}(%RESET), to {}".format(variable_name, variable))
             old_variable = getattr(self._notion_page, variable_name)
             setattr(self._notion_page, variable_name, variable)
-            self.info("update notion page, property name (%RED){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
+            self.info("update notion page, property name (%MAGENTA){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
 
     @staticmethod
     def variable_from_logging_file(f_name):
