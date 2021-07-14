@@ -22,6 +22,7 @@ from notion.operations import build_operation
 from notion.client import NotionClient
 import mimetypes
 import requests
+import random
 """
 from pyctlib import vector, touch
 from pyctlib.basicwrapper import timeout, TimeoutException
@@ -580,15 +581,16 @@ class Logger:
                 self.exception(variable_name, variable, " cause exception: ", e)
             else:
                 temp_set_variable.add(variable_name)
-        for variable_name, variable in self.__update_notion_file_buffer.items():
-            try:
-                self.__upload_notion_file(variable_name, variable)
-            except TimeoutException:
-                self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
-            except Exception as e:
-                self.exception(variable_name, variable, " cause exception: ", e)
-            else:
-                temp_set_file.add(variable_name)
+        if isfile:
+            for variable_name, variable in self.__update_notion_file_buffer.items():
+                try:
+                    self.__upload_notion_file(variable_name, variable)
+                except TimeoutException:
+                    self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+                except Exception as e:
+                    self.exception(variable_name, variable, " cause exception: ", e)
+                else:
+                    temp_set_file.add(variable_name)
         for vm in temp_set_variable:
             del self.__update_notion_buffer[vm]
         for vm in temp_set_file:
@@ -623,7 +625,7 @@ class Logger:
         self._notion_page.set_property(variable_name, variable)
         self.info("update notion page, property name (%MAGENTA){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
 
-    @timeout(180)
+    @timeout(360)
     def __upload_notion_file(self, variable_name, variable):
         self.info("start upload file (%BLUE){}(%RESET) to notion property (%MAGENTA){}(%RESET), file size: (%MAGENTA){}(%RESET)".format(variable, variable_name, path(variable).file_size()))
         upload_file_to_row_property(self._notion_client, self._notion_page, variable, variable_name)
@@ -659,6 +661,15 @@ class Logger:
                                 variable_dict[group_name] = dict()
                             Logger._update_variable_dict(variable_dict[group_name], variable_name, variable)
         return variable_dict
+
+    def upload_variable_dict_to_notion(self, property_name, title=None, smooth=0, ignore=None, multi_vector=None, tight_layout=False, hline=None):
+        if self.get_f_fullpath():
+            saved_path = self.get_f_fullpath().with_ext() + "_variable_dict.pdf"
+        else:
+            saved_path = path((str(random.randint(1, 10000)) + str(time.time())[:5] + "_variable_dict.pdf"))
+        self.plot_variable_dict(self.variable_dict, saved_path=saved_path, title=title, smooth=smooth, ignore=ignore, multi_vector=multi_vector, tight_layout=tight_layout, hline=hline)
+        self.update_notion(property_name, saved_path, isfile=True)
+        saved_path.rm()
 
     @staticmethod
     def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=0, ignore=None, multi_vector=None, tight_layout=False, hline=None):
