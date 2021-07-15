@@ -399,3 +399,6 @@ class bined_statistic_2d:
         elif self.statistic == "sum":
             self.histogram = result + self.histogram
         return self.histogram
+
+    def clear(self):
+        self.histogram = None
