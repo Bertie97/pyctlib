@@ -364,8 +364,10 @@ class bined_statistic_2d:
         self.N = 0
 
     def update(self, xs, ys, values):
-        assert len(xs) == len(ys) == len(values)
+        assert len(xs) == len(ys)
         n = len(xs)
+        if isinstance(values, np.ndarray) and values.ndim == 2:
+            values = [values[:, index] for index in range(values.shape[1])]
         if self.statistic == "mean":
             sum = binned_statistic_dd([xs, ys], values, statistic="sum", range=self.drange, bins=[self.xbins, self.ybins])[0]
             count = binned_statistic_dd([xs, ys], values, statistic="count", range=self.drange, bins=[self.xbins, self.ybins])[0]
