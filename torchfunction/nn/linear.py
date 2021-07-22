@@ -109,7 +109,7 @@ class Linear(nn.Module):
         else:
             reg = []
             for w in self.weight:
-                reg.append((w.weight.abs() ** p).sum())
+                reg.append((w.abs() ** p).sum())
             return sum(reg)
 
 class test(nn.Module):

@@ -1349,6 +1349,13 @@ class vector(list):
         """
         return vector(super().__add__(other))
 
+    def matrix_operation(self, other, op):
+        assert self.shape == other.shape
+        if self.dim == 1:
+            return vector.map_from([self, other], op)
+        else:
+            return vector.zip(self, other).map(lambda x, y: x.matrix_operation(y, op), split_tuple=True)
+
     def _transform(self, element, func=None):
         """_transform.
 
@@ -2153,7 +2160,24 @@ class vector(list):
             return array.map(vector).map(lambda x: temp_flatten(x, depth - 1)).reduce(lambda x, y: x + y)
         return temp_flatten(self, depth)
 
-    def reshape(self, *args):
+    def permute(self, *args) -> "vector":
+        args = totuple(args)
+        assert len(args) == len(self.shape)
+        assert vector(args).sort() == vector.range(len(args))
+        return vector(self.to_numpy().transpose(*args))
+
+    @property
+    def T(self) -> "vector":
+        dim = vector.range(len(self.shape))
+        return self.permute(dim[:-2] + dim[-2:][::-1])
+
+    def transpose(self, dim1: int, dim2: int) -> "vector":
+        shape = vector(self.shape)
+        shape[dim1] = dim2
+        shape[dim2] = dim1
+        return self.permute(shape)
+
+    def reshape(self, *args) -> "vector":
         """reshape.
 
         Parameters
@@ -2620,6 +2644,10 @@ class vector(list):
             return self.__shape
         self.__shape = (self.length, *(self[0].shape))
         return self.__shape
+
+    @property
+    def dim(self):
+        return len(self)
 
     def append(self, element, refuse_value=NoDefault):
         """append.
