@@ -4,7 +4,7 @@ def sigmod_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, red
     crit = torch.nn.BCEWithLogitsLoss(reduction=reduction)
     return crit(x, targets)
 
-def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, indice: int=-1, reduction: str="mean", keepdim: bool=False) -> torch.Tensor:
+def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, indice: int=-1, reduction: str="mean", keepdim: bool=False, target_sum_one=True) -> torch.Tensor:
     """
     Parameter:
     --------
@@ -16,8 +16,12 @@ def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, in
 
     if reduction != "none":
         keepdim = False
-    unnorm = - (x * targets).sum(indice, keepdim=keepdim)
-    ret = unnorm + torch.logsumexp(x, indice, keepdim=keepdim)
+    if not target_sum_one:
+        x = torch.softmax(x, dim=indice)
+        ret = - (targets * x).sum(indice, keepdim=keepdim)
+    else:
+        unnorm = - (x * targets).sum(indice, keepdim=keepdim)
+        ret = unnorm + torch.logsumexp(x, indice, keepdim=keepdim)
     if reduction == "mean":
         return ret.mean()
     elif reduction == "sum":

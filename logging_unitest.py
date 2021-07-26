@@ -24,10 +24,11 @@ import math
 import random
 from termcolor import colored
 
-logger = Logger(False, True)
+# logger = Logger(False, True)
+logger = Logger()
 
-logger.info("test")
-logger.info(colored('hello', 'red'), colored('world', 'green'))
+# logger.info("test")
+# logger.info(colored('hello', 'red'), colored('world', 'green'))
 
 # logger = Logger(True, False, deltatime=True, notion_page_link="https://www.notion.so/zhangyiteng/fe15b30065114f648a8dd16fc214e702")
 
