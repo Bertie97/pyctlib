@@ -18,7 +18,7 @@ def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, in
         keepdim = False
     if not target_sum_one:
         x = torch.softmax(x, dim=indice)
-        ret = - (targets * x).sum(indice, keepdim=keepdim)
+        ret = - (targets * torch.log(x)).sum(indice, keepdim=keepdim)
     else:
         unnorm = - (x * targets).sum(indice, keepdim=keepdim)
         ret = unnorm + torch.logsumexp(x, indice, keepdim=keepdim)
