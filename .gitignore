@@ -123,6 +123,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+.mypy_cache
 .dmypy.json
 dmypy.json
 
@@ -135,3 +136,4 @@ test.py
 test.*
 *.swp
 .DS_Store/
+.DS_Store
