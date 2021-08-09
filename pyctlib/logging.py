@@ -22,6 +22,7 @@ from notion.operations import build_operation
 from notion.client import NotionClient
 import mimetypes
 import requests
+import random
 """
 from pyctlib import vector, touch
 from pyctlib.basicwrapper import timeout, TimeoutException
@@ -100,6 +101,7 @@ class ColoredFormatter:
         return ret
 
 def upload_file_to_row_property(client, row, path, property_name):
+    path = str(path)
     mimetype = mimetypes.guess_type(path)[0] or "text/plain"
     filename = os.path.split(path)[-1]
     data = client.post("getUploadFileUrl", {"bucket": "secure", "name": filename, "contentType": mimetype}, ).json()
@@ -236,6 +238,9 @@ class Logger:
         if touch(lambda: self._c_handler, UnDefined) is not UnDefined:
             return self._c_handler
         if self.stream_log_level is None:
+            self._c_handler = None
+            return None
+        if self.stream_log_level is False:
             self._c_handler = None
             return None
         self._c_handler = logging.StreamHandler()
@@ -519,24 +524,24 @@ class Logger:
         for _ in range(T):
             temp_set_variable = set()
             temp_set_file = set()
-            for variable_name, variable in self.__update_notion_buffer.items():
+            for property_name, variable in self.__update_notion_buffer.items():
                 try:
-                    self.__update_notion(variable_name, variable)
+                    self.__update_notion(property_name, variable)
                 except TimeoutException:
                     self.warning("update notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
                 except Exception as e:
-                    self.exception(variable_name, variable, " cause exception: ", e)
+                    self.exception(property_name, variable, " cause exception: ", e)
                 else:
-                    temp_set_variable.add(variable_name)
-            for variable_name, variable in self.__update_notion_file_buffer.items():
+                    temp_set_variable.add(property_name)
+            for property_name, variable in self.__update_notion_file_buffer.items():
                 try:
-                    self.__upload_notion_file(variable_name, variable)
+                    self.__upload_notion_file(property_name, variable)
                 except TimeoutException:
                     self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
                 except Exception as e:
-                    self.exception(variable_name, variable, " cause exception: ", e)
+                    self.exception(property_name, variable, " cause exception: ", e)
                 else:
-                    temp_set_file.add(variable_name)
+                    temp_set_file.add(property_name)
             for vm in temp_set_variable:
                 del self.__update_notion_buffer[vm]
             for vm in temp_set_file:
@@ -546,7 +551,7 @@ class Logger:
             time.sleep(10)
         return
 
-    def update_notion(self, variable_name: str, variable, isfile=False):
+    def update_notion(self, property_name: str, variable, isfile=False):
         if "NOTION_TOKEN_V2" not in os.environ:
             self.warning("there is no $notion_token_v2 in system path. please check it")
             return
@@ -554,11 +559,11 @@ class Logger:
             self.warning("plz provide notion_page_link for logger object to use notion_update")
             return
         if not isfile:
-            self.__update_notion_buffer[variable_name] = variable
+            self.__update_notion_buffer[property_name] = variable
         else:
-            self.__update_notion_file_buffer[variable_name] = variable
+            self.__update_notion_file_buffer[property_name] = variable
         flag = False
-        self.info("start update notion", variable, variable_name)
+        self.info("start update notion property: {}, with value {}".format(property_name, variable))
         for _ in range(3):
             try:
                 flag = self.__get_notion_client_and_page()
@@ -571,24 +576,25 @@ class Logger:
             return
         temp_set_variable = set()
         temp_set_file = set()
-        for variable_name, variable in self.__update_notion_buffer.items():
+        for property_name, variable in self.__update_notion_buffer.items():
             try:
-                self.__update_notion(variable_name, variable)
+                self.__update_notion(property_name, variable)
             except TimeoutException:
                 self.warning("update notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
             except Exception as e:
-                self.exception(variable_name, variable, " cause exception: ", e)
+                self.exception(property_name, variable, " cause exception: ", e)
             else:
-                temp_set_variable.add(variable_name)
-        for variable_name, variable in self.__update_notion_file_buffer.items():
-            try:
-                self.__upload_notion_file(variable_name, variable)
-            except TimeoutException:
-                self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
-            except Exception as e:
-                self.exception(variable_name, variable, " cause exception: ", e)
-            else:
-                temp_set_file.add(variable_name)
+                temp_set_variable.add(property_name)
+        if isfile:
+            for property_name, variable in self.__update_notion_file_buffer.items():
+                try:
+                    self.__upload_notion_file(property_name, variable)
+                except TimeoutException:
+                    self.warning("upload file to notion database Timeout, notion buffer: <{}>, notion file buffer: <{}>".format(self.__update_notion_buffer, self.__update_notion_file_buffer))
+                except Exception as e:
+                    self.exception(property_name, variable, " cause exception: ", e)
+                else:
+                    temp_set_file.add(property_name)
         for vm in temp_set_variable:
             del self.__update_notion_buffer[vm]
         for vm in temp_set_file:
@@ -623,7 +629,7 @@ class Logger:
         self._notion_page.set_property(variable_name, variable)
         self.info("update notion page, property name (%MAGENTA){}(%RESET), from {} to {}".format(variable_name, old_variable, variable))
 
-    @timeout(180)
+    @timeout(360)
     def __upload_notion_file(self, variable_name, variable):
         self.info("start upload file (%BLUE){}(%RESET) to notion property (%MAGENTA){}(%RESET), file size: (%MAGENTA){}(%RESET)".format(variable, variable_name, path(variable).file_size()))
         upload_file_to_row_property(self._notion_client, self._notion_page, variable, variable_name)
@@ -659,6 +665,15 @@ class Logger:
                                 variable_dict[group_name] = dict()
                             Logger._update_variable_dict(variable_dict[group_name], variable_name, variable)
         return variable_dict
+
+    def upload_variable_dict_to_notion(self, property_name, title=None, smooth=0, ignore=None, multi_vector=None, tight_layout=False, hline=None):
+        if self.get_f_fullpath():
+            saved_path = self.get_f_fullpath().with_ext() + "_variable_dict.pdf"
+        else:
+            saved_path = path((str(random.randint(1, 10000)) + str(time.time())[:5] + "_variable_dict.pdf"))
+        self.plot_variable_dict(self.variable_dict, saved_path=saved_path, title=title, smooth=smooth, ignore=ignore, multi_vector=multi_vector, tight_layout=tight_layout, hline=hline)
+        self.update_notion(property_name, saved_path, isfile=True)
+        saved_path.rm()
 
     @staticmethod
     def plot_variable_dict(variable_dict: Dict[str, vector], saved_path=None, title=None, smooth=0, ignore=None, multi_vector=None, tight_layout=False, hline=None):

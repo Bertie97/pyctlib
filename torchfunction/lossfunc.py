@@ -1,10 +1,10 @@
 import torch
 
-def sigmod_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, reduction: str="mean"):
+def sigmod_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, reduction: str="mean") -> torch.Tensor:
     crit = torch.nn.BCEWithLogitsLoss(reduction=reduction)
     return crit(x, targets)
 
-def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, indice=-1, reduction: str="mean", keepdim=False):
+def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, indice: int=-1, reduction: str="mean", keepdim: bool=False, target_sum_one=True) -> torch.Tensor:
     """
     Parameter:
     --------
@@ -16,8 +16,12 @@ def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, in
 
     if reduction != "none":
         keepdim = False
-    unnorm = - (x * targets).sum(indice, keepdim=keepdim)
-    ret = unnorm +  torch.logsumexp(x, indice, keepdim=keepdim)
+    if not target_sum_one:
+        x = torch.softmax(x, dim=indice)
+        ret = - (targets * torch.log(x)).sum(indice, keepdim=keepdim)
+    else:
+        unnorm = - (x * targets).sum(indice, keepdim=keepdim)
+        ret = unnorm + torch.logsumexp(x, indice, keepdim=keepdim)
     if reduction == "mean":
         return ret.mean()
     elif reduction == "sum":
@@ -27,7 +31,7 @@ def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, in
     else:
         raise ValueError
 
-def softmax_cross_entropy_with_logits_sparse(x: torch.Tensor, target: torch.LongTensor, reduction: str="mean", keepdim=False, smoothing=0):
+def softmax_cross_entropy_with_logits_sparse(x: torch.Tensor, target: torch.LongTensor, reduction: str="mean", keepdim: bool=False, smoothing: float=0) -> torch.Tensor:
     if reduction != "none":
         keepdim = False
     if smoothing == 0:
@@ -47,7 +51,7 @@ def softmax_cross_entropy_with_logits_sparse(x: torch.Tensor, target: torch.Long
         else:
             raise ValueError
 
-def entropy(x: torch.Tensor, normalized=True, dim=-1, reduction: str="none"):
+def entropy(x: torch.Tensor, normalized: bool=True, dim: int=-1, reduction: str="none") -> torch.Tensor:
     if not normalized:
         x = x.softmax(dim)
     entropy = - (x * torch.log(x + 1e-30)).sum(dim=dim)
@@ -59,7 +63,7 @@ def entropy(x: torch.Tensor, normalized=True, dim=-1, reduction: str="none"):
         return entropy.sum()
     raise ValueError
 
-def kl_divergence_with_logits(x: torch.Tensor, target: torch.Tensor, reduction: str="mean"):
+def kl_divergence_with_logits(x: torch.Tensor, target: torch.Tensor, reduction: str="mean") -> torch.Tensor:
     """
     x: shape[..., n], unnormalized log of probability of Q
     target: same shape as x, probability of P
