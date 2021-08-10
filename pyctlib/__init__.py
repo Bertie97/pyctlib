@@ -11,7 +11,7 @@ from .vector import totuple, recursive_apply, vector, generator_wrapper, ctgener
 from .basicwrapper import *
 from .wrapper import *
 from .filemanager import path, pathList, file
-# from .terminal import *
+from .terminal import *
 from .timing import *
 # from .visual import *
 from .logging import Logger
