@@ -2822,7 +2822,7 @@ class vector(list):
         """
         args = totuple(args)
         if len(args) == 0:
-            return self.sample(1, replace=replace, batch_size=batch_size, p=0)[0]
+            return self.sample(1, replace=replace, batch_size=batch_size, p=p)[0]
         if isinstance(args[-1], bool):
             replace = args[-1]
             args = args[:-1]
@@ -2830,8 +2830,8 @@ class vector(list):
             replace = args[-2]
             p = args[-1]
             args = args[:-2]
-        if len(args) == 0:
-            return vector()
+        # if len(args) == 0:
+        #     return vector()
         if batch_size > 1:
             args = (*args, batch_size)
         if len(args) == 1 and replace == False:
