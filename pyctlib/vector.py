@@ -2813,10 +2813,16 @@ class vector(list):
             replace
         p :
             p
+
+        sample from vector for given probability p
+        example:
+            vector.range(10).sample()
+            vector.range(10).sample(10)
+            vector.range(10).sample(10, replace=False)
         """
         args = totuple(args)
         if len(args) == 0:
-            return vector()
+            return self.sample(1, replace=replace, batch_size=batch_size, p=0)[0]
         if isinstance(args[-1], bool):
             replace = args[-1]
             args = args[:-1]
