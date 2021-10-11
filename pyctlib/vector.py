@@ -342,7 +342,14 @@ def numba_relu(x):
 
 @jit(nopython=True, cache=True)
 def numba_clip(x, x_low, x_upper):
-    return np.clip(x, x_low, x_upper)
+    shape = x.shape
+    x_flatten = x.flatten()
+    for i in range(len(x_flatten)):
+        if x_flatten[i] < x_low:
+            x_flatten[i] = x_low
+        elif x_flatten[i] > x_upper:
+            x_flatten[i] = x_upper
+    return x_flatten.reshape(shape)
 
 @jit(nopython=True, cache=True)
 def numba_maximum(x, a):
@@ -1790,7 +1797,7 @@ class vector(list):
         return self[m_index]
 
     def map_numba_function(self, numba_function, *args) -> "vector":
-        assert self.check_type(int) or self.check_type(float)
+        assert self.check_type(int, recursive=True) or self.check_type(float, recursive=True)
         ret = numba_function(self.to_numpy(), *args)
         if isinstance(ret, np.ndarray):
             return vector(ret)
