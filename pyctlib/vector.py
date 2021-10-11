@@ -1343,7 +1343,19 @@ class vector(list):
         ----------
         vector([1,2,3]) ** vector([2,3,4])
         will produce [(1, 2), (1, 3), (1, 4), (2, 2), (2, 3), (2, 4), (3, 2), (3, 3), (3, 4)]
+
+        vector([1,2,3]) ** 3
         """
+        if isinstance(other, int):
+            if other == 1:
+                return self
+            elif other == 2:
+                return vector([(i, j) for i in self for j in self])
+            elif other > 2:
+                return vector([(*i, j) for i in self ** (other - 1) for j in self])
+            else:
+                raise ValueError()
+
         return vector([(i, j) for i in self for j in other])
 
     def __add__(self, other: list):
@@ -2599,7 +2611,7 @@ class vector(list):
         if truncate_std is not None:
             ret = ret.clip(- truncate_std / std, truncate_std / std)
         if mean != 0 or std != 1:
-            ret.map_(lambda x: std * (x + mean))
+            ret.map_(lambda x: std * x + mean)
         return ret
 
     @overload
