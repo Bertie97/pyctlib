@@ -2578,7 +2578,7 @@ class vector(list):
         return ret
 
     @staticmethod
-    def randn(*args):
+    def randn(*args, mean=0, std=1, truncate_std=None):
         """randn.
 
         Parameters
@@ -2589,6 +2589,10 @@ class vector(list):
         args = totuple(args)
         ret = vector.from_numpy(np.random.randn(*args))
         ret._shape = args
+        if truncate_std is not None:
+            ret = ret.clip(- truncate_std / std, truncate_std / std)
+        if mean != 0 or std != 1:
+            ret.map_(lambda x: std * (x + mean))
         return ret
 
     @overload
