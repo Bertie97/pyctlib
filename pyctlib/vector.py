@@ -2006,9 +2006,13 @@ class vector(list):
         is equivalent to self.map(lambda x: x / self.norm(p))
 
         result is $\frac{x}{\|x\|_p}$
+
+        if all element are zeros, self will be returned
         """
         norm_p = self.norm(p)
-        return self.map(lambda x: x / self.norm(p))
+        if norm_p == 0:
+            return self
+        return self.map(lambda x: x / norm_p)
 
     def normalization_(self, p=1):
         """
@@ -2958,7 +2962,7 @@ class vector(list):
             split_len = round(remain_len * args[0])
             remain_len -= split_len
             split_num.append(split_len)
-            args.pop()
+            args = args[1:]
         assert split_num.sum() == self.length
         cumsum = split_num.cumsum()
         return tuple(self.shuffle().split_index(cumsum).map_index(sorted_index_mapping.reverse()))
