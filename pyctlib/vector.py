@@ -2615,7 +2615,7 @@ class vector(list):
         if truncate_std is not None:
             ret = ret.clip(- truncate_std / std, truncate_std / std)
         if mean != 0 or std != 1:
-            ret.map_(lambda x: std * x + mean)
+            ret = ret.rmap(lambda x: std * x + mean)
         return ret
 
     @overload
