@@ -9,6 +9,7 @@ __all__ = """
     raw_function
     return_type_wrapper
     decorator
+    second_argument
 """.split()
 
 from functools import wraps
@@ -48,6 +49,15 @@ def decorator(*wrapper_func, use_raw = True):
                 return wrapped_func
         return decorator(wrapper_func(*args, **kwargs))
     return wraps(wrapper_func)(wrapper)
+
+def second_argument(second_arg):
+
+    def wrapper(func):
+        @wraps(func)
+        def temp_func(first_arg):
+            return func(first_arg, second_arg)
+        return temp_func
+    return wrapper
 
 
 class TimeoutException(Exception):
