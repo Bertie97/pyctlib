@@ -50,15 +50,25 @@ def decorator(*wrapper_func, use_raw = True):
         return decorator(wrapper_func(*args, **kwargs))
     return wraps(wrapper_func)(wrapper)
 
-def second_argument(second_arg):
+def second_argument(*args):
 
-    def wrapper(func):
+    if len(args) == 1:
+        second_arg = args[0]
+        def wrapper(func):
+            @wraps(func)
+            def temp_func(first_arg):
+                return func(first_arg, second_arg)
+            return temp_func
+        return wrapper
+    elif len(args) == 2:
+        second_arg = args[0]
+        func = args[1]
         @wraps(func)
-        def temp_func(first_arg):
+        def wrapper(first_arg):
             return func(first_arg, second_arg)
-        return temp_func
-    return wrapper
-
+        return wrapper
+    else:
+        raise ValueError()
 
 class TimeoutException(Exception):
     pass
