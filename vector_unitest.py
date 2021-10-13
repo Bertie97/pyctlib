@@ -27,6 +27,7 @@ from pyctlib import Logger
 logger = Logger(True, file_name="vector_test_{time}")
 
 vector.zeros(10).map(lambda x: 1./x)
+vector.randn(3,4, truncate_std=1)
 
 with scope("all"):
     vec = vector(1, 2, 3)

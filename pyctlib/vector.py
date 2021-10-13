@@ -342,7 +342,14 @@ def numba_relu(x):
 
 @jit(nopython=True, cache=True)
 def numba_clip(x, x_low, x_upper):
-    return np.clip(x, x_low, x_upper)
+    shape = x.shape
+    x_flatten = x.flatten()
+    for i in range(len(x_flatten)):
+        if x_flatten[i] < x_low:
+            x_flatten[i] = x_low
+        elif x_flatten[i] > x_upper:
+            x_flatten[i] = x_upper
+    return x_flatten.reshape(shape)
 
 @jit(nopython=True, cache=True)
 def numba_maximum(x, a):
@@ -1336,7 +1343,19 @@ class vector(list):
         ----------
         vector([1,2,3]) ** vector([2,3,4])
         will produce [(1, 2), (1, 3), (1, 4), (2, 2), (2, 3), (2, 4), (3, 2), (3, 3), (3, 4)]
+
+        vector([1,2,3]) ** 3
         """
+        if isinstance(other, int):
+            if other == 1:
+                return self
+            elif other == 2:
+                return vector([(i, j) for i in self for j in self])
+            elif other > 2:
+                return vector([(*i, j) for i in self ** (other - 1) for j in self])
+            else:
+                raise ValueError()
+
         return vector([(i, j) for i in self for j in other])
 
     def __add__(self, other: list):
@@ -1790,7 +1809,7 @@ class vector(list):
         return self[m_index]
 
     def map_numba_function(self, numba_function, *args) -> "vector":
-        assert self.check_type(int) or self.check_type(float)
+        assert self.check_type(int, recursive=True) or self.check_type(float, recursive=True)
         ret = numba_function(self.to_numpy(), *args)
         if isinstance(ret, np.ndarray):
             return vector(ret)
@@ -1987,9 +2006,13 @@ class vector(list):
         is equivalent to self.map(lambda x: x / self.norm(p))
 
         result is $\frac{x}{\|x\|_p}$
+
+        if all element are zeros, self will be returned
         """
         norm_p = self.norm(p)
-        return self.map(lambda x: x / self.norm(p))
+        if norm_p == 0:
+            return self
+        return self.map(lambda x: x / norm_p)
 
     def normalization_(self, p=1):
         """
@@ -2578,7 +2601,7 @@ class vector(list):
         return ret
 
     @staticmethod
-    def randn(*args):
+    def randn(*args, mean=0, std=1, truncate_std=None):
         """randn.
 
         Parameters
@@ -2589,6 +2612,10 @@ class vector(list):
         args = totuple(args)
         ret = vector.from_numpy(np.random.randn(*args))
         ret._shape = args
+        if truncate_std is not None:
+            ret = ret.clip(- truncate_std / std, truncate_std / std)
+        if mean != 0 or std != 1:
+            ret = ret.rmap(lambda x: std * x + mean)
         return ret
 
     @overload
@@ -2935,7 +2962,7 @@ class vector(list):
             split_len = round(remain_len * args[0])
             remain_len -= split_len
             split_num.append(split_len)
-            args.pop()
+            args = args[1:]
         assert split_num.sum() == self.length
         cumsum = split_num.cumsum()
         return tuple(self.shuffle().split_index(cumsum).map_index(sorted_index_mapping.reverse()))
