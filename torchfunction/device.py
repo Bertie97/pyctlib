@@ -5,35 +5,42 @@ from pynvml import *
 available_gpu_ids = list(range(torch.cuda.device_count()))
 available_gpus = [torch.cuda.device(i) for i in available_gpu_ids]
 
-nvmlInit()
+if torch.cuda.is_available():
+    nvmlInit()
 
-def free_memory_amount(device_number):
-    h = nvmlDeviceGetHandleByIndex(device_number)
-    info = nvmlDeviceGetMemoryInfo(h)
-    return info.free
+    def free_memory_amount(device_number):
+        h = nvmlDeviceGetHandleByIndex(device_number)
+        info = nvmlDeviceGetMemoryInfo(h)
+        return info.free
 
-def all_memory_amount(device_number):
-    h = nvmlDeviceGetHandleByIndex(device_number)
-    info = nvmlDeviceGetMemoryInfo(h)
-    return info.total
+    def all_memory_amount(device_number):
+        h = nvmlDeviceGetHandleByIndex(device_number)
+        info = nvmlDeviceGetMemoryInfo(h)
+        return info.total
 
-def device_name(device_number):
-    h = nvmlDeviceGetHandleByIndex(device_number)
-    name = nvmlDeviceGetName(h)
-    return name
+    def device_name(device_number):
+        h = nvmlDeviceGetHandleByIndex(device_number)
+        name = nvmlDeviceGetName(h)
+        return name
 
-def power_usage(device_number):
-    h = nvmlDeviceGetHandleByIndex(device_number)
-    return nvmlDeviceGetPowerUsage(h) / nvmlDeviceGetPowerManagementLimit(h)
+    def power_usage(device_number):
+        h = nvmlDeviceGetHandleByIndex(device_number)
+        return nvmlDeviceGetPowerUsage(h) / nvmlDeviceGetPowerManagementLimit(h)
 
-available_gpus_memory = vector([free_memory_amount(i) for i in available_gpu_ids])
-all_gpus_memory = vector([all_memory_amount(i) for i in available_gpu_ids])
-available_gpu_name = vector(available_gpu_ids).map(device_name)
-gpu_power_usage = vector(available_gpu_ids).map(power_usage)
+    available_gpus_memory = vector([free_memory_amount(i) for i in available_gpu_ids])
+    all_gpus_memory = vector([all_memory_amount(i) for i in available_gpu_ids])
+    available_gpu_name = vector(available_gpu_ids).map(device_name)
+    gpu_power_usage = vector(available_gpu_ids).map(power_usage)
 
-nvmlShutdown()
+    nvmlShutdown()
 
-warning_free_memory_threshold = eval(os.environ.get('CUDA_RUN_MEMORY', '5'))
+    warning_free_memory_threshold = eval(os.environ.get('CUDA_RUN_MEMORY', '5'))
+else:
+    available_gpus_memory = vector()
+    all_gpus_memory = vector()
+    available_gpu_name = vector()
+    gpu_power_usage = vector()
+    warning_free_memory_threshold = 0
 
 if torch.cuda.is_available():
     most_available_gpus = vector.map_from([available_gpus_memory, gpu_power_usage], lambda m, p: m * max(1 - p, 0)**0.5).max(with_index=True)[1]
