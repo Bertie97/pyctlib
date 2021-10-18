@@ -7,3 +7,4 @@ import pyctlib
 from pyctlib.filemanager import Path
 
 p = Path(".")
+t = p / "Log"
