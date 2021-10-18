@@ -1154,8 +1154,8 @@ class Tensor(torch.Tensor):
         with torch._C.DisableTorchFunction():
 
             if isinstance(ret, Tensor) and not ret.init:
-                apply(ret)
                 if cls != Tensor: ret = ret.as_subclass(cls)
+                apply(ret)
                 return ret
 
             if isinstance(ret, torch.Tensor):

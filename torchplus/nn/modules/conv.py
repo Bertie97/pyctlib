@@ -13,7 +13,7 @@ from typing import List, Optional, Tuple
 import torch.nn.init as init
 import torch.nn.utils as utils
 
-import torchplus
+import torch, torchplus
 from .. import functional as F
 from ... import Tensor
 from . import Module
