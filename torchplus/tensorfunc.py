@@ -75,7 +75,7 @@ def grad_image(array):
 @overload
 @restore_type_wrapper("roi")
 def crop_as(x: Array, y: tuple, center: tuple, fill: Scalar=0) -> Array:
-    x = tp.tensor(x)
+    x = tp.Tensor(x)
     size_x = x.shape
     size_y = y
 
@@ -118,6 +118,11 @@ def crop_as(x: Array, y: Array, center: tuple, fill: Scalar=0) -> Array:
 def crop_as(x: Array, y: [tuple, Array], fill: Scalar=0) -> Array:
     center = tuple(m/2 for m in x.shape)
     return crop_as(x, y, center, fill)
+
+@overload
+def crop_as(x: Array, *y: int) -> Array:
+    center = tuple(m/2 for m in x.shape)
+    return crop_as(x, y, center)
 
 @restore_type_wrapper
 def up_scale(image, *scaling:int):

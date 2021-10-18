@@ -245,7 +245,7 @@ class NII(tp.Tensor):
         if isinstance(instance, str):
             p = path(instance)
             if not p.ext: p = p // 'nii.gz'
-            niiBundle = nib.load(p)
+            niiBundle = nib.load(str(p))
             data = niiBundle.get_data()
             self = super().__new__(cls, data)
             self.bundle = niiBundle
@@ -317,12 +317,12 @@ class NII(tp.Tensor):
         self = args[0]
         with torch._C.DisableTorchFunction():
             ret = super().__torch_function__(func, types, args, kwargs)
-            collection = []
-            ret = tp.Tensor.__torch_function_convert_collect__(ret, collection, cls)
-            for r in collection:
-                r.bundle = self.bundle
-                r.path = self.path
-        return ret
+
+        def apply(r):
+            r.bundle = self.bundle
+            r.path = self.path
+
+        return tp.Tensor.__torch_function_convert_apply__(ret, apply, cls)
 
 class DCM(tp.Tensor):
 
