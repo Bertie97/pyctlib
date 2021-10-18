@@ -277,3 +277,50 @@ class Path(str):
     def assign_mainfolder(self, main_folder):
         self.main_folder = Path(main_folder).abs()
         return self
+
+class filepath_generator(ctgenerator):
+
+    def __init__(self, generator, main_folder=None):
+        ctgenerator.__init__(self, generator)
+        self.main_folder = main_folder
+
+    @filepath_generator_wrapper
+    def filter(self, func=None) -> "filepath_generator":
+        if func is None:
+            for x in self.generator:
+                yield x
+        if isinstance(func, str):
+            for x in self.generator:
+                if x | func:
+                    yield x
+        if isinstance(func, bytes):
+            for x in self.generator:
+                if x | func:
+                    yield x
+        for x in self.generator:
+            if func(x):
+                yield x
+
+    @filepath_generator_wrapper
+    def map(self, *args, **kwargs):
+        return super().map(*arags, **kwargs)
+
+    @property
+    def main_folder(self):
+        if self._main_folder is None:
+            return None
+        else:
+            return self._main_folder.abs()
+
+    @main_folder.setter
+    def main_folder(self, mf):
+        self._main_folder = mf
+
+    def vector(self):
+        return pathList(self, main_folder=self.main_folder)
+
+    def fuzzy_search(self, query="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+        return self.vector().fuzzy_search(query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
+
+    def regex_search(self, query="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
+        return self.vector().regex_search(query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
