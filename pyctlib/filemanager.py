@@ -8,7 +8,6 @@
 
 __all__ = """
     path
-    Path
     pathList
     file
     pwd
@@ -20,7 +19,7 @@ __all__ = """
 """.split()
 
 import os, re, struct, shutil
-from .touch import touch, check
+from pyctlib import touch
 from pyoverload import *
 from .basicwrapper import raw_function, register_property
 from functools import wraps, reduce, partial
@@ -64,17 +63,8 @@ def ls(folder=None):
 def cp(src, dst):
     assert isinstance(src, path)
     assert isinstance(dst, path)
-    assert dst.is_dir()
+    assert dst.isdir()
     shutil.copy2(src, dst)
-
-if os.name == 'nt':
-    import win32api, win32con
-def is_hidden(p):
-    if os.name== 'nt':
-        attribute = win32api.GetFileAttributes(p)
-        return attribute & (win32con.FILE_ATTRIBUTE_HIDDEN | win32con.FILE_ATTRIBUTE_SYSTEM)
-    else:
-        return p.startswith('.') #linux-osx
 
 def filepath_generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
@@ -108,7 +98,7 @@ def get_main_folder(p, query, selected):
 
 class pathList(vector):
 
-    def __init__(self, *args, index_mapping=indexmapping(), main_folder = none):
+    def __init__(self, *args, index_mapping=IndexMapping(), main_folder = None):
         super().__init__(*args, index_mapping=index_mapping, content_type=path)
         self.main_folder = main_folder
 
@@ -203,112 +193,113 @@ class path(str):
     Folder = b'\x07'
     homedir = os.path.expanduser("~")
 
+
     @filepath_generator_wrapper
-    def recursively_listdir(self, all_files=False, depth=None):
-        """
-        parameters:
-            all_files: whether to search hidden files or not
-            depth: [-1] means folders with no subfolders
-                    [0] means all files in the directory
-                    [d] means paths with relative depth d (d > 0)
-                 [None] means all related recursive paths with any depth
-            listing with depth = 1 is equivalent to os.listdir. 
-        """
-        recursively_searched = False
+    @staticmethod
+    def rlistdir(folder, tofolder=False, relative=False, ext='', filter=lambda x: True):
+        folder = path(folder)
+        file_list = []
+        for f in os.listdir(str(folder)):
+            if f == '.DS_Store': continue
+            p = folder / f
+            if p.isdir():
+                file_list.extend(path.rlistdir(p, tofolder))
+                for cp in path.rlistdir(p, tofolder, relative=relative, ext=ext, filter=filter):
+                    if filter(cp) and (cp | ext):
+                        yield cp
+            if p.isfile() and not tofolder and filter(p) and (p | ext):
+                yield p
+        if tofolder and not file_list and filter(folder) and (folder | ext):
+            file_list.append(folder)
+            yield folder
+        file_list = pathList(file_list, main_folder=folder)
+        if relative: file_list = -file_list
+        if ext: file_list = file_list[file_list|ext]
+        return file_list[filter]
+
+    @filepath_generator_wrapper
+    def recursive_search(self, all_files=False):
         for f in os.listdir(self):
             if f in get_search_blacklist():
                 continue
-            if not all_files and f.is_hidden():
+            if not all_files and f.startswith("."):
                 continue
             p = self / f
-            if depth is None:
+            if p.isdir():
                 yield p
-                if p.is_dir():
-                    for cp in p.recursively_listdir(all_files=all_files, depth=depth):
-                        yield cp
-            else:
-                assert isinstance(depth, int)
-                if p.is_file() and depth >= 0:
-                    yield p
-                elif p.is_dir():
-                    if depth != 1:
-                        for cp in p.recursively_listdir(all_files=all_files, depth=depth-1 if depth > 0 else depth):
-                            yield cp
-                        recursively_searched = True
-                    else:
-                        yield p
-        if depth == -1 and not recursively_searched:
-            yield self
+                for cp in p.recursive_search(all_files=all_files):
+                    yield cp
+            if p.isfile():
+                yield p
 
-    def __new__(cls, *init_texts, main_folder=None):
-        if len(init_texts) == 1 and isinstance(init_texts[0], (list, tuple)):
-            init_texts = init_texts[0]
+
+    def __new__(cls, *init_texts, main_folder=""):
         if len(init_texts) <= 0 or len(init_texts[0]) <= 0:
-            if main_folder:
-                main_folder.main_folder = main_folder
-                return main_folder
-            else:
-                self = super().__new__(cls, os.path.abspath(os.path.curdir))
-                self.main_folder = None
-                self._is_rel = False
-                return self
+            self = super().__new__(cls, "")
         elif len(init_texts) == 1 and init_texts[0] == "~":
-            string = path.homedir
-        elif len(init_texts) == 1 and init_texts[0] == os.curdir:
-            string = os.path.abspath(os.curdir)
-        elif len(init_texts) == 1 and isinstance(init_texts[0], str):
-            string = init_texts[0]
+            self = super().__new__(cls, path.homedir)
+        elif len(init_texts) == 1 and init_texts[0][0] == "~":
+            self = super().__new__(cls, path.homedir + init_texts[0][1:])
         else:
-            [check(len(re.findall(r"[:\?$]", x)) == 0, f"Invalid characters in path '{x}'.") for x in init_texts]
-            string = os.path.join(*[str(x) for x in init_texts]).strip()
-        while '..' in string[2:]:
-            string = re.sub(rf"{path.sep}[^{path.sep}]+{path.sep}\.\.", '', string)
-            string = re.sub(rf"[^{path.sep}]+{path.sep}\.\.{path.sep}", '', string)
-        _is_rel = not (os.path.isabs(string) if os.name == "nt" else (string.startswith('/') and not './' in string))
-        if not main_folder: main_folder = path()
-        self = super().__new__(cls, string)
-        self._is_rel = _is_rel
-        self.main_folder = main_folder
+            self = super().__new__(cls, os.path.join(*[str(x).replace('$', '') for x in init_texts]).strip())
+        self.init()
         return self
 
     def init(self): pass
+    def __init__(self, *init_texts, main_folder=None):
+        self.main_folder = main_folder
 
     @property
     def main_folder(self):
         if self._main_folder is None:
             return None
         else:
-            return self._main_folder
+            return self._main_folder.abs()
 
     @main_folder.setter
     def main_folder(self, mf):
         if mf is None:
             self._main_folder = None
         elif isinstance(mf, str) and not isinstance(mf, path):
-            self._main_folder = path(mf).abs()
+            self._main_folder = path(mf)
         elif isinstance(mf, str):
-            self._main_folder = mf.abs()
+            self._main_folder = mf
         else:
-            raise TypeError("main_folder should be of type [None|str|path]")
+            raise TypeError("main_folder = [None|str|path]")
 
     def __and__(x, y): return path(path.pathsep.join((str(x).rstrip(path.pathsep), str(y).lstrip(path.pathsep))))
-    def __mod__(x, y): return path(super().__mod__(totuple(y)), main_folder=x.main_folder)
-    def __sub__(self, y):
-        if y is not None: self.main_folder = path(y).dirname
-        self._is_rel = True
-        return self
+    def __mul__(x, y): return path(x).mkdir(y)
+    def __mod__(x, y): return path(str(x) % totuple(y))
+    def __sub__(x, y):
+        if y is None:
+            return x
+        return path(os.path.relpath(x, y))
 
 
     def __add__(x, y):
         y = str(y)
-        if x.is_filepath():
-            return x.dirname/(x.name + y + path.extsep + x.ext)
-        else: return path(super(path, x).__add__(y), main_folder=x.main_folder)
+        if x.isfilepath():
+            file_name = x@path.File
+            folder_name = x@path.Folder
+            parts = file_name.split(path.extsep)
+            if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2: brk = -2
+            else: brk = -1
+            ext = path.extsep.join(parts[brk:])
+            name = path.extsep.join(parts[:brk])
+            return folder_name/(name + y + path.extsep + ext)
+        else: return path(str(x) + y)
     def __xor__(x, y):
-        y = str(y).lstrip(path.namesep)
-        if x.is_filepath():
-            return x.dirname/(x.name.rstrip(path.namesep) + path.namesep + y + path.extsep + x.ext)
-        else: return path(super(path, x.rstrip(path.namesep)).__add__(y), main_folder=x.main_folder)
+        y = str(y)
+        if x.isfilepath():
+            file_name = x@path.File
+            folder_name = x@path.Folder
+            parts = file_name.split(path.extsep)
+            if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2: brk = -2
+            else: brk = -1
+            ext = path.extsep.join(parts[brk:])
+            name = path.extsep.join(parts[:brk])
+            return folder_name/(name.rstrip(path.namesep) + path.namesep + y.lstrip(path.namesep) + path.extsep + ext)
+        else: return path(path.namesep.join((str(x).rstrip(path.namesep), y.lstrip(path.namesep))))
     def __pow__(x, y):
         output = rootdir
         for p, q in zip((~path(x)).split(), (~path(y)).split()):
@@ -316,150 +307,129 @@ class path(str):
             else: break
         return output - curdir
     def __floordiv__(x, y): return path(path.extsep.join((str(x).rstrip(path.extsep), str(y).lstrip(path.extsep))), main_folder=x.main_folder)
-    def __invert__(self): return abs(self)
-    def __abs__(self): return self.main_folder/self if self.is_rel() else self
-    def abs(self): return abs(self)
+    def __invert__(self): return path(os.path.abspath(str(self)))
+    def __abs__(self): return path(os.path.abspath(str(self)), main_folder=self.main_folder)
     def __truediv__(x, y): return path(os.path.join(str(x), str(y)), main_folder=x.main_folder)
     def __or__(x, y):
         if y == "": return True
-        if y == "FILE": return x.is_file()
-        if y == "FOLDER": return x.is_dir()
+        if y == path.File: return x.isfile()
+        if y == path.Folder: return x.isdir()
         if isinstance(y, int): return len(x) == y
         if '.' not in y: y = '.*\\' + x.extsep + y
         return re.fullmatch(y.lower(), x[-1].lower()) is not None
         # return x.lower().endswith(x.extsep + y.lower())
-    def __eq__(x, y): return str(x.abs()) == str(y.abs())
+    def __eq__(x, y): return str(x) == str(y)
+    def __matmul__(self, k):
+        if k == path.Folder: return path(self[:-1])
+        elif k == path.File: return path(self[-1:])
+        return
+    def __lshift__(self, k): return path.rlistdir(self, k == path.Folder, ext=k if k not in (path.File, path.Folder) else '')
     def __setitem__(self, i, v):
         lst = self.split()
         lst[i] = v
-        return path(lst, main_folder=self.main_folder)
+        return path(lst)
     def __getitem__(self, i):
         res = self.split()[i]
-        return res if isinstance(res, str) else path(path.sep.join(res), main_folder=self.main_folder)
+        return res if isinstance(res, str) else path(path.sep.join(res))
     def __len__(self): return len(self.split())
     def __hash__(self): return super().__hash__()
 
     @filepath_generator_wrapper
     def __iter__(self):
-        for p in self.recursively_listdir(depth=0):
+        for p in self<<path.File:
             yield p
-
-    def __contains__(self, x):
-        for p in self:
-            if str(p) == str(x): return True
-        return False
-
-    def str_contains(self, x): return x in str(self)
+    def __contains__(self, x): return x in str(self)
 
     @property
+    @register_property
     def ext(self):
-        if touch(lambda: self._ext, None):
-            return self._ext
-        if self.is_dir():
-            self._ext = ""
+        if self.isdir():
             return ""
-        file_name = self.fullname
+        file_name = self@path.File
         parts = file_name.split(path.extsep)
         if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2: brk = -2
         elif len(parts) > 1: brk = -1
         else: brk = 1
-        self._ext = path.extsep.join(parts[brk:])
-        return self._ext
+        return path.extsep.join(parts[brk:])
 
     @property
+    @register_property
     def name(self):
-        if touch(lambda: self._name, None):
-            return self._name
         file_name = self.fullname
-        if self.is_dir():
-            self._name = file_name
+        if self.isdir():
             return file_name
         parts = file_name.split(path.extsep)
         if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2: brk = -2
         elif len(parts) > 1: brk = -1
         else: brk = 1
-        self._name = path.extsep.join(parts[:brk])
-        return self._name
+        return path.extsep.join(parts[:brk])
 
     def with_name(self, name):
-        self = self.abs()
-        return self.dirname / path.extsep.join([name, self.ext])
+        if not "/" in self:
+            return self.abs().with_name(name)
+        return (self @ Folder) / path.extsep.join(vector(["name", self.ext]).filter(len))
 
-    def with_ext(self, ext: str):
-        self = self.abs()
-        return self.dirname / path.extsep.join([self.name, ext])
+    def with_ext(self, ext: str=None):
+        if ext is None:
+            return (self @ Folder) / self.name
+        assert "/" in self
+        return (self @ Folder) / path.extsep.join([self.name, ext])
 
     @property
-    def filename(self):
-        if not hasattr(self, '_filename'):
-            self._filename = self[-1]
-        return self._filename
-    
-    fullname = filename
-    
-    @property
-    def dirname(self):
-        if not hasattr(self, '_dirname'):
-            self._dirname = self[:-1]
-        return self._dirname
-    
-    def is_rel(self):
-        return self._is_rel
+    @register_property
+    def fullname(self):
+        if "/" in self:
+            return self[-1]
+        else:
+            return self.abs()[-1]
 
-    def is_hidden(self):
-        return is_hidden(self)
+    def split(self, *args):
+        if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
+        else: return str(self).split(*args)
 
-    def split(self, *args, **kwargs):
-        if len(args) == 0 and len(kwargs) == 0:
-            return [x for x in str(self.abs()).split(path.sep)]
-        return str(self).split(*args, **kwargs)
+    def abs(self): return path(os.path.abspath(self))
 
-    def listdir(self, recursive=False, all_files=False, depth=None):
+    def listdir(self, recursive=False, all_files=False):
         if recursive:
-            ret = self.recursively_listdir(all_files=all_files, depth=depth)
-            ret.main_folder = self.abs()
+            ret = self.recursive_search(all_files=all_files)
+            ret.main_folder = self
             return ret
         else:
             if all_files:
-                return pathList([self / x for x in os.listdir(str(self))], main_folder=self.abs())
+                return pathList([self / x for x in os.listdir(str(self))], main_folder=self)
             else:
-                return pathList([self / x for x in os.listdir(str(self)) if not x.startswith(".")], main_folder=self.abs())
+                return pathList([self / x for x in os.listdir(str(self)) if not x.startswith(".")], main_folder=self)
 
     # changed by zhangyiteng
-    def ls(self, recursive=False, all_files=False, depth=None, func=None):
-        return self.listdir(recursive=recursive, all_files=all_files, depth=depth).filter(func)
+    def ls(self, recursive=False, all_files=False, func=None):
+        return self.listdir(recursive=recursive, all_files=all_files).filter(func)
 
     def assign_mainfolder(self,  main_folder):
-        self.main_folder = path(main_folder).abs()
+        self.main_folder = path(main_folder)
         return self
 
     def cd(self, folder_name=None):
         if folder_name:
-            if folder_name == os.path.pardir:
-                new_folder = self.parent
-
             folder_name = path(folder_name)
-            if folder_name.is_abs():
+            if folder_name.isabs():
                 return folder_name
-            
             new_folder = self / folder_name
-            if new_folder.is_dir():
-                if self.is_abs():
+            if new_folder.isdir():
+                if self.isabs():
                     return new_folder.abs()
-                new_folder.main_folder = self.main_folder
                 return new_folder
-            elif new_folder.dirname.is_dir():
-                raise NotADirectoryError("%s doesn't exist, all available folder is: %s" % (new_folder, new_folder.parent.ls().filter(lambda x: x.is_dir()).map(lambda x: x.name)))
+            elif (new_folder @ path.Folder).isdir():
+                raise NotADirectoryError("%s doesn't exist, all available folder is: %s" % (new_folder, (new_folder @ path.Folder).ls().filter(lambda x: x.isdir()).map(lambda x: x.name)))
             else:
                 raise NotADirectoryError("%s doesn't exist" % new_folder)
         else:
-            candidate = self.ls().filter(lambda x: x.is_dir()).map(lambda x: x.abs()).append(self.parent.abs())
+            candidate = self.ls().filter(lambda x: x.isdir()).map(lambda x: x.abs()).append(self.parent.abs())
             ret = candidate.fuzzy_search(str_func=lambda x: x.fullname)
             if ret:
                 return ret[-1]
 
     def rm(self, remind=True):
-        if self.is_dir():
+        if self.isdir():
             if remind and self.ls():
                 print("You want to delete directory: {}".format(self))
                 print("with following files inside it:")
@@ -468,14 +438,14 @@ class path(str):
                 if choice.lower() != "y":
                     return
             self.parent.cmd(f"rm -r {self[-1]}")
-        elif self.is_file():
+        elif self.isfile():
             self.parent.cmd(f"rm {self[-1]}")
 
     def cmd(self, command):
         try:
-            if self.is_dir():
+            if self.isdir():
                 os.system("cd %s; %s" % (self, command))
-            elif self.is_file():
+            elif self.isfile():
                 if "{}" in command:
                     self.parent.cmd(command.format(self))
                 else:
@@ -483,27 +453,29 @@ class path(str):
         except Exception as e:
             print("cmd error:", e)
     def open(self):
-        if self.is_dir():
+        if self.isdir():
             self.cmd("open .")
-        elif self.is_file():
+        elif self.isfile():
             self.parent.cmd("open %s" % self)
+
     @property
+    @register_property
     def parent(self):
         if path.sep not in self:
-            return path()
-        return self.dirname
+            return path(".")
+        return self @ path.Folder
 
     @property
     def children(self):
         return self.ls()
     # end changed by zhangyiteng
-    def is_abs(self): return not self._is_rel
+    def isabs(self): return os.path.isabs(self)
     def exists(self): return os.path.exists(self)
-    def is_file(self): return os.path.isfile(self)
-    def is_dir(self): return os.path.isdir(self)
-    def is_folder(self): return self.is_dir()
-    def is_filepath(self): return True if os.path.isfile(self) else 0 < len(self.ext) < 7
-    def is_dirpath(self): return True if os.path.isdir(self) else (len(self.ext) == 0 or len(self.ext) >= 7)
+    def isfile(self): return os.path.isfile(self)
+    def isdir(self): return os.path.isdir(self)
+    def isfolder(self): return self.isdir()
+    def isfilepath(self): return True if os.path.isfile(self) else 0 < len(self.ext) < 7
+    def isdirpath(self): return True if os.path.isdir(self) else (len(self.ext) == 0 or len(self.ext) >= 7)
     def mkdir(self, return_new: bool=False) -> Optional["path"]:
         """
         make directory
@@ -518,7 +490,7 @@ class path(str):
         Paramemters:
         -------------------
         return_new: bool
-            if return_new is True, the first made directory will be returned. If no dir is made, None will be returned
+            if return_new is True, the first make directory will be returned. If no dir is made, None will be returned
             if return_new is False, self will be returned
         """
         p = self.abs()
@@ -528,7 +500,7 @@ class path(str):
             cumpath = path(self.main_folder)
             fp = p - cumpath
         else:
-            cumpath = rootdir
+            cumpath = path("/")
             fp = p
         for p in fp.split():
             cumpath /= p
@@ -559,11 +531,11 @@ class path(str):
             raise TypeError("usage: search(['fuzzy'|'regex'])")
 
     def copyfrom(self, src):
-        if not isinstance(src, path):
+        if isinstance(src, str):
             src = path(src)
         assert isinstance(src, path)
-        if src.is_file():
-            if self.is_file():
+        if src.isfile():
+            if self.isfile():
                 shutil.copy2(src, self)
             else:
                 shutil.copy2(src, self.name)
@@ -578,25 +550,14 @@ class path(str):
         return self - main_folder
 
     def readlines(self):
-        assert self.is_file()
+        assert self.isfile()
         return file(self).readlines()
 
-    def __getattribute__(self, name):
-        try:
-            return super().__getattribute__(name)
-        except AttributeError:
-            raise AttributeError("{} is not a method/attribute of path, the most similar name is {}".format(name, vector(dir(self)).fuzzy_search(name, 3)))
-
-    def file_size(self):
-        def convert_bytes(num):
-            """
-            this function will convert bytes to MB.... GB... etc
-            """
-            for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
-                if num < 1000.0:
-                    return "%3.1f %s" % (num, x)
-                num /= 1000.0
-        return convert_bytes(os.stat(str(self)).st_size)
+    # def __getattribute__(self, name):
+    #     try:
+    #         return object.__getattribute__(self, name)
+    #     except:
+    #         raise RuntimeError("{} is not a method/attribute of path, the most similar name is {}".format(name, vector(dir(self)).fuzzy_search(name, 3)))
 
 class file(path):
 
@@ -996,8 +957,8 @@ class filepath_generator(ctgenerator):
     def regex_search(self, query="", max_k=NoDefault, str_func=get_relative_path, str_display=get_relative_path, display_info=get_main_folder):
         return self.vector().regex_search(query=query, max_k=max_k, str_func=str_func, str_display=str_display, display_info=display_info)
 
-curdir = path()
-rootdir = curdir.abs()[0] + path.sep
+rootdir = (~path(os.path.curdir))[0] + path.sep
+curdir = path(os.path.curdir)
 pardir = path(os.path.pardir)
 codedir = path(os.getcwd())
 codefolder = path(os.getcwd())

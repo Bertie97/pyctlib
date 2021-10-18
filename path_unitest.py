@@ -4,7 +4,7 @@ from sys import getsizeof
 
 sys.path.append(os.path.abspath("."))
 import pyctlib
-from pyctlib.filemanager import Path
+from pyctlib.filemanager import path
 
-p = Path(".")
+p = path(".")
 t = p / "Log"
