@@ -10,9 +10,11 @@ __all__ = """
     return_type_wrapper
     decorator
     second_argument
+    register_property
 """.split()
 
 from functools import wraps
+from pyctlib.touch import crash
 import signal
 
 def raw_function(func):
@@ -69,6 +71,28 @@ def second_argument(*args):
         return wrapper
     else:
         raise ValueError()
+
+def register_property(func):
+    """
+    class A:
+
+        def __init__(self):
+            return
+
+        @property
+        @register_property
+        def test(self):
+            print("hello")
+            return 1
+    """
+
+    @wraps(func)
+    def wrapper(self):
+        if hasattr(self, "__{}".format(func.__name__)):
+            return eval("self.__" + func.__name__)
+        exec("self.__{} = func(self)".format(func.__name__))
+        return eval("self.__" + func.__name__)
+    return wrapper
 
 class TimeoutException(Exception):
     pass
