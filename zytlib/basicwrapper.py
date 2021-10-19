@@ -14,7 +14,7 @@ __all__ = """
 """.split()
 
 from functools import wraps
-from pyctlib.touch import crash
+from .touch import crash
 import signal
 
 def raw_function(func):

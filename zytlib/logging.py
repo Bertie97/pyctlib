@@ -11,7 +11,6 @@ from typing import Callable, Dict, Union
 import random
 import string
 import argparse
-# from wrapt_timeout_decorator import timeout
 from .basicwrapper import timeout, TimeoutException
 import re
 from matplotlib import pyplot as plt
@@ -24,8 +23,8 @@ import mimetypes
 import requests
 import random
 """
-from pyctlib import vector, touch
-from pyctlib.basicwrapper import timeout, TimeoutException
+from zytlib import vector, touch
+from zytlib.basicwrapper import timeout, TimeoutException
 """
 
 __all__ = ["DEBUG", "INFO", "WARNING", "CRITICAL", "ERROR", "NOTSET", "Logger", "TimeoutException", "upload_file_to_row_property"]

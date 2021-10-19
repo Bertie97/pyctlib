@@ -19,7 +19,7 @@ __all__ = """
 """.split()
 
 import os, re, struct, shutil
-from pyctlib import touch
+from .touch import touch
 from pyoverload import *
 from .basicwrapper import raw_function, register_property
 from functools import wraps, reduce, partial
@@ -639,7 +639,7 @@ class file(path):
     def _to_byte__default__(data):
         try:
             import torch
-            import pyctlib.torchplus as torchplus
+            import torchplus
         except ImportError: pass
         if touch(lambda: isinstance(data, torchplus.Tensor)):
             np_array = data.cpu().detach().numpy()
@@ -807,7 +807,7 @@ class file(path):
                 return None
         elif data_type == file.Tensor_plus:
             try:
-                import pyctlib.torchplus as torchplus
+                import torchplus
                 data = file._read(fp)
                 data = torchplus.Tensor(data.copy())
             except: return None

@@ -19,8 +19,8 @@ except ImportError:
 from ..vector import vector
 from ..touch import touch
 """
-from pyctlib import vector
-from pyctlib import touch
+from zytlib import vector
+from zytlib import touch
 """
 import math
 from matplotlib.backends.backend_pdf import PdfPages

@@ -55,8 +55,8 @@ except:
 
 """
 Usage:
-from pyctlib.vector import *
-from pyctlib import touch
+from zytlib.vector import *
+from zytlib import touch
 """
 
 def list_like(obj):
