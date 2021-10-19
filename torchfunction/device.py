@@ -78,6 +78,15 @@ def todevice(x, device="cuda"):
             return [todevice(t, device) for t in x]
     raise ValueError
 
+def get_device(device="cuda"):
+    if device == "cuda":
+        return AutoDevice
+    elif device == "cpu":
+        return DeviceCPU
+    elif isinstance(device, torch.device):
+        return device
+    raise TypeError()
+
 def str_2_device(device):
     if device == "cuda":
         return AutoDevice
@@ -89,4 +98,4 @@ def str_2_device(device):
 def recursive_autodevice(container):
     return recursive_apply(container, lambda x: x.to(AutoDevice))
 
-__all__ = ["available_gpus", "AutoDevice", "warning_free_memory_threshold", "available_gpus_memory", "all_gpus_memory", "DeviceCPU", "recursive_autodevice", "AutoDeviceId", "todevice", "str_2_device", "gpu_power_usage"]
+__all__ = ["available_gpus", "AutoDevice", "warning_free_memory_threshold", "available_gpus_memory", "all_gpus_memory", "DeviceCPU", "recursive_autodevice", "AutoDeviceId", "todevice", "str_2_device", "gpu_power_usage", "get_device"]
