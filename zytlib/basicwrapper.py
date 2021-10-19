@@ -10,7 +10,7 @@ __all__ = """
     return_type_wrapper
     decorator
     second_argument
-    register_property
+    registered_property
 """.split()
 
 from functools import wraps
@@ -72,15 +72,14 @@ def second_argument(*args):
     else:
         raise ValueError()
 
-def register_property(func):
+def registered_property(func):
     """
     class A:
 
         def __init__(self):
             return
 
-        @property
-        @register_property
+        @registered_property
         def test(self):
             print("hello")
             return 1
@@ -92,7 +91,17 @@ def register_property(func):
             return eval("self.__" + func.__name__)
         exec("self.__{} = func(self)".format(func.__name__))
         return eval("self.__" + func.__name__)
-    return wrapper
+    return property(wrapper)
+
+class A:
+
+    def __init__(self):
+        return
+
+    @registered_property
+    def test(self):
+        print("hello")
+        return 1
 
 class TimeoutException(Exception):
     pass

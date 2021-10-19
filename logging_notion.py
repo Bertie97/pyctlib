@@ -1,5 +1,5 @@
-from pyctlib import Logger
-from pyctlib.logging import upload_file_to_row_property
+from zytlib import Logger
+from zytlib.logging import upload_file_to_row_property
 import random
 
 logger = Logger(True, True, notion_page_link="https://www.notion.so/zhangyiteng/61a0597e1343442380da3ec05cd93676")
