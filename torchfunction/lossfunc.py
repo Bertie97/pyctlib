@@ -31,12 +31,25 @@ def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, in
     else:
         raise ValueError
 
-def softmax_cross_entropy_with_logits_sparse(x: torch.Tensor, target: torch.LongTensor, reduction: str="mean", keepdim: bool=False, smoothing: float=0) -> torch.Tensor:
+def softmax_cross_entropy_with_logits_sparse(x: torch.Tensor, target: torch.LongTensor, class_index=-1, reduction: str="mean", keepdim: bool=False, smoothing: float=0, mask=None) -> torch.Tensor:
     if reduction != "none":
         keepdim = False
     if smoothing == 0:
-        crit = torch.nn.CrossEntropyLoss(reduction=reduction)
-        return crit(x, target)
+        negative_logsoftmax = - torch.nn.LogSoftmax(class_index)(x)
+        if mask is not None:
+            new_target = torch.where(mask, target, 0)
+            ret = torch.gather(negative_logsoftmax, class_index, new_target.unsqueeze(class_index)).squeeze(class_index)
+            ret = torch.where(mask, ret, torch.zeros_like(ret))
+            return ret
+        else:
+            ret = torch.gather(negative_logsoftmax, class_index, target.unsqueeze(class_index)).squeeze(class_index)
+            if reduction == "mean":
+                return ret.mean()
+            elif reduction == "sum":
+                return ret.sum()
+            elif reduction == "none":
+                return ret
+            raise ValueError()
     else:
         K = x.shape[-1]
         NLL = torch.nn.NLLLoss(reduction="none")
