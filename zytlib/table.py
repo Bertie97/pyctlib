@@ -1,11 +1,15 @@
 from typing import overload
 from .touch import touch, crash
 import pickle
+import argparse
 
 class table(dict):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        if len(args) == 1 and isinstance(args[0], argparse.Namespace):
+            super().__init__(vars(args[0]))
+        else:
+            super().__init__(*args, **kwargs)
         super().__setattr__("__key_locked", False)
 
     def update_exist(self, *args, **kwargs):
