@@ -2442,6 +2442,37 @@ class vector(list):
     def to_dict(self, key_func, value_func) -> Dict:
         return {key_func(x): value_func(x) for x in super().__iter__()}
 
+    def plot_hist(self, bins=None, range=None, density=False, color=None, edgecolor=None, alpha=None, with_pdf=False, ax: Optional[Axes]=None, title: Optional[str]=None, saved_path: Optional[str]=None):
+        from matplotlib import pyplot as plt
+        _has_ax = ax is not None
+        if ax is None:
+            ax = plt.gca()
+            ax.clear()
+        else:
+            assert saved_path is None
+        if not with_pdf:
+            ax.hist(self, bins=bins, range=range, density=density, color=None, edgecolor=edgecolor, alpha=alpha)
+        else:
+            ax.hist(self, bins=bins, range=range, density=True, color=None, edgecolor=edgecolor, alpha=alpha)
+            import scipy.stats as st
+            xmin, xmax = ax.get_xlim()
+            kde_xs = np.linspace(xmin, xmax, 300)
+            kde = st.gaussian_kde(self)
+            ax.plot(kde_xs, kde.pdf(kde_xs), color="k")
+
+        if title:
+            ax.set_title(title)
+        if not _has_ax:
+            if saved_path is not None:
+                if saved_path.endswith("pdf"):
+                    with PdfPages(saved_path, "w") as f:
+                        plt.savefig(f, format="pdf")
+                else:
+                    plt.savefig(saved_path, dpi=300)
+            else:
+                plt.show()
+        return ax
+
     def plot(self, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None):
         """
         plot line graph for vector

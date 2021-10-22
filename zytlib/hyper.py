@@ -1,7 +1,7 @@
 from typing import overload
 from .touch import touch, crash
 
-class Dict(dict):
+class hyper(dict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
