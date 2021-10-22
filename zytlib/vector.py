@@ -2581,7 +2581,7 @@ class vector(list):
         return vector(itertools.product(*args)).map(lambda x: x)
 
     @staticmethod
-    def rand(*args):
+    def rand(*args, low=0, high=1):
         """rand.
 
         Parameters
@@ -2590,7 +2590,7 @@ class vector(list):
             args
         """
         args = totuple(args)
-        ret = vector.from_numpy(np.random.rand(*args))
+        ret = vector.from_numpy(np.random.rand(*args) * (high - low) + low)
         ret._shape = args
         return ret
 
@@ -2845,11 +2845,14 @@ class vector(list):
         example:
             vector.range(10).sample()
             vector.range(10).sample(10)
+            vector.range(10).sample(0.5)
             vector.range(10).sample(10, replace=False)
         """
         args = totuple(args)
         if len(args) == 0:
             return self.sample(1, replace=replace, batch_size=batch_size, p=p)[0]
+        if len(args) == 1 and isinstance(args[0], float) and 0 < args[0] < 1:
+            return self.sample(math.ceil(self.length * args[0]), replace=replace, batch_size=batch_size, p=p)
         if isinstance(args[-1], bool):
             replace = args[-1]
             args = args[:-1]
@@ -2857,8 +2860,6 @@ class vector(list):
             replace = args[-2]
             p = args[-1]
             args = args[:-2]
-        # if len(args) == 0:
-        #     return vector()
         if batch_size > 1:
             args = (*args, batch_size)
         if len(args) == 1 and replace == False:
