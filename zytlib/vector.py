@@ -1348,7 +1348,7 @@ class vector(list):
         """
         if isinstance(other, int):
             if other == 1:
-                return self
+                return self.map(lambda x: (x, ))
             elif other == 2:
                 return vector([(i, j) for i in self for j in self])
             elif other > 2:
