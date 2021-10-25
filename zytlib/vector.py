@@ -1538,6 +1538,11 @@ class vector(list):
             super().__setitem__(i, t)
         elif isinstance(i, slice):
             super().__setitem__(i, t)
+        elif isinstance(i, tuple):
+            if len(i) == 1:
+                super().__setitem__(i[0], t)
+            else:
+                self[i[0]][i[1:]] = t
         elif isinstance(i, list):
             if all([isinstance(index, bool) for index in i]):
                 if iterable(t):
@@ -1905,6 +1910,43 @@ class vector(list):
                 raise TypeError("vector is empty, plz set default to prevent error")
             return default
         return self.variance() ** 0.5
+
+    @overload
+    def corr(self): ...
+
+    @overload
+    def corr(self, other): ...
+
+    def corr(self, *args) -> "vector":
+        if len(args) == 1:
+            x = self
+            y = args[0]
+            assert isinstance(y, list)
+            y = vector(y)
+            assert len(x) == len(y)
+            xy = vector.zip(x, y).map(lambda t: t[0] * t[1])
+            n = len(x)
+            ret = (n * xy.sum() - x.sum() * y.sum()) / math.sqrt((n * x.map(lambda x: x ** 2).sum() - x.sum() ** 2) * (n * y.map(lambda x: x**2).sum() - y.sum() ** 2))
+            return ret
+        elif len(args) == 0:
+            if self.check_type(tuple):
+                n = self.length
+                if n == 0:
+                    return vector()
+                m = len(self[0])
+                for t in self:
+                    assert len(t) == m
+                ret = vector.zeros(m, m)
+                sx = self.zip_split()
+                sy = self.zip_split()
+                for ix in range(m):
+                    for iy in range(m):
+                        ret[ix, iy] = sx[ix].corr(sy[iy])
+                return ret
+            elif self.check_type(vector) and len(self.shape) == 2:
+                return self.map(lambda x: tuple(x)).corr()
+        else:
+            return vector()
 
     def cumsum(self):
         """
