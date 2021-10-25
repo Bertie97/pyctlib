@@ -429,7 +429,10 @@ class path(str):
 
     @registered_property
     def folder(self):
-        return self.parent
+        if self.isdir():
+            return self
+        else:
+            return self.parent
 
     @property
     def children(self):
