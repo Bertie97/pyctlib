@@ -3,27 +3,26 @@ import os
 from sys import getsizeof
 
 sys.path.append(os.path.abspath("."))
-import pyctlib
+import zytlib
 import pathlib
 import numpy as np
-from pyctlib import vector, IndexMapping, scope, vhelp
-from pyctlib.vector import chain_function
-from fuzzywuzzy import fuzz
-from pyctlib.filemanager import path, get_relative_path, file
-from pyctlib import touch
-from pyctlib.wrapper import generate_typehint_wrapper
+from zytlib import vector, IndexMapping, scope, vhelp
+from zytlib.vector import chain_function
+from zytlib.filemanager import path, get_relative_path, file
+from zytlib import touch
+from zytlib.wrapper import generate_typehint_wrapper
 import argparse
 from time import sleep
-from pyctlib import totuple
-from pyctlib.touch import once
+from zytlib import totuple
+from zytlib.touch import once
 
 for index in range(10):
     if once:
         print(1)
 
-print(pyctlib.__file__)
+print(zytlib.__file__)
 
-from pyctlib import Logger
+from zytlib import Logger
 logger = Logger(True, file_name="vector_test_{time}")
 
 vector.zeros(10).map(lambda x: 1./x)

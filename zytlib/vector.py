@@ -1348,7 +1348,7 @@ class vector(list):
         """
         if isinstance(other, int):
             if other == 1:
-                return self
+                return self.map(lambda x: (x, ))
             elif other == 2:
                 return vector([(i, j) for i in self for j in self])
             elif other > 2:
@@ -2442,6 +2442,37 @@ class vector(list):
     def to_dict(self, key_func, value_func) -> Dict:
         return {key_func(x): value_func(x) for x in super().__iter__()}
 
+    def plot_hist(self, bins=None, range=None, density=False, color=None, edgecolor=None, alpha=None, with_pdf=False, ax: Optional[Axes]=None, title: Optional[str]=None, saved_path: Optional[str]=None):
+        from matplotlib import pyplot as plt
+        _has_ax = ax is not None
+        if ax is None:
+            ax = plt.gca()
+            ax.clear()
+        else:
+            assert saved_path is None
+        if not with_pdf:
+            ax.hist(self, bins=bins, range=range, density=density, color=None, edgecolor=edgecolor, alpha=alpha)
+        else:
+            ax.hist(self, bins=bins, range=range, density=True, color=None, edgecolor=edgecolor, alpha=alpha)
+            import scipy.stats as st
+            xmin, xmax = ax.get_xlim()
+            kde_xs = np.linspace(xmin, xmax, 300)
+            kde = st.gaussian_kde(self)
+            ax.plot(kde_xs, kde.pdf(kde_xs), color="k")
+
+        if title:
+            ax.set_title(title)
+        if not _has_ax:
+            if saved_path is not None:
+                if saved_path.endswith("pdf"):
+                    with PdfPages(saved_path, "w") as f:
+                        plt.savefig(f, format="pdf")
+                else:
+                    plt.savefig(saved_path, dpi=300)
+            else:
+                plt.show()
+        return ax
+
     def plot(self, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None):
         """
         plot line graph for vector
@@ -2581,7 +2612,7 @@ class vector(list):
         return vector(itertools.product(*args)).map(lambda x: x)
 
     @staticmethod
-    def rand(*args):
+    def rand(*args, low=0, high=1):
         """rand.
 
         Parameters
@@ -2590,7 +2621,7 @@ class vector(list):
             args
         """
         args = totuple(args)
-        ret = vector.from_numpy(np.random.rand(*args))
+        ret = vector.from_numpy(np.random.rand(*args) * (high - low) + low)
         ret._shape = args
         return ret
 
@@ -2845,11 +2876,14 @@ class vector(list):
         example:
             vector.range(10).sample()
             vector.range(10).sample(10)
+            vector.range(10).sample(0.5)
             vector.range(10).sample(10, replace=False)
         """
         args = totuple(args)
         if len(args) == 0:
             return self.sample(1, replace=replace, batch_size=batch_size, p=p)[0]
+        if len(args) == 1 and isinstance(args[0], float) and 0 < args[0] < 1:
+            return self.sample(math.ceil(self.length * args[0]), replace=replace, batch_size=batch_size, p=p)
         if isinstance(args[-1], bool):
             replace = args[-1]
             args = args[:-1]
@@ -2857,8 +2891,6 @@ class vector(list):
             replace = args[-2]
             p = args[-1]
             args = args[:-2]
-        # if len(args) == 0:
-        #     return vector()
         if batch_size > 1:
             args = (*args, batch_size)
         if len(args) == 1 and replace == False:

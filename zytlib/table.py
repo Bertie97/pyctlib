@@ -1,10 +1,15 @@
 from typing import overload
 from .touch import touch, crash
+import pickle
+import argparse
 
-class Dict(dict):
+class table(dict):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        if len(args) == 1 and isinstance(args[0], argparse.Namespace):
+            super().__init__(vars(args[0]))
+        else:
+            super().__init__(*args, **kwargs)
         super().__setattr__("__key_locked", False)
 
     def update_exist(self, *args, **kwargs):
@@ -41,7 +46,7 @@ class Dict(dict):
             pickle.dump(dict(self), output)
 
     @staticmethod
-    def load(filepath) -> "Dict":
+    def load(filepath) -> "table":
         try:
             import pickle
         except:
@@ -49,18 +54,8 @@ class Dict(dict):
             return
         with open(filepath, "rb") as input:
             content = pickle.load(input)
-            ret = Dict(content)
+            ret = table(content)
         return ret
-
-    def __getattr__(self, key):
-        if key in super().keys():
-            return super().__getitem__(key)
-        raise ValueError()
-
-    def __setattr__(self, key, value):
-        if key not in self and self.locked:
-            raise RuntimeError("dict key is locked")
-        super().__setitem__(key, value)
 
     def __setitem__(self, key, value):
         if key not in self and self.locked:
@@ -78,10 +73,16 @@ class Dict(dict):
         for x, y in self.items():
             if key(x) and value(y):
                 ret[x] = y
-        return Dict(ret)
+        return table(ret)
 
-    def map(self, func):
+    def map(self, key=None, value=None) -> "table":
+        if key is None and value is None:
+            return self
+        if key is None:
+            key = lambda x: x
+        if value is None:
+            value = lambda x: x
         ret = dict()
         for x, y in self.items():
-            ret[x] = func(y)
-        return Dict(ret)
+            ret[key(x)] = value(y)
+        return table(ret)

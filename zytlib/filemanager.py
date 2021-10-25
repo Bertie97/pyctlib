@@ -325,14 +325,17 @@ class path(str):
 
     def with_name(self, name):
         if not "/" in self:
-            return self.abs().with_name(name)
-        return (self.parent) / path.extsep.join(vector(["name", self.ext]).filter(len))
+            # return self.abs().with_name(name)
+            return path(path.extsep.join(vector([name, self.ext]).filter(len)))
+        return (self.parent) / path.extsep.join(vector([name, self.ext]).filter(len))
 
     def with_ext(self, ext: str=None):
         if ext is None:
             return (self.parent) / self.name
-        assert "/" in self
-        return (self.parent) / path.extsep.join([self.name, ext])
+        if "/" in self:
+            return (self.parent) / path.extsep.join([self.name, ext])
+        else:
+            return path(path.extsep.join([self.name, ext]))
 
     @registered_property
     def fullname(self):
