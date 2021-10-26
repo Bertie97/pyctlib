@@ -26,6 +26,13 @@ class table(dict):
 
         return self
 
+    def key_not_here(self, d):
+        ret = vector()
+        for key in d.keys():
+            if key not in self:
+                ret.append(key)
+        return ret
+
     def lock_key(self):
         super().__setattr__("__key_locked", True)
 
