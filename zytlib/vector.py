@@ -2938,6 +2938,9 @@ class vector(list):
         if len(args) == 1 and replace == False:
             index_mapping = IndexMapping(np.random.choice(vector.range(self.length), size = args, replace=False, p=p), range_size=self.length, reverse=True)
             return self.map_index(index_mapping)
+        if len(args) == 1 and replace == True:
+            index_mapping = IndexMapping(vector.randint(0, high=self.length, size=args[0]), range_size=self.length, reverse=True)
+            return self.map_index(index_mapping)
         return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
 
     def batch(self, batch_size=1, random=True, drop=True):
