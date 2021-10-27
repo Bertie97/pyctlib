@@ -714,6 +714,9 @@ class Logger:
         if tight_layout:
             plt.tight_layout()
         if saved_path is not None:
+            saved_path = path(saved_path)
+            if not saved_path.parent.isdir():
+                saved_path.parent.mkdir()
             if saved_path.endswith("pdf"):
                 with PdfPages(saved_path, "w") as f:
                     plt.savefig(f, format="pdf")
