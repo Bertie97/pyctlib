@@ -268,6 +268,21 @@ class path(str):
             return x
         return path(os.path.relpath(x, y))
 
+    def __add__(x, y):
+        y = str(y)
+        if x.isfilepath():
+            file_name = x.fullname
+            folder_name = x.folder
+            parts = file_name.split(path.extsep)
+            if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2:
+                brk = -2
+            else:
+                brk = -1
+            ext = path.extsep.join(parts[brk:])
+            name = path.extsep.join(parts[:brk])
+            return folder_name/(name + y + path.extsep + ext)
+        else: return path(str(x) + y)
+
     def __floordiv__(x, y):
         return path(path.extsep.join((str(x).rstrip(path.extsep), str(y).lstrip(path.extsep))), main_folder=x.main_folder)
 
@@ -297,7 +312,7 @@ class path(str):
 
     @filepath_generator_wrapper
     def __iter__(self):
-        for p in self<<path.File:
+        for p in self.listdir():
             yield p
     def __contains__(self, x): return x in str(self)
 
@@ -305,7 +320,7 @@ class path(str):
     def ext(self):
         if self.isdir():
             return ""
-        file_name = self@path.File
+        file_name = self.fullname
         parts = file_name.split(path.extsep)
         if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2: brk = -2
         elif len(parts) > 1: brk = -1

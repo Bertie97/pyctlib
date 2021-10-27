@@ -1,5 +1,6 @@
 from typing import overload
 from .touch import touch, crash
+from .vector import vector
 import pickle
 import argparse
 
