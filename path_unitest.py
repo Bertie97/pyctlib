@@ -4,7 +4,8 @@ from sys import getsizeof
 
 sys.path.append(os.path.abspath("."))
 import pyctlib
-from pyctlib.filemanager import path
+from zytlib.filemanager import path
 
 p = path(".")
-t = p / "Log"
+t = p / "Log" / "test.log"
+

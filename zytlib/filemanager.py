@@ -269,19 +269,7 @@ class path(str):
         return path(os.path.relpath(x, y))
 
     def __add__(x, y):
-        y = str(y)
-        if x.isfilepath():
-            file_name = x.fullname
-            folder_name = x.folder
-            parts = file_name.split(path.extsep)
-            if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2:
-                brk = -2
-            else:
-                brk = -1
-            ext = path.extsep.join(parts[brk:])
-            name = path.extsep.join(parts[:brk])
-            return folder_name/(name + y + path.extsep + ext)
-        else: return path(str(x) + y)
+        return path(str(x) + str(y), main_folder=x.main_folder)
 
     def __floordiv__(x, y):
         return path(path.extsep.join((str(x).rstrip(path.extsep), str(y).lstrip(path.extsep))), main_folder=x.main_folder)
@@ -312,7 +300,7 @@ class path(str):
 
     @filepath_generator_wrapper
     def __iter__(self):
-        for p in self.listdir():
+        for p in os.listdir(self):
             yield p
     def __contains__(self, x): return x in str(self)
 
@@ -333,16 +321,32 @@ class path(str):
         if self.isdir():
             return file_name
         parts = file_name.split(path.extsep)
-        if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2: brk = -2
-        elif len(parts) > 1: brk = -1
-        else: brk = 1
-        return path.extsep.join(parts[:brk])
+        if parts[-1].lower() in ('zip', 'gz', 'rar') and len(parts) > 2:
+            brk = -2
+        elif len(parts) > 1:
+            brk = -1
+        else:
+            brk = 1
+        return path(path.extsep.join(parts[:brk]))
 
     def with_name(self, name):
         if not "/" in self:
-            # return self.abs().with_name(name)
             return path(path.extsep.join(vector([name, self.ext]).filter(len)))
         return (self.parent) / path.extsep.join(vector([name, self.ext]).filter(len))
+
+    def name_add(self, append):
+        """
+        path("Document/main.py").name_add("_1")
+        will get path("Document/main_1.py")
+        """
+        file_name = self.name
+        ext = self.ext
+        new_fullname = path.extsep.join(vector(file_name + append, ext).filter(len))
+        if not "/" in self:
+            return path(new_fullname, main_folder=self.main_folder)
+        ret = folder_name / new_fullname
+        ret.main_folder = self.main_folder
+        return ret
 
     def with_ext(self, ext: str=None):
         if ext is None:
@@ -364,8 +368,10 @@ class path(str):
         return self.fullname
 
     def split(self, *args):
-        if len(args) == 0: return [path(x) if x else path("$") for x in str(self).split(path.sep)]
-        else: return str(self).split(*args)
+        if len(args) == 0:
+            return [path(x) if x else path("$") for x in str(self).split(path.sep)]
+        else:
+            return str(self).split(*args)
 
     def abs(self):
         return path(os.path.abspath(self))
@@ -441,6 +447,10 @@ class path(str):
 
     @registered_property
     def parent(self):
+        if self == "" or self == rootdir:
+            return path()
+        if self == ".":
+            return path(path(".").abs()[:-1])
         if path.sep not in self:
             return path(".")
         return path(self[:-1])
