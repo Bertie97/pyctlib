@@ -1083,7 +1083,7 @@ class vector(list):
         ret.append(touch(lambda: func_space(self, vector())), refuse_value=None)
         return ret
 
-    def rmap(self, func, *args, default=NoDefault) -> "vector":
+    def rmap(self, func, *args, default=NoDefault, split_tuple=False) -> "vector":
         """rmap
         recursively map each element in vector
 
@@ -1105,7 +1105,10 @@ class vector(list):
             return self
         if len(args) > 0:
             func = chain_function((func, *args))
-        return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(x), default=default)
+        if split_tuple:
+            return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(*x), default=default)
+        else:
+            return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(x), default=default)
 
     def replace(self, element, toelement=NoDefault) -> "vector":
         """
