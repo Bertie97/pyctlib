@@ -47,6 +47,7 @@ import time
 import pydoc
 from collections.abc import Hashable
 from matplotlib.axes._subplots import Axes
+from .utils import constant
 try:
     import numba as nb
     jit = nb.jit
@@ -70,7 +71,9 @@ def totuple(x, depth=1):
     if depth == 1:
         if iterable(x) and len(x) == 1 and iterable(x[0]):
             return tuple(x[0])
-        if iterable(x) and len(x) == 1 and isinstance(x, types.GeneratorType):
+        elif iterable(x) and len(x) == 1 and isinstance(x, types.GeneratorType):
+            return tuple(x[0])
+        elif iterable(x) and len(x) == 1 and isinstance(x[0], types.GeneratorType):
             return tuple(x[0])
         else:
             return tuple(x)
@@ -1321,6 +1324,32 @@ class vector(list):
             ret._index_mapping = index_mapping
         return ret
 
+    @staticmethod
+    def rzip(*args) -> "vector":
+        """
+        Usage:
+        x = vector.zeros(2, 3)
+        y = vector.ones(2, 3)
+        vector.rzip(x, y) will get
+            [[(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)],
+             [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]]
+        """
+        args = totuple(args)
+        assert len(args) >= 1
+        if not isinstance(args[0], list):
+            for x in args:
+                assert not isinstance(x, list)
+            return args
+        args = tuple(vector(x) for x in args)
+        length = len(args[0])
+        for x in args:
+            assert len(x) == length
+        ret = vector()
+        for index in range(length):
+            element = vector.rzip(x[index] for x in args)
+            ret.append(element)
+        return ret
+
     def zip_split(self) -> Tuple["vector"]:
         """
         Usage:
@@ -1331,6 +1360,33 @@ class vector(list):
         z = [3,6]
         """
         return vector(zip(*self)).map(lambda x: vector(x))
+
+    def rzip_split(self) -> Tuple["vector"]:
+        """
+        Usage:
+        t = vector([[(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)],
+         [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]])
+        x, y = vector.rzip_split(t)
+        """
+        mem = constant()
+        ret = vector()
+        for item, x in enumerate(self):
+            if isinstance(x, tuple):
+                mem.length = len(x)
+                if len(ret) == 0:
+                    ret = vector(x).map(lambda e: vector([e]))
+                else:
+                    ret = vector([ret[index].append(x[index]) for index in range(mem.length)])
+            elif isinstance(x, vector):
+                temp = x.rzip_split()
+                mem.length = len(temp)
+                if len(ret) == 0:
+                    ret = temp.map(lambda r: vector([r]))
+                else:
+                    ret = vector([ret[index].append(temp[index]) for index in range(mem.length)])
+            else:
+                raise RuntimeError()
+        return ret
 
     def __pow__(self, other):
         """__pow__.
