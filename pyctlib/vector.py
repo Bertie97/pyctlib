@@ -150,6 +150,8 @@ def get_args_str(func, func_name):
     return ""
 
 def hashable(x):
+    if isinstance(x, vector):
+        return x.ishashable()
     return isinstance(x, Hashable)
 
 class _Vector_Dict(dict):

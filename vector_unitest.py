@@ -30,9 +30,7 @@ logger = Logger(True, file_name="vector_test_{time}")
 vector.zeros(10).map(lambda x: 1./x)
 vector.randn(3,4, truncate_std=1)
 
-
-# sns.heatmap(vector.randn(100, 6).corr(), vmin=-1, vmax=1, center=0, cmap=sns.diverging_palette(20, 220, n=200), square=True)
-# plt.show()
+vector().append(vector(np.zeros(10), np.zeros(10)))
 
 with scope("all"):
     vec = vector(1, 2, 3)
