@@ -1106,7 +1106,7 @@ class vector(list):
         if len(args) > 0:
             func = chain_function((func, *args))
         if split_tuple:
-            return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(*x), default=default)
+            return self.map(lambda x: x.rmap(func, default=default, split_tuple=True) if isinstance(x, vector) else func(*x), default=default)
         else:
             return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(x), default=default)
 
