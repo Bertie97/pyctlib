@@ -1580,7 +1580,10 @@ class vector(list):
                     temp = self[unfold_tuple(index[0], index[2:])]
                     return temp.map(lambda x: vector([x]))
                 else:
-                    return self[index[0]].map(lambda content: content[index[1:]])
+                    if isinstance(index[0], int):
+                        return self[index[0]][index[1:]]
+                    else:
+                        return self[index[0]].map(lambda content: content[index[1:]])
         if isinstance(index, IndexMapping):
             return self.map_index(index)
         if index is None:

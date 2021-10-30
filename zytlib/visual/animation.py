@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 from ..vector import vector
 from ..table import table
+import torch
 
 class animation_content:
 
@@ -19,20 +20,22 @@ class animation_content:
     def set_ylim(self, y_low, y_max):
         self.ax.set_ylim(y_low, y_max)
 
-    def set_xticks(self, *args, **kwargs):
-        self.ax.xticks(*args, **kwargs)
+    def set_xticks(self, content, label):
+        self.ax.set_xticks(content)
+        self.ax.set_xticklabels(label)
 
-    def set_yticks(self, *args, **kwargs):
-        self.ax.yticks(*args, **kwargs)
+    def set_yticks(self, content, label):
+        self.ax.set_yticks(content)
+        self.ax.set_yticklabels(label)
 
     def init(self):
         ret = tuple()
         if self.title_func:
-            self.title = ax.set_title(self.title_func(0))
+            self.title = self.ax.set_title(self.title_func(0))
             ret = ret + tuple([self.title])
         return ret
 
-    def update(self):
+    def update(self, frame):
         ret = tuple()
         if self.title_func:
             self.title.set_text(self.title_func(frame))
@@ -49,16 +52,20 @@ class ScatterAnimation(animation_content):
         """
         content.shape: [T, N, 2]
         """
-        dots = table(content=content, color=self.default_colors[len(self.dots)], label=None)
+        if isinstance(content, vector) and isinstance(content[0], torch.Tensor):
+            content = torch.stack(content)
+        dots = table(content=content, color=self.default_colors[len(self.scatter_dots)], label=None)
         dots.update_exist(kwargs)
         self.scatter_dots.append(dots)
 
     def init(self):
         self.lines = vector()
+        need_legend = self.scatter_dots.map(lambda dots: dots["label"]).any(lambda x: x is not None)
         for dots in self.scatter_dots:
             ln, = self.ax.plot([], [], 'o', color=dots["color"], label=dots["label"])
             self.lines.append(ln)
-        self.ax.legend()
+        if need_legend:
+            self.ax.legend()
         return tuple(self.lines) + super().init()
 
     def update(self, frame):
@@ -68,9 +75,10 @@ class ScatterAnimation(animation_content):
 
 class TimeStamp(animation_content):
 
-    def __init__(self, ax, max_frame):
+    def __init__(self, ax, max_frame, vertical_line=True):
         super().__init__(ax, max_frame)
         self.curves = vector()
+        self.vertical_line = vertical_line
 
     def register(self, content, **kwargs):
         assert isinstance(content, list)
@@ -84,13 +92,24 @@ class TimeStamp(animation_content):
     def init(self):
         self.N = len(self.curves)
         lines = vector()
+        need_legend = self.curves.map(lambda curve: curve["label"]).any(lambda x: x is not None)
         for index, curve in enumerate(self.curves):
-            ln, = self.ax.plot(range(self.max_frame), curve["content"], color=curve["color"], linewidth=curve["linewidth"], label=None)
+            ln, = self.ax.plot(range(self.max_frame), curve["content"], color=curve["color"], linewidth=curve["linewidth"], label=curve["label"])
             lines.append(ln)
-        self.ax.legend()
+        if need_legend:
+            self.ax.legend()
         self.dots = self.ax.scatter(vector.zeros(self.N), self.curves.map(lambda x: x["content"][0]), color=self.curves.map(lambda x: x["color"]))
-        return tuple(lines.append(self.dots)) + super().init()
+        ret = tuple(lines.append(self.dots)) + super().init()
+        if self.vertical_line:
+            self.vl,  = self.ax.plot([0, 0], [0, self.curves.map(lambda x: x["content"][0]).max()], linewidth=0.3, ls="--", color=(0.5, 0.5, 0.5))
+            ret = ret + tuple([self.vl])
+        return ret
 
     def update(self, frame):
+        ret = tuple()
         self.dots.set_offsets(vector.zip(vector.constant_vector(frame, self.N), self.curves.map(lambda x: x["content"][frame])))
-        return tuple([self.dots]) + super().update(frame)
+        ret = ret + tuple([self.dots])
+        if self.vertical_line:
+            self.vl.set_data([frame, frame], [0, self.curves.map(lambda x: x["content"][frame]).max()])
+            ret = ret + tuple([self.vl])
+        return ret + super().update(frame)
