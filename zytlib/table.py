@@ -103,3 +103,12 @@ class table(dict):
         for x, y in self.items():
             ret[key(x)] = value(y)
         return table(ret)
+
+    def values(self) -> vector:
+        return vector(super().values())
+
+    def keys(self) -> vector:
+        return vector(super().keys())
+
+    def items(self) -> vector:
+        return vector(super().items())

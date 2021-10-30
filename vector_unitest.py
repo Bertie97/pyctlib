@@ -17,6 +17,7 @@ from zytlib import totuple
 from zytlib.touch import once
 import seaborn as sns
 import matplotlib.pyplot as plt
+from zytlib.visual.animation import TimeStamp
 
 for index in range(10):
     if once:

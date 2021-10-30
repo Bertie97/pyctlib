@@ -35,6 +35,7 @@ import curses
 import re
 import sys
 import math
+import torch
 from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple, Optional
 import types
 import traceback
@@ -48,6 +49,7 @@ import pydoc
 from collections.abc import Hashable
 from matplotlib.axes._subplots import Axes
 from .utils import constant
+import functools
 try:
     import numba as nb
     jit = nb.jit
@@ -63,6 +65,22 @@ from zytlib import touch
 def list_like(obj):
     return "__getitem__" in dir(obj) and "__len__" in dir(obj) and "__iter__" in dir(obj)
 
+def unfold_tuple(*args, depth=0):
+    if len(args) == 0:
+        return tuple()
+    elif len(args) == 1:
+        x = args[0]
+        if isinstance(x, types.GeneratorType):
+            x = tuple(x)
+        if not iterable(x):
+            return tuple([x])
+        if depth == 0:
+            return tuple(x)
+        else:
+            return functools.reduce(lambda x, y: x + y, tuple(unfold_tuple(t, depth=depth - 1) for t in x), tuple())
+    else:
+        return functools.reduce(lambda x, y: x+y, tuple(unfold_tuple(t, depth=depth) for t in args), tuple())
+
 def totuple(x, depth=1):
     if isinstance(x, types.GeneratorType):
         x = tuple(x)
@@ -71,9 +89,7 @@ def totuple(x, depth=1):
     if depth == 1:
         if iterable(x) and len(x) == 1 and iterable(x[0]):
             return tuple(x[0])
-        elif iterable(x) and len(x) == 1 and isinstance(x, types.GeneratorType):
-            return tuple(x[0])
-        elif iterable(x) and len(x) == 1 and isinstance(x[0], types.GeneratorType):
+        if iterable(x) and len(x) == 1 and isinstance(x[0], types.GeneratorType):
             return tuple(x[0])
         else:
             return tuple(x)
@@ -970,17 +986,18 @@ class vector(list):
         except Exception as e:
             error_info = str(e)
             error_trace = traceback.format_exc()
-        for index, a in self.enumerate():
-            if filter_function is not None and not filter_function(index, a):
+        for index, content in self.enumerate():
+            if filter_function is not None and not filter_function(index, content):
                 continue
-            if touch(lambda: new_func(a)) is None:
-                try:
-                    error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, new_func, default)
-                except:
-                    error_information = "Error info: {}. ".format(error_info) +"\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", new_func, default)
-                error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
+            if touch(lambda: new_func(content)) is None:
+                new_func(content)
+                # try:
+                #     error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, new_func, default)
+                # except:
+                #     error_information = "Error info: {}. ".format(error_info) +"\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", new_func, default)
+                # error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
 
-                raise RuntimeError(error_information)
+                # raise RuntimeError(error_information)
         return vector()
 
     def map_k(self, func, k, overlap=True, split_tuple=True) -> "vector":
@@ -1544,13 +1561,30 @@ class vector(list):
         if isinstance(index, list):
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
+        if isinstance(index, np.ndarray) and len(index.shape) == 1:
+            assert len(self) == len(index)
+            return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
+        if isinstance(index, torch.Tensor) and len(index.shape) == 1:
+            assert len(self) == len(index)
+            return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
         if isinstance(index, tuple):
             if len(index) == 1:
-                return super().__getitem__(index[0])
+                if index[0] is None:
+                    return vector([self])
+                else:
+                    return self[index[0]]
             else:
-                return super().__getitem__(index[0])[index[1:]]
+                if index[0] is None:
+                    return vector([self[index[1:]]])
+                elif index[1] is None:
+                    temp = self[unfold_tuple(index[0], index[2:])]
+                    return temp.map(lambda x: vector([x]))
+                else:
+                    return self[index[0]].map(lambda content: content[index[1:]])
         if isinstance(index, IndexMapping):
             return self.map_index(index)
+        if index is None:
+            return vector([self])
         return super().__getitem__(index)
 
     def select_index(self, index_list) -> "vector":
@@ -2678,6 +2712,16 @@ class vector(list):
         args = totuple(args)
         return vector.from_numpy(np.zeros(args))
 
+    @staticmethod
+    def constant_vector(value, *args):
+        args = totuple(args)
+        if len(args) == 0:
+            return vector()
+        elif len(args) == 1:
+            return vector(value for _ in range(args[0]))
+        else:
+            return vector(vector.constant_vector(value, args[1:]) for _ in range(args[0]))
+
     @overload
     @staticmethod
     def ones(size: Iterable): ...
@@ -2774,6 +2818,24 @@ class vector(list):
         return vector(range(*args))
 
     @staticmethod
+    def mesh_range(*args) -> "vector":
+        """
+        vector.mesh_range(3, 4) will get:
+        [[(0, 0), (0, 1), (0, 2), (0, 3)],
+         [(1, 0), (1, 1), (1, 2), (1, 3)],
+         [(2, 0), (2, 1), (2, 2), (2, 3)]]
+        """
+        args = totuple(args)
+        if len(args) == 0:
+            return vector()
+        elif len(args) == 1:
+            return vector.range(args[0])
+        elif len(args) == 2:
+            return vector.range(args[0]).map(lambda index_1: vector.range(args[1]).map(lambda index_2: (index_1, index_2)))
+        else:
+            return vector.range(args[0]).map(lambda index: vector.meshgrid(args[1:]).map(lambda other: tuple([index]) + other))
+
+    @staticmethod
     def from_randomwalk(start, transition_function, length):
         ret = vector([start])
         temp = start
@@ -2784,6 +2846,10 @@ class vector(list):
 
     def iid(self, sample_func, length, args=()):
         return vector([sample_func(*args) for _ in range(length)])
+
+    @property
+    def ndim(self):
+        return len(self.shape)
 
     @property
     def shape(self):
