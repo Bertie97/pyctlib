@@ -60,6 +60,8 @@ class ScatterAnimation(animation_content):
         """
         if isinstance(content, vector) and isinstance(content[0], torch.Tensor):
             content = torch.stack(content)
+        if isinstance(content, torch.Tensor):
+            content = content.detach().cpu()
         dots = table(content=content, color=self.default_colors[len(self.scatter_dots)], label=None)
         dots.update_exist(kwargs)
         self.scatter_dots.append(dots)
@@ -91,6 +93,8 @@ class TimeStamp(animation_content):
         content = vector(content)
         assert content.length >= self.max_frame
         content = content[:self.max_frame]
+        if isinstance(content[0], torch.Tensor):
+            content = content.map(lambda x: x.detach().cpu())
         curve = table(content=content, color=self.default_colors[len(self.curves)], linewidth=1, label=None)
         curve.update_exist(kwargs)
         self.curves.append(curve)

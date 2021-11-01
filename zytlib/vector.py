@@ -174,14 +174,16 @@ def hashable(x):
     return isinstance(x, Hashable)
 
 def _need_split_tuple(func):
-    params = inspect.signature(func).parameters
-    if len(params) == 1:
-        if str(list(params.values())[0])[0] == "*":
+    try:
+        params = inspect.signature(func).parameters
+        if len(params) == 1:
+            if str(list(params.values())[0])[0] == "*":
+                return True
+            return False
+        else:
             return True
+    except:
         return False
-    else:
-        return True
-
 
 class _Vector_Dict(dict):
 
