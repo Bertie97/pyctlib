@@ -12,6 +12,9 @@ class animation_content:
         self.title_func = None
 
     def set_titlefunc(self, title_func):
+        """
+        title_func can be either string or function
+        """
         self.title_func = title_func
 
     def set_xlim(self, x_low, x_max):
@@ -31,13 +34,16 @@ class animation_content:
     def init(self):
         ret = tuple()
         if self.title_func:
-            self.title = self.ax.set_title(self.title_func(0))
+            if isinstance(self.title_func, str):
+                self.title = self.ax.set_title(self.title_func)
+            else:
+                self.title = self.ax.set_title(self.title_func(0))
             ret = ret + tuple([self.title])
         return ret
 
     def update(self, frame):
         ret = tuple()
-        if self.title_func:
+        if self.title_func and not isinstance(self.title_func, str):
             self.title.set_text(self.title_func(frame))
             ret = ret + tuple([self.title])
         return ret

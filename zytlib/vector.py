@@ -173,6 +173,16 @@ def hashable(x):
         return x.ishashable()
     return isinstance(x, Hashable)
 
+def _need_split_tuple(func):
+    params = inspect.signature(func).parameters
+    if len(params) == 1:
+        if str(list(params.values())[0])[0] == "*":
+            return True
+        return False
+    else:
+        return True
+
+
 class _Vector_Dict(dict):
 
     def values(self):
@@ -711,6 +721,10 @@ class vector(list):
 
     @staticmethod
     def map_from(vectors, reduce_func) -> "vector":
+        """
+        map_from(vectors([[0, 1, 2, 3], [0, 1, 2, 3]]), sum) will get:
+        [0, 2, 4, 6]
+        """
         assert any(isinstance(x, list) for x in vectors)
         for vec in vectors:
             if isinstance(vec, list):
@@ -875,7 +889,7 @@ class vector(list):
             func = chain_function((func, *args))
         return self.filter(lambda x: not touch(lambda: (func(x), True)[-1], False))
 
-    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False, split_tuple=False, filter_function=None) -> "vector":
+    def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None) -> "vector":
         """
         generate a new vector with each element x are replaced with func(x)
 
@@ -908,6 +922,8 @@ class vector(list):
         """
         if func is None:
             return self
+        if split_tuple is None:
+            split_tuple = _need_split_tuple(func)
         if register_result:
             if not hasattr(self, "_vector__map_register"):
                 self.__map_register: Dict[Union[tuple, str], Any] = dict()
@@ -1000,9 +1016,13 @@ class vector(list):
                 # raise RuntimeError(error_information)
         return vector()
 
-    def map_k(self, func, k, overlap=True, split_tuple=True) -> "vector":
+    def map_k(self, func, k, overlap=True, split_tuple=None) -> "vector":
         if self.length < k:
             return vector()
+        if func is None:
+            func = lambda x: x
+        if split_tuple is None:
+            split_tuple = _need_split_tuple(func)
         assert k > 0
         t = vector()
         if overlap:
@@ -1100,7 +1120,7 @@ class vector(list):
         ret.append(touch(lambda: func_space(self, vector())), refuse_value=None)
         return ret
 
-    def rmap(self, func, *args, default=NoDefault, split_tuple=False) -> "vector":
+    def rmap(self, func, *args, default=NoDefault, split_tuple=None) -> "vector":
         """rmap
         recursively map each element in vector
 
@@ -1120,6 +1140,8 @@ class vector(list):
         """
         if func is None:
             return self
+        if split_tuple is None:
+            split_tuple = _need_split_tuple(func)
         if len(args) > 0:
             func = chain_function((func, *args))
         if split_tuple:
@@ -2024,7 +2046,10 @@ class vector(list):
             assert len(x) == len(y)
             xy = vector.zip(x, y).map(lambda t: t[0] * t[1])
             n = len(x)
-            ret = (n * xy.sum() - x.sum() * y.sum()) / math.sqrt((n * x.map(lambda x: x ** 2).sum() - x.sum() ** 2) * (n * y.map(lambda x: x**2).sum() - y.sum() ** 2))
+            if x.std() == 0 or y.std() == 0:
+                ret = 0
+            else:
+                ret = (n * xy.sum() - x.sum() * y.sum()) / math.sqrt((n * x.map(lambda x: x ** 2).sum() - x.sum() ** 2) * (n * y.map(lambda x: x**2).sum() - y.sum() ** 2))
             return ret
         elif len(args) == 0:
             if self.check_type(tuple):
