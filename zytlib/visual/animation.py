@@ -12,6 +12,9 @@ class animation_content:
         self.title_func = None
 
     def set_titlefunc(self, title_func):
+        """
+        title_func can be either string or function
+        """
         self.title_func = title_func
 
     def set_xlim(self, x_low, x_max):
@@ -31,13 +34,16 @@ class animation_content:
     def init(self):
         ret = tuple()
         if self.title_func:
-            self.title = self.ax.set_title(self.title_func(0))
+            if isinstance(self.title_func, str):
+                self.title = self.ax.set_title(self.title_func)
+            else:
+                self.title = self.ax.set_title(self.title_func(0))
             ret = ret + tuple([self.title])
         return ret
 
     def update(self, frame):
         ret = tuple()
-        if self.title_func:
+        if self.title_func and not isinstance(self.title_func, str):
             self.title.set_text(self.title_func(frame))
             ret = ret + tuple([self.title])
         return ret
@@ -54,6 +60,8 @@ class ScatterAnimation(animation_content):
         """
         if isinstance(content, vector) and isinstance(content[0], torch.Tensor):
             content = torch.stack(content)
+        if isinstance(content, torch.Tensor):
+            content = content.detach().cpu()
         dots = table(content=content, color=self.default_colors[len(self.scatter_dots)], label=None)
         dots.update_exist(kwargs)
         self.scatter_dots.append(dots)
@@ -85,6 +93,8 @@ class TimeStamp(animation_content):
         content = vector(content)
         assert content.length >= self.max_frame
         content = content[:self.max_frame]
+        if isinstance(content[0], torch.Tensor):
+            content = content.map(lambda x: x.detach().cpu())
         curve = table(content=content, color=self.default_colors[len(self.curves)], linewidth=1, label=None)
         curve.update_exist(kwargs)
         self.curves.append(curve)
