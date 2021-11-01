@@ -1008,7 +1008,10 @@ class vector(list):
             if filter_function is not None and not filter_function(index, content):
                 continue
             if touch(lambda: new_func(content)) is None:
-                new_func(content)
+                if split_tuple and isinstance(content, tuple):
+                    new_func(*content)
+                else:
+                    new_func(content)
                 # try:
                 #     error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, new_func, default)
                 # except:
