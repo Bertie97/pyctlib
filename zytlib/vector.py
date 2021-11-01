@@ -2325,9 +2325,17 @@ class vector(list):
 
     def permute(self, *args) -> "vector":
         args = totuple(args)
+        if len(args) <= 1:
+            return self
         assert len(args) == len(self.shape)
         assert vector(args).sort() == vector.range(len(args))
-        return vector(self.to_numpy().transpose(*args))
+        def permute_tuple(t, order):
+            return tuple(t[order[index]] for index in range(len(t)))
+        new_shape = permute_tuple(self.shape, args)
+        ret = vector.constant_vector(None, new_shape)
+        for index in vector.meshgrid(self.shape):
+            ret[permute_tuple(index, args)] = self[index]
+        return ret
 
     @property
     def T(self) -> "vector":
@@ -2821,9 +2829,9 @@ class vector(list):
         return vector(range(*args))
 
     @staticmethod
-    def mesh_range(*args) -> "vector":
+    def meshrange(*args) -> "vector":
         """
-        vector.mesh_range(3, 4) will get:
+        vector.meshrange(3, 4) will get:
         [[(0, 0), (0, 1), (0, 2), (0, 3)],
          [(1, 0), (1, 1), (1, 2), (1, 3)],
          [(2, 0), (2, 1), (2, 2), (2, 3)]]
@@ -2834,9 +2842,9 @@ class vector(list):
         elif len(args) == 1:
             return vector.range(args[0])
         elif len(args) == 2:
-            return vector.range(args[0]).map(lambda index_1: vector.range(args[1]).map(lambda index_2: (index_1, index_2)))
+            return vector.range(args[0]).map(lambda index_1: vector.range(args[1]).map(lambda index_2: (index_1, index_2), split_tuple=False))
         else:
-            return vector.range(args[0]).map(lambda index: vector.meshgrid(args[1:]).map(lambda other: tuple([index]) + other))
+            return vector.range(args[0]).map(lambda index: vector.meshrange(args[1:]).rmap(lambda other: tuple([index]) + other, split_tuple=False))
 
     @staticmethod
     def from_randomwalk(start, transition_function, length):
