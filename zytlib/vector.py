@@ -1125,7 +1125,7 @@ class vector(list):
         ret.append(touch(lambda: func_space(self, vector())), refuse_value=None)
         return ret
 
-    def rmap(self, func, *args, default=NoDefault, split_tuple=None) -> "vector":
+    def rmap(self, func, *args, default=NoDefault, max_depth=-1, split_tuple=None) -> "vector":
         """rmap
         recursively map each element in vector
 
@@ -1147,12 +1147,14 @@ class vector(list):
             return self
         if split_tuple is None:
             split_tuple = _need_split_tuple(func)
+        if max_depth == 0:
+            return self.map(func, *args, default=default, split_tuple=split_tuple)
         if len(args) > 0:
             func = chain_function((func, *args))
         if split_tuple:
-            return self.map(lambda x: x.rmap(func, default=default, split_tuple=True) if isinstance(x, vector) else func(*x), default=default)
+            return self.map(lambda x: x.rmap(func, default=default, max_depth=max_depth-1, split_tuple=True) if isinstance(x, vector) else func(*x), default=default)
         else:
-            return self.map(lambda x: x.rmap(func, default=default) if isinstance(x, vector) else func(x), default=default)
+            return self.map(lambda x: x.rmap(func, default=default, max_depth=max_depth-1, split_tuple=False) if isinstance(x, vector) else func(x), default=default)
 
     def replace(self, element, toelement=NoDefault) -> "vector":
         """
@@ -1595,7 +1597,9 @@ class vector(list):
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
         if isinstance(index, tuple):
-            if len(index) == 1:
+            if len(index) == 0:
+                return vector()
+            elif len(index) == 1:
                 if index[0] is None:
                     return vector([self])
                 else:
@@ -2369,14 +2373,20 @@ class vector(list):
 
     @property
     def T(self) -> "vector":
-        dim = vector.range(len(self.shape))
-        return self.permute(dim[:-2] + dim[-2:][::-1])
+        return self.permute(vector.range(self.ndim)[::-1])
 
     def transpose(self, dim1: int, dim2: int) -> "vector":
-        shape = vector(self.shape)
-        shape[dim1] = dim2
-        shape[dim2] = dim1
-        return self.permute(shape)
+        if dim1 == dim2:
+            return self
+        if dim1 > dim2:
+            return self.transpose(dim2, dim1)
+        if dim1 > 0:
+            return self.rmap(lambda x: x.transpose(0, dim2-dim1), max_depth=dim1-1, split_tuple=False)
+        shape = self.shape[:(dim2 + 1)]
+        ret = vector.constant_vector(None, tuple([shape[-1], *shape[1:-1], shape[0]]))
+        for index in vector.meshgrid(shape):
+            ret[tuple([index[-1], *index[1:-1], index[0]])] = self[index]
+        return ret
 
     def reshape(self, *args) -> "vector":
         """reshape.
@@ -2619,6 +2629,14 @@ class vector(list):
 
     def to_dict(self, key_func, value_func) -> Dict:
         return {key_func(x): value_func(x) for x in super().__iter__()}
+
+    def cpu(self) -> "vector":
+        def func(x):
+            if isinstance(x, torch.Tensor):
+                return x.cpu()
+            else:
+                return x
+        return self.rmap(func, split_tuple=False)
 
     def plot_hist(self, bins=None, range=None, density=False, color=None, edgecolor=None, alpha=None, with_pdf=False, ax: Optional[Axes]=None, title: Optional[str]=None, saved_path: Optional[str]=None):
         from matplotlib import pyplot as plt
@@ -2908,6 +2926,9 @@ class vector(list):
             self.__shape = "undefined"
             return self.__shape
         if self[0].shape is None:
+            self.__shape = "undefined"
+            return self.__shape
+        if isinstance(self[0].shape, str) and self[0].shape == "undefined":
             self.__shape = "undefined"
             return self.__shape
         self.__shape = (self.length, *(self[0].shape))
