@@ -1012,13 +1012,6 @@ class vector(list):
                     new_func(*content)
                 else:
                     new_func(content)
-                # try:
-                #     error_information = "Error info: {}. ".format(error_info) + "\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, a, new_func, default)
-                # except:
-                #     error_information = "Error info: {}. ".format(error_info) +"\nException raised in map function at location [{}] for element [{}] with function [{}] and default value [{}]".format(index, "<unknown>", new_func, default)
-                # error_information += "\n" + "-" * 50 + "\n" + error_trace + "-" * 50
-
-                # raise RuntimeError(error_information)
         return vector()
 
     def map_k(self, func, k, overlap=True, split_tuple=None) -> "vector":
@@ -1242,6 +1235,22 @@ class vector(list):
                 else:
                     self[index] = toelement
         return
+
+    @staticmethod
+    def stack(*args, dim=0):
+        args = totuple(args)
+        args = vector(vector(x) for x in args)
+        assert args.all_equal(lambda x: x.shape)
+        shape = args[0].shape
+        assert dim <= len(shape)
+        if dim == -1:
+            dim = len(shape)
+        if len(shape) == 1 and shape[0] == 1 and dim == 0:
+            return args.map(lambda x: x[0])
+        if dim > 0:
+            ret = vector.meshrange(shape[:dim]).rmap(lambda index: vector.stack(*args.map(lambda x: x[index], split_tuple=False)), split_tuple=False)
+            return ret
+        return args
 
     def apply(self, command) -> None:
         """apply
@@ -2813,7 +2822,11 @@ class vector(list):
         if len(args) == 0:
             return vector()
         if isinstance(args[0], int):
+            if len(args) == 1:
+                return vector.range(args[0]).map(lambda x: (x, ))
             return vector.meshgrid(*[vector.range(d) for d in args])
+        if len(args) == 1:
+            return vector(args[0]).map(lambda x: (x, ))
         import itertools
         return vector(itertools.product(*args)).map(lambda x: x)
 
@@ -3078,12 +3091,15 @@ class vector(list):
         super().remove(*args)
         return self
 
-    def all_equal(self):
-        """all_equal.
+    def all_equal(self, func=None):
+        """
+            test if all element in a vector are equal or not
         """
         if self.length <= 1:
             return True
-        return self.all(lambda x: x == self[0])
+        if func is None:
+            func = lambda x: x
+        return self.all(lambda x: func(x) == func(self[0]))
 
     @overload
     def sample(self, size: Iterable, replace=True, batch_size=1, p=None): ...
