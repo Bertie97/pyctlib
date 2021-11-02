@@ -1373,6 +1373,26 @@ class vector(list):
             return vector(zip(self, other))
 
     @staticmethod
+    def product(*args) -> "vector":
+        def _product(*args, pre=None):
+            if len(args) == 1:
+                return vector(args[0]).map(lambda x: tuple([*pre, x]))
+            if pre is None:
+                pre = tuple()
+            return vector(args[0]).map(lambda x: _product(*args[1:], pre=tuple([*pre, x])))
+        if len(args) == 0:
+            return vector()
+        if len(args) == 1:
+            assert isinstance(args[0], list)
+            if len(args[0]) == 0:
+                return vector()
+            if isinstance(args[0], list):
+                return vector.product(*args[0])
+            return vector(args[0]).map(lambda x: (x, ))
+        else:
+            return _product(*args, pre=None)
+
+    @staticmethod
     def zip(*args, index_mapping=NoDefault) -> "vector":
         args = totuple(args)
         ret = vector(zip(*args)).map(lambda x: totuple(x), split_tuple=False)
