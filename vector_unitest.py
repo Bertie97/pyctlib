@@ -17,15 +17,16 @@ from zytlib import totuple
 from zytlib.touch import once
 import seaborn as sns
 import matplotlib.pyplot as plt
+from zytlib.visual.animation import TimeStamp
 
-for index in range(10):
-    if once:
-        print(1)
+# for index in range(10):
+#     if once:
+#         print(1)
 
-print(zytlib.__file__)
+# print(zytlib.__file__)
 
-from zytlib import Logger
-logger = Logger(True, file_name="vector_test_{time}")
+# from zytlib import Logger
+# logger = Logger(True, file_name="vector_test_{time}")
 
 vector.zeros(10).map(lambda x: 1./x)
 vector.randn(3,4, truncate_std=1)

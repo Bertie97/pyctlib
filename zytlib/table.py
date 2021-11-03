@@ -13,6 +13,15 @@ class table(dict):
             super().__init__(*args, **kwargs)
         super().__setattr__("__key_locked", False)
 
+    def __add__(x, y):
+        y = table(y)
+        if set(x.keys()) & set(y.keys()):
+            raise ValueError("table+table requires keys in two table are different")
+        ret = table()
+        ret.update(x)
+        ret.update(y)
+        return ret
+
     def update_exist(self, *args, **kwargs):
 
         for arg in args:
@@ -94,3 +103,12 @@ class table(dict):
         for x, y in self.items():
             ret[key(x)] = value(y)
         return table(ret)
+
+    def values(self) -> vector:
+        return vector(super().values())
+
+    def keys(self) -> vector:
+        return vector(super().keys())
+
+    def items(self) -> vector:
+        return vector(super().items())
