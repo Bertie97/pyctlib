@@ -1,7 +1,13 @@
 import torch
 from pyctlib import vector
+from functools import reduce
 
 def get_shape(input):
+    if isinstance(input, vector):
+        if input.shape and not isinstance(input.shape, str):
+            flattened = input.flatten()
+            if reduce(lambda x, y: x*y, input.shape, initial=1) == flattened.length:
+                return "V[{}][{}]".format(", ".join([str(t) for t in input.shape]), flattened[0].shape)
     if isinstance(input, list):
         input = vector(input)
         l_shape = input.map(get_shape)
