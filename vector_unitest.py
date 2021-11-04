@@ -30,6 +30,8 @@ from zytlib.visual.animation import TimeStamp
 
 vector.zeros(10).map(lambda x: 1./x)
 vector.randn(3,4, truncate_std=1)
+vector.from_range(10, lambda x: x)
+vector.from_range((3, 4), lambda x, y: x + y)
 
 vector().append(vector(np.zeros(10), np.zeros(10)))
 
