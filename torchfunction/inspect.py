@@ -1,13 +1,17 @@
 import torch
-from pyctlib import vector
+from zytlib import vector
 from functools import reduce
+import numpy as np
 
 def get_shape(input):
     if isinstance(input, vector):
         if input.shape and not isinstance(input.shape, str):
             flattened = input.flatten()
-            if reduce(lambda x, y: x*y, input.shape, initial=1) == flattened.length:
-                return "V[{}][{}]".format(", ".join([str(t) for t in input.shape]), flattened[0].shape)
+            if reduce(lambda x, y: x*y, input.shape, 1) == flattened.length:
+                if isinstance(flattened[0], (int, float, bool)):
+                    return "V[{}]".format(", ".join(vector(input.shape).map(str)))
+                else:
+                    return "V[{}][{}]".format(", ".join([str(t) for t in input.shape]), get_shape(flattened[0]))
     if isinstance(input, list):
         input = vector(input)
         l_shape = input.map(get_shape)
