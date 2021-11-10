@@ -1504,6 +1504,9 @@ class vector(list):
         """
         return vector(super().__add__(other))
 
+    def __radd__(self, left):
+        return self.__add__(left)
+
     def matrix_operation(self, other, op):
         assert self.shape == other.shape
         if self.dim == 1:
