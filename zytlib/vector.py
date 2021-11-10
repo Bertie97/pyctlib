@@ -1620,8 +1620,16 @@ class vector(list):
         if isinstance(index, slice):
             return self.map_index(IndexMapping(index, self.length, True))
         if isinstance(index, list):
-            assert len(self) == len(index)
-            return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
+            if len(self) != len(index) and vector(index).check_type(int) and vector(index).all(lambda x: -self.length <= x < self.length):
+                index = vector(index).map(lambda x: x if x >= 0 else x + self.length)
+                return self.map_index(IndexMapping(index, self.length, True))
+            elif len(self) == len(index):
+                if vector(index).all(lambda x: 0 <= int(x) <= 1):
+                    return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
+                elif vector(index).check_type(int) and vector(index).all(lambda x: -self.length <= x < self.length):
+                    index = vector(index).map(lambda x: x if x >= 0 else x + self.length)
+                    return self.map_index(IndexMapping(index, self.length, True))
+            raise RuntimeError()
         if isinstance(index, np.ndarray) and len(index.shape) == 1:
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
