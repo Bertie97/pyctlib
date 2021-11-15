@@ -2652,15 +2652,9 @@ class vector(list):
     @staticmethod
     def from_range(shape, func):
         if isinstance(shape, int):
-<<<<<<< HEAD
-            return self.range(shape).map(func)
-        elif isinstance(shape, tuple):
-            return vector.meshrange(shape).rmap(func, split_tuple=True)
-=======
             return vector.range(shape).map(func, split_tuple=False)
         elif isinstance(shape, tuple):
-            return vector.meshrange(shape).rmap(func)
->>>>>>> 09c4daad7927a1c2224b4642b0535317e5596309
+            return vector.meshrange(shape).rmap(func, split_tuple=True)
         else:
             raise RuntimeError()
 

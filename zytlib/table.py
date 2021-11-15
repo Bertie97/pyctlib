@@ -9,6 +9,11 @@ class table(dict):
     def __init__(self, *args, **kwargs):
         if len(args) == 1 and isinstance(args[0], argparse.Namespace):
             super().__init__(vars(args[0]))
+        elif len(args) == 2 and isinstance(args[0], list) and isinstance(args[1], list) and len(args[0]) == len(args[1]) and len(kwargs) == 0:
+            d = dict()
+            for key, value in zip(args[0], args[1]):
+                d[key] = value
+            super().__init__(d)
         else:
             super().__init__(*args, **kwargs)
         super().__setattr__("__key_locked", False)
