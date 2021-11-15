@@ -62,7 +62,7 @@ class ScatterAnimation(animation_content):
             content = torch.stack(content)
         if isinstance(content, torch.Tensor):
             content = content.detach().cpu()
-        dots = table(content=content, color=self.default_colors[len(self.scatter_dots)], label=None)
+        dots = table(content=content, color=self.default_colors[len(self.scatter_dots)], label=None, linewidth=None, alpha=None)
         dots.update_exist(kwargs)
         self.scatter_dots.append(dots)
 
@@ -70,7 +70,7 @@ class ScatterAnimation(animation_content):
         self.lines = vector()
         need_legend = self.scatter_dots.map(lambda dots: dots["label"]).any(lambda x: x is not None)
         for dots in self.scatter_dots:
-            ln, = self.ax.plot([], [], 'o', color=dots["color"], label=dots["label"])
+            ln, = self.ax.plot([], [], 'o', color=dots["color"], label=dots["label"], linewidth=dots["linewidth"], alpha=dots["alpha"])
             self.lines.append(ln)
         if need_legend:
             self.ax.legend()

@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "zytlib",
-    version = "0.3.188",
+    version = "0.3.192",
     keywords = ("pip", "zytlib"),
     description = "This is A foundamental package containing some basic self-designed functions and types for Project PyCTLib. ",
     long_description = open("./pyctlib/README.md").read(),

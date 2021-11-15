@@ -2026,7 +2026,7 @@ class vector(list):
     def relu(self) -> "vector":
         return self.map_numba_function(numba_relu)
 
-    def sum(self, default=None):
+    def sum(self, dim=None, default=None):
         """sum.
 
         Parameters
@@ -2034,20 +2034,35 @@ class vector(list):
         default :
             default
         """
-        if hasattr(self, "_vector__sum"):
+        if dim is None or self.shape == "undefined" or self.ndim <= 1:
+            if hasattr(self, "_vector__sum"):
+                return self.__sum
+            if self.check_type(int) or self.check_type(float):
+                self.__sum = numba_sum(self.to_numpy())
+            else:
+                self.__sum = self.reduce(lambda x, y: x + y, default)
             return self.__sum
-        if self.check_type(int) or self.check_type(float):
-            self.__sum = numba_sum(self.to_numpy())
         else:
-            self.__sum = self.reduce(lambda x, y: x + y, default)
-        return self.__sum
+            if dim < 0:
+                dim = self.ndim + dim
+            assert 0 <= dim < self.ndim
+            new_shape = tuple([*self.shape[:dim], *self.shape[dim + 1:]])
+            ret = vector.constant_vector(None, new_shape)
+            for index in self.meshgrid(new_shape):
+                ret[index] = self[tuple([*index[:dim], slice(None, None, None), *index[dim:]])].sum()
+            return ret
 
-    def mean(self, default=NoDefault):
+    def mean(self, dim=None, default=NoDefault):
         if self.length == 0:
             if isinstance(default, EmptyClass):
                 raise TypeError("vector is empty, plz set default to prevent error")
             return default
-        return self.sum() / self.length
+        if dim is None:
+            return self.sum() / self.length
+        else:
+            ret = self.sum(dim=dim)
+            N = self.shape[dim]
+            return ret.rmap(lambda x: x / N)
 
     def variance(self, default=NoDefault) -> float:
         if self.length == 0:
@@ -2622,6 +2637,15 @@ class vector(list):
         assert isinstance(other, list)
         assert self.length == len(other)
         self.sort_by_index_(lambda index: func(other[index]))
+
+    @staticmethod
+    def from_range(shape, func):
+        if isinstance(shape, int):
+            return self.range(shape).map(func)
+        elif isinstance(shape, tuple):
+            return vector.meshrange(shape).rmap(func, split_tuple=True)
+        else:
+            raise RuntimeError()
 
     @staticmethod
     def from_numpy(array):
