@@ -1504,6 +1504,9 @@ class vector(list):
         """
         return vector(super().__add__(other))
 
+    def __radd__(self, left):
+        return self.__add__(left)
+
     def matrix_operation(self, other, op):
         assert self.shape == other.shape
         if self.dim == 1:
@@ -1617,8 +1620,16 @@ class vector(list):
         if isinstance(index, slice):
             return self.map_index(IndexMapping(index, self.length, True))
         if isinstance(index, list):
-            assert len(self) == len(index)
-            return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
+            if len(self) != len(index) and vector(index).check_type(int) and vector(index).all(lambda x: -self.length <= x < self.length):
+                index = vector(index).map(lambda x: x if x >= 0 else x + self.length)
+                return self.map_index(IndexMapping(index, self.length, True))
+            elif len(self) == len(index):
+                if vector(index).all(lambda x: 0 <= int(x) <= 1):
+                    return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
+                elif vector(index).check_type(int) and vector(index).all(lambda x: -self.length <= x < self.length):
+                    index = vector(index).map(lambda x: x if x >= 0 else x + self.length)
+                    return self.map_index(IndexMapping(index, self.length, True))
+            raise RuntimeError()
         if isinstance(index, np.ndarray) and len(index.shape) == 1:
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
@@ -2641,9 +2652,15 @@ class vector(list):
     @staticmethod
     def from_range(shape, func):
         if isinstance(shape, int):
+<<<<<<< HEAD
             return self.range(shape).map(func)
         elif isinstance(shape, tuple):
             return vector.meshrange(shape).rmap(func, split_tuple=True)
+=======
+            return vector.range(shape).map(func, split_tuple=False)
+        elif isinstance(shape, tuple):
+            return vector.meshrange(shape).rmap(func)
+>>>>>>> 09c4daad7927a1c2224b4642b0535317e5596309
         else:
             raise RuntimeError()
 
