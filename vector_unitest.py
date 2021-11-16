@@ -4,6 +4,7 @@ from sys import getsizeof
 
 sys.path.append(os.path.abspath("."))
 import zytlib
+from zytlib.table import table
 import pathlib
 import numpy as np
 from zytlib import vector, IndexMapping, scope, vhelp

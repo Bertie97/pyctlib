@@ -2654,7 +2654,7 @@ class vector(list):
         if isinstance(shape, int):
             return vector.range(shape).map(func, split_tuple=False)
         elif isinstance(shape, tuple):
-            return vector.meshrange(shape).rmap(func)
+            return vector.meshrange(shape).rmap(func, split_tuple=True)
         else:
             raise RuntimeError()
 
