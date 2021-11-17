@@ -20,7 +20,7 @@ class sequence:
     def __getitem__(self, index):
         return self.__content[index]
 
-    def __add__(self, x):
+    def __add__(self, x) -> sequence:
         if iterable(x):
             self.__content = self.__content + tuple(x)
             return self
@@ -32,28 +32,33 @@ class sequence:
     def __contains__(self, x):
         return x in self.__content
 
-    def __mul__(self, t):
+    def __mul__(self, t) -> sequence:
         self.__content = self.__content * t
         return self
 
-    def __rmul__(self, t):
+    def __rmul__(self, t) -> sequence:
         return self.__mul__(t)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__content)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.__content)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.__content)
 
     @property
-    def length(self):
+    def length(self) -> int:
         return len(self)
 
     def __hash__(self):
         return hash(self.__content)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, (tuple, sequence)):
+            return self.__content == other
+        return False
 
     def count(self, x):
         if callable(x):
@@ -61,14 +66,14 @@ class sequence:
         else:
             return self.__content.count(x)
 
-    def map(self, func):
+    def map(self, func) -> sequence:
         return sequence(func(x) for x in self)
 
-    def filter(self, func):
+    def filter(self, func) -> sequence:
         return sequence(x for x in self if func(x))
 
     @staticmethod
-    def merge(self, *args):
+    def merge(self, *args) -> sequence:
         for x in args:
             assert iterable(x)
         ret = sequence()
@@ -76,7 +81,7 @@ class sequence:
             ret += x
         return ret
 
-    def add(self, *args):
+    def add(self, *args) -> sequence:
         """
         sequence(1, 2, 3).add(4, 5)
         will get:
@@ -85,5 +90,5 @@ class sequence:
         """
         return self + args
 
-    def tuple(self):
+    def tuple(self) -> tuple:
         return tuple(self)
