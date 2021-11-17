@@ -20,3 +20,4 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from zytlib.visual.animation import TimeStamp
 from zytlib.wrapper import repeat_trigger
+from zytlib.sequence import sequence

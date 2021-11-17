@@ -18,6 +18,7 @@ from .strtools import delete_surround
 from functools import wraps
 from .touch import crash
 import signal
+import types
 
 def _restore_type_wrapper(func: Callable, special_attr: List[str]):
     def wrapper(*args, **kwargs):
@@ -225,7 +226,7 @@ def timeout(seconds_before_timeout):
         return new_f
     return decorate
 
-def repeat_trigger(func, n=1, start=1, return_as_input=True):
+def repeat_trigger(func, n=1, start=1, with_input=True):
     """
     @repeat_trigger(func, n=1, start=1)
     def call():
@@ -233,8 +234,11 @@ def repeat_trigger(func, n=1, start=1, return_as_input=True):
 
     then the(start + n * k) time function 'call' is called, func will be automatically run.
 
-    if not return_as_input:
-        func will be passed a keyword argument "RETURN", whose value is the result of `call()`
+    if with_input
+        func will be passed a argument input.
+        input.ret = call()
+        input.num_calls = # function `call` is called
+        input.k = # function `func` is called
     """
     def wrapper(f):
         @wraps(f)
@@ -242,8 +246,12 @@ def repeat_trigger(func, n=1, start=1, return_as_input=True):
             temp_func.num_calls += 1
             ret = f(*args, **kwargs)
             if (diff:= (temp_func.num_calls - start)) >= 0 and diff % n == 0:
-                if return_as_input:
-                    func(ret)
+                if with_input:
+                    input = types.SimpleNamespace()
+                    input.ret = ret
+                    input.num_calls = temp_func.num_calls
+                    input.k = (diff % n) + 1
+                    func(input)
                 else:
                     func()
             return ret

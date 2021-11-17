@@ -1,3 +1,5 @@
+from types import GeneratorType, MethodWrapperType
+
 class constant(object):
 
     def __init__(self, **kwargs):
@@ -21,3 +23,31 @@ class constant(object):
 
     def __repr__(self):
         return str(self)
+
+def iterable(x) -> bool:
+    """
+    iterable(x) -> bool
+
+    Returns whether an instance can be iterated. Strings are excluded. 
+
+    Args:
+        x (any): the input variable.
+
+    Example::
+
+        >>> iterable(x for x in range(4))
+        True
+        >>> iterable({2, 3})
+        True
+        >>> iterable("12")
+        False
+    """
+    if isinstance(x, str):
+        return False
+    if isinstance(x, type):
+        return False
+    if callable(x):
+        return False
+    if isinstance(x, GeneratorType):
+        return True
+    return hasattr(x, '__iter__') and hasattr(x, '__len__')
