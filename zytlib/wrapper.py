@@ -165,11 +165,37 @@ def second_argument(*args):
     else:
         raise ValueError()
 
+def destory_registered_property(func):
+    """
+    class A:
+
+        def __init__(self):
+            return
+
+        @destory_registered_property
+        def destory(self):
+            return
+
+        @registered_property
+        def test(self):
+            print("hello")
+            return 1
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwars):
+        self.__registered_property = dict()
+        return func(self, *args, **kwars)
+    return wrapper
+
 def registered_property(func):
     """
     class A:
 
         def __init__(self):
+            return
+
+        @destory_registered_property
+        def destory(self):
             return
 
         @registered_property
@@ -180,10 +206,13 @@ def registered_property(func):
 
     @wraps(func)
     def wrapper(self):
-        if hasattr(self, "__{}".format(func.__name__)):
-            return eval("self.__" + func.__name__)
-        exec("self.__{} = func(self)".format(func.__name__))
-        return eval("self.__" + func.__name__)
+        if not hasattr(self, "__registered_property"):
+            exec("self.__registered_property = dict()")
+        register = eval("self.__registered_property")
+        if func.__name__ in register:
+            return register[func.__name__]
+        register[func.__name__] = func(self)
+        return register[func.__name__]
     return property(wrapper)
 
 class A:
