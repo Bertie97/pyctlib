@@ -11,7 +11,7 @@ from typing import Callable, Dict, Union
 import random
 import string
 import argparse
-from .basicwrapper import timeout, TimeoutException
+from .wrapper import timeout, TimeoutException
 import re
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages

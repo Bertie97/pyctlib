@@ -21,7 +21,7 @@ __all__ = """
 import os, re, struct, shutil
 from .touch import touch
 from pyoverload import *
-from .basicwrapper import raw_function, registered_property
+from .wrapper import raw_function, registered_property
 from functools import wraps, reduce, partial
 import typing
 from typing import TextIO, Optional
