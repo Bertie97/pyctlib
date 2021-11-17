@@ -20,7 +20,7 @@ class sequence:
     def __getitem__(self, index):
         return self.__content[index]
 
-    def __add__(self, x) -> sequence:
+    def __add__(self, x) -> "sequence":
         if iterable(x):
             self.__content = self.__content + tuple(x)
             return self
@@ -32,11 +32,11 @@ class sequence:
     def __contains__(self, x):
         return x in self.__content
 
-    def __mul__(self, t) -> sequence:
+    def __mul__(self, t) -> "sequence":
         self.__content = self.__content * t
         return self
 
-    def __rmul__(self, t) -> sequence:
+    def __rmul__(self, t) -> "sequence":
         return self.__mul__(t)
 
     def __len__(self) -> int:
@@ -66,14 +66,14 @@ class sequence:
         else:
             return self.__content.count(x)
 
-    def map(self, func) -> sequence:
+    def map(self, func) -> "sequence":
         return sequence(func(x) for x in self)
 
-    def filter(self, func) -> sequence:
+    def filter(self, func) -> "sequence":
         return sequence(x for x in self if func(x))
 
     @staticmethod
-    def merge(self, *args) -> sequence:
+    def merge(self, *args) -> "sequence":
         for x in args:
             assert iterable(x)
         ret = sequence()
@@ -81,7 +81,7 @@ class sequence:
             ret += x
         return ret
 
-    def add(self, *args) -> sequence:
+    def add(self, *args) -> "sequence":
         """
         sequence(1, 2, 3).add(4, 5)
         will get:
