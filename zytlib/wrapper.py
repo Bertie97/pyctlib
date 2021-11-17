@@ -245,7 +245,7 @@ def repeat_trigger(func, n=1, start=1, with_input=True):
         def temp_func(*args, **kwargs):
             temp_func.num_calls += 1
             ret = f(*args, **kwargs)
-            if (diff:= (temp_func.num_calls - start)) >= 0 and diff % n == 0:
+            if n > 0 and (diff:= (temp_func.num_calls - start)) >= 0 and diff % n == 0:
                 if with_input:
                     input = types.SimpleNamespace()
                     input.ret = ret
