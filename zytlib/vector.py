@@ -681,7 +681,7 @@ class vector(list):
             list.__init__(self)
         elif len(args) == 1:
             if args[0] is None:
-                return vector()
+                list.__init__(self)
             elif isinstance(args[0], np.ndarray):
                 if args[0].ndim == 0:
                     list.__init__(self)
