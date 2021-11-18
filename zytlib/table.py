@@ -47,13 +47,14 @@ class table(dict):
         return item
 
     def __add__(x, y):
-        y = table(y)
-        if set(x.keys()) & set(y.keys()):
-            raise ValueError("table+table requires keys in two table are different")
-        ret = table()
-        ret.update(x)
-        ret.update(y)
-        return ret
+        if isinstance(y, dict):
+            y = table(y)
+            if set(x.keys()) & set(y.keys()):
+                raise ValueError("table+table requires keys in two table are different")
+            ret = table()
+            ret.update(x)
+            ret.update(y)
+            return ret
 
     def update_exist(self, *args, **kwargs):
 
