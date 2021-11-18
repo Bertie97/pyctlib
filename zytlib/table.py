@@ -8,9 +8,14 @@ import operator
 class table(dict):
 
     def __init__(self, *args, **kwargs):
+        kwargs_has_locked = "__key_locked" in kwargs
         object.__setattr__(self, "__key_locked", kwargs.pop("__key_locked", False))
         if len(args) == 1 and isinstance(args[0], argparse.Namespace):
             super().__init__(vars(args[0]))
+        elif len(args) == 1 and isinstance(args[0], table) and len(kwargs) == 0:
+            super().__init__(args[0])
+            if not kwargs_has_locked:
+                object.__setattr__(self, "__key_locked", object.__getattribute__(args[0], "__key_locked"))
         elif len(args) == 2 and isinstance(args[0], list) and isinstance(args[1], list) and len(args[0]) == len(args[1]) and len(kwargs) == 0:
             d = dict()
             for key, value in zip(args[0], args[1]):
@@ -62,15 +67,20 @@ class table(dict):
     def __missing__(self, name):
         return KeyError(name)
 
+    def __getstate__(self):
+        return self.dict(), object.__getattribute__(self, "__key_locked")
+
+    def __setstate__(self, state):
+        content, key_locked = state
+        object.__setattr__(self, "__key_locked", False)
+        self.update(content)
+        object.__setattr__(self, "__key_locked", key_locked)
+
     def lock_key(self):
         object.__setattr__(self, "__key_locked", True)
 
     def unlock_key(self):
         object.__setattr__(self, "__key_locked", False)
-
-    @property
-    def locked(self):
-        return super().__getattribute__("__key_locked")
 
     def save(self, filepath):
         try:
@@ -79,7 +89,7 @@ class table(dict):
             print("Please install pickle package")
             return
         with open(str(filepath), "wb") as output:
-            pickle.dump(dict(self), output)
+            pickle.dump(self, output)
 
     @staticmethod
     def load(filepath) -> "table":
@@ -89,13 +99,12 @@ class table(dict):
             print("Please install pickle package")
             return
         with open(filepath, "rb") as input:
-            content = pickle.load(input)
-            ret = table(content)
+            ret = pickle.load(input)
         return ret
 
     def __setitem__(self, key, value):
-        if key not in self and self.locked:
-            raise RuntimeError("dict key is locked")
+        if (islocked:= (hasattr(self, "__key_locked") and "__key_locked" in dir(self) and object.__getattribute__(self, "__key_locked"))) and key not in super(table, self).keys():
+                raise RuntimeError("dict key is locked")
         super().__setitem__(key, value)
 
     def filter(self, key=None, value=None):
@@ -115,9 +124,9 @@ class table(dict):
         if key is None and value is None:
             return self
         if key is None:
-            key = lambda x: x
+            def key(x): return x
         if value is None:
-            value = lambda x: x
+            def value(x): return x
         ret = dict()
         for x, y in self.items():
             ret[key(x)] = value(y)
@@ -131,3 +140,16 @@ class table(dict):
 
     def items(self) -> vector:
         return vector(super().items())
+
+    def dict(self) -> dict:
+        base = {}
+        for key, value in self.items():
+            if isinstance(value, type(self)):
+                base[key] = value.dict()
+            elif isinstance(value, (list, tuple, vector)):
+                base[key] = type(value)(
+                    item.dict() if isinstance(item, type(self)) else
+                    item for item in value)
+            else:
+                base[key] = value
+        return base
