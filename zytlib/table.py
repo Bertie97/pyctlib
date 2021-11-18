@@ -9,20 +9,42 @@ class table(dict):
 
     def __init__(self, *args, **kwargs):
         kwargs_has_locked = "__key_locked" in kwargs
-        object.__setattr__(self, "__key_locked", kwargs.pop("__key_locked", False))
+        key_locked = kwargs.pop("__key_locked", False)
         if len(args) == 1 and isinstance(args[0], argparse.Namespace):
-            super().__init__(vars(args[0]))
+            for key, value in vars(args[0]).items():
+                self[key] = self._hook(value)
         elif len(args) == 1 and isinstance(args[0], table) and len(kwargs) == 0:
             super().__init__(args[0])
             if not kwargs_has_locked:
-                object.__setattr__(self, "__key_locked", object.__getattribute__(args[0], "__key_locked"))
+                key_locked = object.__getattribute__(args[0], "__key_locked")
         elif len(args) == 2 and isinstance(args[0], list) and isinstance(args[1], list) and len(args[0]) == len(args[1]) and len(kwargs) == 0:
             d = dict()
             for key, value in zip(args[0], args[1]):
-                d[key] = value
+                d[key] = self._hook(value)
             super().__init__(d)
         else:
-            super().__init__(*args, **kwargs)
+            for arg in args:
+                if not arg:
+                    continue
+                elif isinstance(arg, dict):
+                    for key, value in arg.items():
+                        self[key] = self._hook(value)
+                elif isinstance(arg, tuple) and len(arg) == 2 and not isinstance(arg[0], tuple):
+                    self[arg[0]] = self._hook(arg[1])
+                else:
+                    for key, value in iter(arg):
+                        self[key] = self._hook(value)
+            for key, value in kwargs.items():
+                self[key] = value
+        object.__setattr__(self, "__key_locked", key_locked)
+
+    @classmethod
+    def _hook(cls, item):
+        if isinstance(item, dict):
+            return cls(item)
+        elif isinstance(item, (list, tuple)):
+            return type(item)(cls._hook(x) for x in item)
+        return item
 
     def __add__(x, y):
         y = table(y)
