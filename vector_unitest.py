@@ -19,6 +19,7 @@ from zytlib.touch import once
 import seaborn as sns
 import matplotlib.pyplot as plt
 from zytlib.visual.animation import TimeStamp
+from zytlib import table
 
 # for index in range(10):
 #     if once:

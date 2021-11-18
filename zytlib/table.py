@@ -3,10 +3,12 @@ from .touch import touch, crash
 from .vector import vector
 import pickle
 import argparse
+import operator
 
 class table(dict):
 
     def __init__(self, *args, **kwargs):
+        object.__setattr__(self, "__key_locked", kwargs.pop("__key_locked", False))
         if len(args) == 1 and isinstance(args[0], argparse.Namespace):
             super().__init__(vars(args[0]))
         elif len(args) == 2 and isinstance(args[0], list) and isinstance(args[1], list) and len(args[0]) == len(args[1]) and len(kwargs) == 0:
@@ -16,7 +18,6 @@ class table(dict):
             super().__init__(d)
         else:
             super().__init__(*args, **kwargs)
-        super().__setattr__("__key_locked", False)
 
     def __add__(x, y):
         y = table(y)
@@ -48,11 +49,24 @@ class table(dict):
                 ret.append(key)
         return ret
 
+    def __setattr__(self, name, value):
+        if hasattr(self.__class__, name):
+            raise AttributeError("'table' object attribute "
+                                 "'{0}' is read-only".format(name))
+        else:
+            self[name] = value
+
+    def __getattr__(self, item):
+        return self.__getitem__(item)
+
+    def __missing__(self, name):
+        return KeyError(name)
+
     def lock_key(self):
-        super().__setattr__("__key_locked", True)
+        object.__setattr__(self, "__key_locked", True)
 
     def unlock_key(self):
-        super().__setattr__("__key_locked", False)
+        object.__setattr__(self, "__key_locked", False)
 
     @property
     def locked(self):
