@@ -50,6 +50,7 @@ from collections.abc import Hashable
 from matplotlib.axes._subplots import Axes
 from .utils import constant
 import functools
+import multiprocessing
 try:
     import numba as nb
     jit = nb.jit
@@ -891,36 +892,46 @@ class vector(list):
             func = chain_function((func, *args))
         return self.filter(lambda x: not touch(lambda: (func(x), True)[-1], False))
 
+    def map_async(self, func, processes=None, split_tuple=None) -> "vector":
+        if split_tuple is None:
+            split_tuple = _need_split_tuple(func)
+        if not split_tuple:
+            with multiprocessing.Pool(processes) as pool:
+                return vector(pool.map_async(func, self))
+        else:
+            with multiprocessing.Pool(processes) as pool:
+                return vector(pool.starmap_async(func, self))
+
     def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None) -> "vector":
         """
         generate a new vector with each element x are replaced with func(x)
 
         Parameters
         ----------
-        func : callable
-        args :
+        func: callable
+        args:
             more function
         func_self:
             if func_self is not None, then func_self(self) will be passed as another argument to func
             x -> func(x, func_self(self))
-        default :
+        default:
             default value used when func cause an error
         register_result:
-            It can be True/False/<str>
+            It can be True / False / <str >
             If it is set, second time you call the same map function, result will be retrieved from the buffer.
             warning:
             if register_result = True, plz not call map with lambda expression in the argument, for example:
-                wrong: v.map(lambda x: x+1, register_result=True)
+                wrong: v.map(lambda x: x + 1, register_result=True)
                 right: 1. f = lambda x: x + 1
                           v.map(f, register_result)
-                       2. v.map(lambda x: x+1, register_result="plus 1")
+                       2. v.map(lambda x: x + 1, register_result="plus 1")
         filter_function:
             if filter_function(index, element) is False, map will not be executed.
 
         Example:
         ----------
-        vector([0,1,2]).map(lambda x: x ** 2)
-        will produce [0,1,4]
+        vector([0, 1, 2]).map(lambda x: x ** 2)
+        will produce[0, 1, 4]
         """
         if func is None:
             return self
