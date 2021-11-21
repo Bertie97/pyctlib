@@ -897,10 +897,10 @@ class vector(list):
             split_tuple = _need_split_tuple(func)
         if not split_tuple:
             with multiprocessing.Pool(processes) as pool:
-                return vector(pool.map_async(func, self))
+                return vector(pool.map_async(func, self).get())
         else:
             with multiprocessing.Pool(processes) as pool:
-                return vector(pool.starmap_async(func, self))
+                return vector(pool.starmap_async(func, self).get())
 
     def map(self, func: Callable, *args, func_self=None, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None) -> "vector":
         """
@@ -935,6 +935,8 @@ class vector(list):
         """
         if func is None:
             return self
+        func = vector.__hook_function(func)
+        args = tuple(vector.__hook_function(x) for x in args)
         if split_tuple is None:
             split_tuple = _need_split_tuple(func)
         if register_result:
@@ -1025,11 +1027,52 @@ class vector(list):
                     new_func(content)
         return vector()
 
+    def map_where(self, *args, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None):
+        assert len(args) % 2 == 1
+        args_init = vector(args).map_k(lambda x: ([vector.__hook_function(_) for _ in x]), k=2, overlap=False)
+        args_last = vector.__hook_function(args[-1])
+        if split_tuple is None:
+            split_tuple = _need_split_tuple(args_last)
+        ret = vector()
+        def _f(x):
+            for func, entry in args_init:
+                if func(x):
+                    return entry(x)
+            return args_last(x)
+        def _f_split(x):
+            for func, entry in args_init:
+                if func(x):
+                    return entry(*x)
+            return args_last(*x)
+        if split_tuple:
+            _f = _f_split
+        return self.map(_f, default=default, processing_bar=processing_bar, register_result=register_result, split_tuple=split_tuple, filter_function=filter_function)
+
+    def rmap_where(self, *args, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None):
+        assert len(args) % 2 == 1
+        args_init = vector(args).map_k(lambda x: ([vector.__hook_function(_) for _ in x]), k=2, overlap=False)
+        args_last = vector.__hook_function(args[-1])
+        if split_tuple is None:
+            split_tuple = _need_split_tuple(args_last)
+        ret = vector()
+        def _f(x):
+            for func, entry in args_init:
+                if func(x):
+                    return entry(x)
+            return args_last(x)
+        def _f_split(x):
+            for func, entry in args_init:
+                if func(x):
+                    return entry(*x)
+            return args_last(*x)
+        if split_tuple:
+            _f = _f_split
+        return self.rmap(_f, default=default, processing_bar=processing_bar, register_result=register_result, split_tuple=split_tuple, filter_function=filter_function)
+
     def map_k(self, func, k, overlap=True, split_tuple=None) -> "vector":
         if self.length < k:
             return vector()
-        if func is None:
-            func = lambda x: x
+        func = vector.__hook_function(func)
         if split_tuple is None:
             split_tuple = _need_split_tuple(func)
         assert k > 0
@@ -1066,6 +1109,8 @@ class vector(list):
         """
         if func is None:
             return self
+        func = vector.__hook_function(func)
+        args = tuple(vector.__hook_function(x) for x in args)
         if func_self is None:
             if len(args) > 0:
                 new_func = chain_function((func, *args))
@@ -1149,6 +1194,8 @@ class vector(list):
         """
         if func is None:
             return self
+        func = vector.__hook_function(func)
+        args = tuple(vector.__hook_function(x) for x in args)
         if split_tuple is None:
             split_tuple = _need_split_tuple(func)
         if max_depth == 0:
@@ -1284,6 +1331,17 @@ class vector(list):
             for x in self:
                 command(x)
 
+    def int(self):
+        def _int(x):
+            if isinstance(x, str):
+                return ord(x)
+            else:
+                return int(x)
+        return self.rmap(_int, split_tuple=False)
+
+    def float(self):
+        return self.rmap(float, split_tuple=False)
+
     @property
     def element_type(self):
         if self.length == 0:
@@ -1347,6 +1405,19 @@ class vector(list):
                     return False
             return True
         return instance in element_type.__mro__
+
+    @property
+    def enumerate(self):
+        return vector(enumerate(self))
+
+    @staticmethod
+    def __hook_function(func):
+        if callable(func):
+            return func
+        if func is None:
+            return lambda x: x
+        else:
+            return lambda x: func
 
     def __and__(self, other):
         if isinstance(other, vector):
@@ -1616,6 +1687,12 @@ class vector(list):
             return vector(zip(self, element)).map(lambda x: x[0] >= x[1])
         else:
             return self.map(lambda x: x >= element)
+
+    def get(self, index, default=None):
+        try:
+            return self[index]
+        except:
+            return default
 
     def __getitem__(self, index):
         """__getitem__.
@@ -2510,6 +2587,21 @@ class vector(list):
         return ctgenerator(self)
 
     @property
+    def head(self):
+        return self.get(0, None)
+
+    @property
+    def tail(self):
+        return self[1:]
+
+    @property
+    def numel(self):
+        """
+        get the total number of no-vector element in the vector
+        """
+        return sum([1 if not isinstance(x, vector) else x.numel for x in self])
+
+    @property
     def length(self):
         """length.
         length of the vector
@@ -2879,8 +2971,23 @@ class vector(list):
         return ret
 
     @staticmethod
-    def linspace(low, high, nbins):
-        return vector.from_numpy(np.linspace(low, high, nbins))
+    def linspace(low, high, nbins, endpoint=True):
+        step = (high - low) / max(nbins - bool(endpoint), 1)
+        return vector.range(nbins).map(lambda x: x * step + low)
+
+    @staticmethod
+    def logspace(low, high, nbins, endpoint=True):
+        """
+        type: endpoint[True / False]
+        """
+        assert low > 0 and high > 0
+        low_log = math.log(low)
+        high_log = math.log(high)
+        ret = vector.linspace(low_log, high_log, nbins, endpoint=endpoint).map(math.exp)
+        ret[0] = low
+        if endpoint:
+            ret[-1] = high
+        return ret
 
     @staticmethod
     def meshgrid(*args):

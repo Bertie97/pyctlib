@@ -127,7 +127,7 @@ class table(dict):
 
     def __setitem__(self, key, value):
         try:
-            if object.__getattribute__(self, "__key_locked"):
+            if object.__getattribute__(self, "__key_locked") and key not in self:
                 raise RuntimeError("dict key is locked")
         except RuntimeError:
             raise RuntimeError("dict key is locked")
