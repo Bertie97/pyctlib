@@ -1069,6 +1069,10 @@ class vector(list):
             _f = _f_split
         return self.rmap(_f, default=default, processing_bar=processing_bar, register_result=register_result, split_tuple=split_tuple, filter_function=filter_function)
 
+    def chunk(self, k, drop_last=True):
+        func = int if drop_last else math.ceil
+        return vector([self[i * k: (i + 1) * k] for i in range(func(self.length / k))])
+
     def map_k(self, func, k, overlap=True, split_tuple=None) -> "vector":
         if self.length < k:
             return vector()
