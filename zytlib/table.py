@@ -126,8 +126,14 @@ class table(dict):
         return ret
 
     def __setitem__(self, key, value):
-        if (islocked:= (hasattr(self, "__key_locked") and "__key_locked" in dir(self) and object.__getattribute__(self, "__key_locked"))) and key not in super(table, self).keys():
+        try:
+            if object.__getattribute__(self, "__key_locked"):
                 raise RuntimeError("dict key is locked")
+        except RuntimeError:
+            raise RuntimeError("dict key is locked")
+        except:
+            pass
+
         super().__setitem__(key, value)
 
     def filter(self, key=None, value=None):

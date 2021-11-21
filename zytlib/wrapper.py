@@ -19,6 +19,8 @@ from functools import wraps
 from .touch import crash
 import signal
 import types
+import time
+from collections import namedtuple
 
 def _restore_type_wrapper(func: Callable, special_attr: List[str]):
     def wrapper(*args, **kwargs):
@@ -287,3 +289,53 @@ def repeat_trigger(func, n=1, start=1, with_input=True):
         temp_func.num_calls = 0
         return temp_func
     return wrapper
+
+class FunctionTimer:
+
+    def __init__(self, fast_threshold=-1, disable=False):
+        from .table import table
+        self.fast_threshold = fast_threshold
+        self.__funcs = {}
+        self.disable = disable
+
+    def timer(self, func):
+        if self.disable:
+            return func
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            old = wrapper.record
+            if self.fast_threshold > 0 and old[0] > self.fast_threshold:
+                ret = func(*args, **kwargs)
+                elapse = old[1] / old[0]
+            else:
+                start = time.time()
+                ret = func(*args, **kwargs)
+                end = time.time()
+                elapse = end - start
+            wrapper.record = (old[0] + 1, old[1] + elapse)
+            return ret
+
+        wrapper.record = (0, 0)
+        self.__funcs[func] = wrapper
+        return wrapper
+
+    @property
+    def funcs(self):
+        from .table import table
+        ret = table()
+        recored_type = namedtuple("func_recorder", ["calls", "total", "mean"])
+        for f, w in self.__funcs.items():
+            c = w.record
+            if c[0] == 0:
+                mean = 0
+            else:
+                mean = c[1] / c[0]
+            ret[f] = recored_type(c[0], c[1], mean)
+        return ret
+
+    def __str__(self):
+        return f"Timer: {self.funcs}"
+
+    def __repr__(self):
+        return str(self)
