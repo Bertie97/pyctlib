@@ -172,6 +172,38 @@ class return_type_wrapper:
             return self._type(func(*args, **kwargs))
         return wrapper
 
+def partial_function(func, fixed_n=tuple(), fixed_value=tuple(), **new_kwargs):
+    if isinstance(fixed_n, int):
+        fixed_n = tuple([fixed_n])
+        fixed_value = tuple([fixed_value])
+    assert len(fixed_n) == len(fixed_value)
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        f_args = tuple()
+        fixed_n = wrapper.fixed_n
+        fixed_value = wrapper.fixed_value
+        new_kwargs = wrapper.new_kwargs.copy()
+        new_kwargs.update(kwargs)
+        index = 0
+        while len(fixed_n) > 0:
+            while index < fixed_n[0]:
+                if len(args) == 0:
+                    raise RuntimeError("no enough input")
+                f_args = (*f_args, args[0])
+                args = args[1:]
+                index += 1
+            f_args = (*f_args, fixed_value[0])
+            fixed_value = fixed_value[1:]
+            fixed_n = fixed_n[1:]
+            index += 1
+        f_args = f_args + args
+        return func(*f_args, **new_kwargs)
+
+    wrapper.fixed_n = fixed_n
+    wrapper.fixed_value = fixed_value
+    wrapper.new_kwargs = new_kwargs
+    return wrapper
 
 def second_argument(*args):
 

@@ -1,4 +1,5 @@
 from .utils import iterable
+from typing import overload
 
 class sequence(tuple):
 
@@ -56,7 +57,7 @@ class sequence(tuple):
             for index in range(0, len(args) - 1, 2):
                 if args[index](x):
                     return args[index + 1](x)
-                return args[-1](x)
+            return args[-1](x)
         return self.map(_f)
 
     def filter(self, func) -> "sequence":
@@ -91,3 +92,24 @@ class sequence(tuple):
             return lambda x: x
         else:
             return lambda x: func
+
+    @overload
+    @staticmethod
+    def range(stop) -> "sequence": ...
+
+    @overload
+    def range(start, stop) -> "sequence": ...
+
+    @overload
+    def range(start, stop, step) -> "sequence": ...
+
+    @staticmethod
+    def range(*args):
+        """range.
+
+        Parameters
+        ----------
+        args :
+            args
+        """
+        return sequence(range(*args))
