@@ -49,6 +49,16 @@ class sequence(tuple):
     def map(self, func) -> "sequence":
         return sequence(func(x) for x in self)
 
+    def map_where(self, *args):
+        assert len(args) % 2 == 1
+        args = tuple([sequence.__hook_function(_) for _ in args])
+        def _f(x):
+            for index in range(0, len(args) - 1, 2):
+                if args[index](x):
+                    return args[index + 1](x)
+                return args[-1](x)
+        return self.map(_f)
+
     def filter(self, func) -> "sequence":
         return sequence(x for x in self if func(x))
 
@@ -72,3 +82,12 @@ class sequence(tuple):
 
     def tuple(self) -> tuple:
         return tuple(self)
+
+    @staticmethod
+    def __hook_function(func):
+        if callable(func):
+            return func
+        if func is None:
+            return lambda x: x
+        else:
+            return lambda x: func

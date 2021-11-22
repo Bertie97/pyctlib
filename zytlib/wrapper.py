@@ -22,6 +22,32 @@ import types
 import time
 from collections import namedtuple
 
+def wrapper_template(func, **hyper):
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        ret = func(*args, **kwargs)
+        return ret
+
+    return wrapper
+
+def flexible_wrapper(wrapper):
+
+    def f_wrapper(*args, **hyper):
+        if len(hyper) == 0 and len(args) == 0:
+            return wrapper
+        if len(hyper) == 0:
+            assert len(args) == 1
+            assert callable(args[0])
+            func = args[0]
+            return wrapper(func)
+        assert len(args) == 0
+        def n_wrapper(func):
+            return wrapper(func, **hyper)
+        return n_wrapper
+
+    return f_wrapper
+
 def _restore_type_wrapper(func: Callable, special_attr: List[str]):
     def wrapper(*args, **kwargs):
         ret = func(*args, **kwargs)
