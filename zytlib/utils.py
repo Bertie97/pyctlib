@@ -51,3 +51,6 @@ def iterable(x) -> bool:
     if isinstance(x, GeneratorType):
         return True
     return hasattr(x, '__iter__') and hasattr(x, '__len__')
+
+def str_type(x) -> str:
+    return str(type(x)).split("'")[1]

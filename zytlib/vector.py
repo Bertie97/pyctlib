@@ -29,13 +29,11 @@ import copy
 import numpy as np
 from pyoverload import iterable
 from tqdm import tqdm, trange
-# from fuzzywuzzy import fuzz
 from rapidfuzz import fuzz
 import curses
 import re
 import sys
 import math
-import torch
 from typing import overload, Callable, Iterable, Union, Dict, Any, List, Tuple, Optional
 import types
 import traceback
@@ -48,7 +46,7 @@ import time
 import pydoc
 from collections.abc import Hashable
 from matplotlib.axes._subplots import Axes
-from .utils import constant
+from .utils import constant, str_type
 import functools
 import multiprocessing
 try:
@@ -1725,9 +1723,11 @@ class vector(list):
         if isinstance(index, np.ndarray) and len(index.shape) == 1:
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
-        if isinstance(index, torch.Tensor) and len(index.shape) == 1:
-            assert len(self) == len(index)
-            return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
+        if str_type(index) == "torch.Tensor":
+            import torch
+            if isinstance(index, torch.Tensor) and len(index.shape) == 1:
+                assert len(self) == len(index)
+                return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
         if isinstance(index, tuple):
             if len(index) == 0:
                 return vector()
@@ -2802,6 +2802,7 @@ class vector(list):
         return {key_func(x): value_func(x) for x in super().__iter__()}
 
     def cpu(self) -> "vector":
+        import torch
         def func(x):
             if isinstance(x, torch.Tensor):
                 return x.cpu()
