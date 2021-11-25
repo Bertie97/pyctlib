@@ -247,6 +247,41 @@ def destory_registered_property(func):
         return func(self, *args, **kwars)
     return wrapper
 
+def registered_method(*args, **kwargs):
+    if len(args) == 1 and callable(func:= args[0]):
+        @wraps(func)
+        def wrapper(self):
+            if not hasattr(self, "__registered_property"):
+                exec("self.__registered_property = dict()")
+            register = eval("self.__registered_property")
+            if func.__name__ in register:
+                return register[func.__name__]
+            register[func.__name__] = func(self)
+            return register[func.__name__]
+        return wrapper
+    elif len(args) == 1 and isinstance(n:= args[0], int) and n > 0:
+        pass
+    elif len(args) == 0 and (n:= kwargs.pop("n", -1) > 0):
+        pass
+    else:
+        raise RuntimeError
+
+    def o_wrapper(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if not hasattr(self, "__registered_property"):
+                exec("self.__registered_property = dict()")
+            register = eval("self.__registered_property")
+            if func.__name__ in register and args[:n] in register[func.__name__]:
+                return register[func.__name__][args[:n]]
+            if func.__name__ not in register:
+                register[func.__name__] = dict()
+            register[func.__name__][args[:n]] = (ret:= func(self, *args, **kwargs))
+            return ret
+        return wrapper
+    o_wrapper.n = n
+    return o_wrapper
+
 def registered_property(func):
     """
     class A:
@@ -262,28 +297,28 @@ def registered_property(func):
         def test(self):
             print("hello")
             return 1
+
+        @registered_method
+        def func_1(self):
+            print("hello from func_1")
+            return 2
+
+        @registered(n=1)
+        def func_2(self, a):
+            print("hello from func_2")
+            return a
     """
 
     @wraps(func)
-    def wrapper(self):
+    def wrapper(self, *args, **kwargs):
         if not hasattr(self, "__registered_property"):
             exec("self.__registered_property = dict()")
         register = eval("self.__registered_property")
         if func.__name__ in register:
             return register[func.__name__]
-        register[func.__name__] = func(self)
+        register[func.__name__] = func(self, )
         return register[func.__name__]
     return property(wrapper)
-
-class A:
-
-    def __init__(self):
-        return
-
-    @registered_property
-    def test(self):
-        print("hello")
-        return 1
 
 class TimeoutException(Exception):
     pass
