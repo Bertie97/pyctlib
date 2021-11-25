@@ -340,6 +340,7 @@ class path(str):
         will get path("Document/main_1.py")
         """
         file_name = self.name
+        folder_name = self.folder
         ext = self.ext
         new_fullname = path.extsep.join(vector(file_name + append, ext).filter(len))
         if not "/" in self:
