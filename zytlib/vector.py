@@ -40,7 +40,7 @@ import traceback
 import inspect
 import os
 from .strtools import delete_surround
-from .wrapper import empty_wrapper
+from .wrapper import empty_wrapper, registered_method, registered_property, destory_registered_property
 import os.path
 import time
 import pydoc
@@ -637,18 +637,18 @@ class vector(list):
     """
 
     @overload
-    def __init__(self, list, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> "vector":
+    def __init__(self, list, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault, isleaf=None) -> "vector":
         ...
 
     @overload
-    def __init__(self, tuple, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> "vector":
+    def __init__(self, tuple, *, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault, isleaf=None) -> "vector":
         ...
 
     @overload
-    def __init__(self, *data, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault) -> "vector":
+    def __init__(self, *data, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault, isleaf=None) -> "vector":
         ...
 
-    def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault, str_function=None):
+    def __init__(self, *args, recursive=False, index_mapping=IndexMapping(), allow_undefined_value=False, content_type=NoDefault, str_function=None, isleaf=None):
         """__init__.
 
         Parameters
@@ -669,7 +669,8 @@ class vector(list):
         self.allow_undefined_value = allow_undefined_value
         self.content_type = content_type
         self.str_function = str_function
-        # self.clear_appendix()
+        if isinstance(isleaf, bool):
+            self.isleaf = isleaf
         if isinstance(index_mapping, list):
             self._index_mapping = IndexMapping(index_mapping)
         elif isinstance(index_mapping, IndexMapping):
@@ -2499,9 +2500,9 @@ class vector(list):
                 return array
             if not isinstance(array, vector):
                 array = vector(array)
-            if all(not isinstance(x, list) for x in array):
+            if array.isleaf:
                 return array
-            return array.map(vector).map(lambda x: temp_flatten(x, depth - 1)).reduce(lambda x, y: x + y)
+            return array.map(lambda x: temp_flatten(x, depth - 1)).reduce(lambda x, y: x + y)
         return temp_flatten(self, depth)
 
     def permute(self, *args) -> "vector":
@@ -3097,33 +3098,33 @@ class vector(list):
     def iid(self, sample_func, length, args=()):
         return vector([sample_func(*args) for _ in range(length)])
 
-    @property
+    @registered_property
+    def isleaf(self):
+        return all(not isinstance(_, vector) for _ in self)
+
+    @isleaf.setter
+    def isleaf(self, p: bool):
+        if not hasattr(self, "__registered_property"):
+            self.__registered_property = dict()
+        self.__registered_property["isleaf"] = p
+
+    @registered_property
     def ndim(self):
         return len(self.shape)
 
-    @property
+    @registered_property
     def shape(self):
         """shape.
         """
-        if hasattr(self, "_vector__shape"):
-            return self.__shape
-        if all(not isinstance(x, vector) for x in self):
-            self.__shape = (self.length, )
-            return self.__shape
+        if self.isleaf:
+            return (self.length, )
         if any(not isinstance(x, vector) for x in self):
-            self.__shape = "undefined"
-            return self.__shape
+            return None
         if not self.map(lambda x: x.shape).all_equal():
-            self.__shape = "undefined"
-            return self.__shape
+            return None
         if self[0].shape is None:
-            self.__shape = "undefined"
-            return self.__shape
-        if isinstance(self[0].shape, str) and self[0].shape == "undefined":
-            self.__shape = "undefined"
-            return self.__shape
-        self.__shape = (self.length, *(self[0].shape))
-        return self.__shape
+            return None
+        return (self.length, *(self[0].shape))
 
     @property
     def dim(self):
@@ -3197,8 +3198,9 @@ class vector(list):
         super().insert(*args)
         return self
 
+    @destory_registered_property
     def clear_appendix(self):
-        touch(lambda: delattr(self, "_vector__shape"))
+        # touch(lambda: delattr(self, "_vector__shape"))
         touch(lambda: delattr(self, "_vector__hashable"))
         touch(lambda: delattr(self, "_vector__set"))
         touch(lambda: delattr(self, "_vector__sum"))
@@ -3210,6 +3212,7 @@ class vector(list):
         touch(lambda: delattr(self, "_vector__type_recursive"))
         touch(lambda: delattr(self, "_vector__numpy"))
 
+    @destory_registered_property
     def update_appendix(self, element):
         if self.length == 0:
             self.__hashable = hashable(element)
@@ -3221,7 +3224,7 @@ class vector(list):
                 self.__min = element
             self.__type = type(element)
             return
-        touch(lambda: delattr(self, "_vector__shape"))
+        # touch(lambda: delattr(self, "_vector__shape"))
         if hasattr(self, "_vector__hashable"):
             self.__hashable = self.__hashable and hashable(element)
         if hasattr(self, "_vector__set"):

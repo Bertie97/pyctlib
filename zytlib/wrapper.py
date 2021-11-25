@@ -251,9 +251,9 @@ def registered_method(*args, **kwargs):
     if len(args) == 1 and callable(func:= args[0]):
         @wraps(func)
         def wrapper(self):
-            if not hasattr(self, "__registered_property"):
-                exec("self.__registered_property = dict()")
-            register = eval("self.__registered_property")
+            if not hasattr(self, "_{}__registered_property".format(self.__class__.__name__)):
+                exec("self._{}__registered_property = dict()".format(self.__class__.__name__))
+            register = eval("self._{}__registered_property".format(self.__class__.__name__))
             if func.__name__ in register:
                 return register[func.__name__]
             register[func.__name__] = func(self)
@@ -269,9 +269,9 @@ def registered_method(*args, **kwargs):
     def o_wrapper(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            if not hasattr(self, "__registered_property"):
-                exec("self.__registered_property = dict()")
-            register = eval("self.__registered_property")
+            if not hasattr(self, "_{}__registered_property".format(self.__class__.__name__)):
+                exec("self._{}__registered_property = dict()".format(self.__class__.__name__))
+            register = eval("self._{}__registered_property".format(self.__class__.__name__))
             if func.__name__ in register and args[:n] in register[func.__name__]:
                 return register[func.__name__][args[:n]]
             if func.__name__ not in register:
@@ -311,9 +311,9 @@ def registered_property(func):
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if not hasattr(self, "__registered_property"):
-            exec("self.__registered_property = dict()")
-        register = eval("self.__registered_property")
+        if not hasattr(self, "_{}__registered_property".format(self.__class__.__name__)):
+            exec("self._{}__registered_property = dict()".format(self.__class__.__name__))
+        register = eval("self._{}__registered_property".format(self.__class__.__name__))
         if func.__name__ in register:
             return register[func.__name__]
         register[func.__name__] = func(self, )
