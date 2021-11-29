@@ -1447,7 +1447,7 @@ class vector(list):
             will produce [(1,4),(2,5),(3,6)]
         """
         if isinstance(other, int):
-            return vector(super().__mul__(times))
+            return vector(super().__mul__(other))
         if touch(lambda: self.check_type(tuple) and other.check_type(tuple)):
             return vector(zip(self, other)).map(lambda x: (*x[0], *x[1]))
         elif touch(lambda: self.check_type(tuple)):
