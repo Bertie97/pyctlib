@@ -130,8 +130,8 @@ class Logger:
             self.file_log_level = file_log_level
         self.__disabled = disable
         self._deltatime = deltatime
-        self.f_path = file_path
-        self.f_name = file_name
+        self.f_path: path = file_path
+        self.f_name: path = file_name
         self.c_format = c_format
         self.f_format = f_format
         self.start_time = time.time()
