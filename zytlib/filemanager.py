@@ -316,7 +316,7 @@ class path(str):
         return path.extsep.join(parts[brk:])
 
     @registered_property
-    def name(self):
+    def name(self) -> "path":
         file_name = self.fullname
         if self.isdir():
             return file_name
@@ -329,12 +329,12 @@ class path(str):
             brk = 1
         return path(path.extsep.join(parts[:brk]))
 
-    def with_name(self, name):
+    def with_name(self, name) -> "path":
         if not "/" in self:
             return path(path.extsep.join(vector([name, self.ext]).filter(len)))
         return (self.parent) / path.extsep.join(vector([name, self.ext]).filter(len))
 
-    def name_add(self, append):
+    def name_add(self, append) -> "path":
         """
         path("Document/main.py").name_add("_1")
         will get path("Document/main_1.py")
@@ -349,7 +349,7 @@ class path(str):
         ret.main_folder = self.main_folder
         return ret
 
-    def with_ext(self, ext: str=None):
+    def with_ext(self, ext: str=None) -> "path":
         if ext is None:
             return (self.parent) / self.name
         if "/" in self:
@@ -357,15 +357,18 @@ class path(str):
         else:
             return path(path.extsep.join([self.name, ext]))
 
+    def without_exit() -> "path":
+        return self.with_ext()
+
     @registered_property
-    def fullname(self):
+    def fullname(self) -> "path":
         if "/" in self:
             return self[-1]
         else:
             return self.abs()[-1]
 
     @registered_property
-    def file(self):
+    def file(self) -> "path":
         return self.fullname
 
     def split(self, *args):
@@ -374,7 +377,7 @@ class path(str):
         else:
             return str(self).split(*args)
 
-    def abs(self):
+    def abs(self) -> "path":
         return path(os.path.abspath(self))
 
     def listdir(self, recursive=False, all_files=False):
@@ -447,7 +450,7 @@ class path(str):
             self.parent.cmd("open %s" % self)
 
     @registered_property
-    def parent(self):
+    def parent(self) -> "path":
         if self == "" or self == rootdir:
             return path()
         if self == ".":
@@ -457,7 +460,7 @@ class path(str):
         return path(self[:-1])
 
     @registered_property
-    def folder(self):
+    def folder(self) -> "path":
         if self.isdir():
             return self
         else:
