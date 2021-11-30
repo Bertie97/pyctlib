@@ -7,7 +7,7 @@ from datetime import timedelta, datetime
 import atexit
 import sys
 from functools import wraps
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, overload
 import random
 import string
 import argparse
@@ -293,7 +293,7 @@ class Logger:
         self._f_format = value
 
     @property
-    def f_path(self):
+    def f_path(self) -> path:
         if touch(lambda: self._f_path, None) is not None:
             return self._f_path
         if self.file_log_level is False:
@@ -315,8 +315,12 @@ class Logger:
         if not self._f_path.isdir():
             raise RuntimeError("cannot make directory: {}".format(value))
 
+    @overload
     @property
-    def f_name(self):
+    def f_name(self) -> path: ...
+
+    @property
+    def f_name(self) -> path:
         if touch(lambda: self.__f_real_name, None) is not None:
             return self.__f_real_name
         if self.file_log_level is False:
