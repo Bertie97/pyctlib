@@ -1,5 +1,5 @@
 from .utils import iterable
-from typing import overload
+from typing import overload, Tuple, Any
 
 class sequence(tuple):
 
@@ -84,6 +84,9 @@ class sequence(tuple):
     def tuple(self) -> tuple:
         return tuple(self)
 
+    def pop(self) -> Tuple[Any, "sequence"]:
+        return self.head, self.tail
+
     @staticmethod
     def __hook_function(func):
         if callable(func):
@@ -98,9 +101,11 @@ class sequence(tuple):
     def range(stop) -> "sequence": ...
 
     @overload
+    @staticmethod
     def range(start, stop) -> "sequence": ...
 
     @overload
+    @staticmethod
     def range(start, stop, step) -> "sequence": ...
 
     @staticmethod
@@ -113,3 +118,16 @@ class sequence(tuple):
             args
         """
         return sequence(range(*args))
+
+    @property
+    def head(self):
+        return self[0]
+
+    @property
+    def tail(self) -> "sequence":
+        return self[1:]
+
+    def get(self, index: int, default: Any=None) -> Any:
+        if 0 <= index < self.length:
+            return super().__getitem__(index)
+        return default

@@ -23,7 +23,7 @@ from zytlib.wrapper_plus import advanced_data
 from zytlib.sequence import sequence
 import pickle
 import time
-from zytlib import vector
+from zytlib import vector, sequence
 
 @advanced_data
 def f(*args, **kwargs):

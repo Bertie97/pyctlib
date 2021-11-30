@@ -11,6 +11,8 @@ import time
 # start = time.time()
 from .touch import touch, crash, retry
 from .vector import totuple, recursive_apply, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass, vhelp, fuzzy_obj
+from .table import table
+from .sequence import sequence
 # from .wrapper import *
 from .filemanager import path, pathList, file
 from .terminal import *
