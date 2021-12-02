@@ -39,6 +39,23 @@ class table(dict):
                 self[key] = value
         object.__setattr__(self, "__key_locked", key_locked)
 
+    @staticmethod
+    def hieratical(d: dict, delimiter="."):
+        ret = table()
+        for key, value in d.items():
+            ret.pset(key.split(delimiter), value=value)
+        return ret
+
+    def flatten(self, delimiter="."):
+        ret = table()
+        for key, value in self.items():
+            if not isinstance(value, table):
+                ret[key] = value
+            else:
+                for _k, _v in value.flatten().items():
+                    ret[delimiter.join([key, _k])] = _v
+        return ret
+
     @classmethod
     def _hook(cls, item):
         if isinstance(item, dict):
