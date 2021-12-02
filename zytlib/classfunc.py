@@ -1,8 +1,10 @@
 from inspect import getargspec
+from .table import table
+from typing import Union, Tuple
 
 __all__ = ["save_args"]
 
-def save_args(values, ignore=None):
+def save_args(values, ignore: Union[None, Tuple, str]=None):
     """
     usage:
 
@@ -14,7 +16,14 @@ def save_args(values, ignore=None):
 
             pass
     """
-    values['self'].hyper = dict()
+    if isinstance(ignore, str):
+        ignore = set([ignore])
+    elif ignore is None:
+        ignore = set()
+    else:
+        ignore = set(ignore)
+
+    values['self'].hyper = table()
     for i in getargspec(values['self'].__init__).args[1:]:
-        if ignore is None or i not in ignore:
+        if i not in ignore:
             values['self'].hyper[i] = values[i]
