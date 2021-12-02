@@ -13,7 +13,7 @@ from zytlib import touch
 from zytlib.wrapper import generate_typehint_wrapper
 import argparse
 from time import sleep
-from zytlib import totuple
+from zytlib.utils import totuple
 from zytlib.touch import once
 import seaborn as sns
 import matplotlib.pyplot as plt

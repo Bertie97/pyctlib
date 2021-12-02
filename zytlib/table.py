@@ -1,6 +1,7 @@
 from typing import overload
 from .touch import touch, crash
 from .vector import vector
+from .utils import totuple
 import pickle
 import argparse
 import operator
@@ -84,7 +85,9 @@ class table(dict):
         else:
             self[name] = value
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str):
+        if item.startswith("_"):
+            return object.__getattribute__(self, item)
         return self.__getitem__(item)
 
     def __missing__(self, name):
@@ -135,6 +138,15 @@ class table(dict):
             pass
 
         super().__setitem__(key, value)
+
+    def pset(self, *keys, value):
+        keys = totuple(keys)
+        parent = self
+        for key in keys[:-1]:
+            if key not in parent:
+                parent[key] = table()
+            parent = parent[key]
+        parent[keys[-1]] = value
 
     def filter(self, key=None, value=None):
         if key is None and value is None:

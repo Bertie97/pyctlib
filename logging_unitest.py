@@ -17,7 +17,7 @@ import argparse
 import time
 from datetime import timedelta
 from time import sleep
-from zytlib import totuple
+from zytlib.utils import totuple
 from zytlib.touch import once
 from zytlib import Logger
 import math

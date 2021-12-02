@@ -6,7 +6,6 @@
 ## Package <main>
 ##############################
 __all__ = """
-    totuple
     recursive_apply
     vector
     generator_wrapper
@@ -46,7 +45,7 @@ import time
 import pydoc
 from collections.abc import Hashable
 from matplotlib.axes._subplots import Axes
-from .utils import constant, str_type
+from .utils import constant, str_type, totuple
 import functools
 import multiprocessing
 try:
@@ -79,23 +78,6 @@ def unfold_tuple(*args, depth=0):
             return functools.reduce(lambda x, y: x + y, tuple(unfold_tuple(t, depth=depth - 1) for t in x), tuple())
     else:
         return functools.reduce(lambda x, y: x+y, tuple(unfold_tuple(t, depth=depth) for t in args), tuple())
-
-def totuple(x, depth=1):
-    if isinstance(x, types.GeneratorType):
-        x = tuple(x)
-    if not iterable(x):
-        x = (x, )
-    if depth == 1:
-        if iterable(x) and len(x) == 1 and iterable(x[0]):
-            return tuple(x[0])
-        if iterable(x) and len(x) == 1 and isinstance(x[0], types.GeneratorType):
-            return tuple(x[0])
-        else:
-            return tuple(x)
-    if depth == 0:
-        return tuple(x)
-    temp = vector(x).map(lambda t: totuple(t, depth=depth-1))
-    return temp.reduce(lambda x, y: x + y)
 
 def max_fuzz_score(x, y):
     def make_letter(index):

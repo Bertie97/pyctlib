@@ -10,7 +10,7 @@ import time
 
 # start = time.time()
 from .touch import touch, crash, retry
-from .vector import totuple, recursive_apply, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass, vhelp, fuzzy_obj
+from .vector import recursive_apply, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass, vhelp, fuzzy_obj
 from .table import table
 from .sequence import sequence
 # from .wrapper import *
