@@ -186,9 +186,20 @@ class table(dict):
         if value is None:
             def value(x): return x
         ret = dict()
-        for x, y in self.items():
+        for x, y in super().items():
             ret[key(x)] = value(y)
         return table(ret)
+
+    def rmap(self, func) -> "table":
+        if func is None:
+            return self
+        ret = table()
+        for x, y in super().items():
+            if not isinstance(y, table):
+                ret[x] = func(y)
+            else:
+                ret[x] = y.rmap(func)
+        return ret
 
     def values(self) -> vector:
         return vector(super().values())
