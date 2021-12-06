@@ -404,8 +404,13 @@ class Logger:
                 f = f.f_back
                 loc_bias -= 1
         if sep == "\n":
-            for msg in msgs:
-                self.logger.info("{}[line:{}] - (%WHITE)INFO(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, msg))
+            if len(msgs) == 1 and isinstance(msgs[0], dict):
+                d: dict = msgs[0]
+                for key, value in d.items():
+                    self.logger.info("{}[line:{}] - (%WHITE)INFO(%RESET): {}: {}".format(f.f_code.co_filename, f.f_lineno, key, value))
+            else:
+                for msg in msgs:
+                    self.logger.info("{}[line:{}] - (%WHITE)INFO(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, msg))
         else:
             self.logger.info("{}[line:{}] - (%WHITE)INFO(%RESET): {}".format(f.f_code.co_filename, f.f_lineno, sep.join(str(x) for x in msgs)))
 
