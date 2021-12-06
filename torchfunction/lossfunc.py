@@ -1,5 +1,8 @@
 import torch
 
+def sumofsquare(x):
+    return torch.sum(torch.square(x))
+
 def sigmod_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, reduction: str="mean") -> torch.Tensor:
     crit = torch.nn.BCEWithLogitsLoss(reduction=reduction)
     return crit(x, targets)

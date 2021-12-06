@@ -22,6 +22,7 @@ from notion.client import NotionClient
 import mimetypes
 import requests
 import random
+from .table import table
 """
 from zytlib import vector, touch
 from zytlib.basicwrapper import timeout, TimeoutException
@@ -486,6 +487,21 @@ class Logger:
             else:
                 variable_dict[variable_name] = vector([variable_dict[variable_name], variable])
 
+    def hyper(self, *args, **kwargs):
+        if self.disabled:
+            return
+        try:
+            raise Exception
+        except:
+            f = sys.exc_info()[2].tb_frame.f_back
+        if len(args) == 1:
+            hyper = dict(args[0])
+        else:
+            hyper = dict()
+        hyper.update(kwargs)
+        for key, value in hyper.items():
+            self.logger.info("{}[line:{}] - HYPER<(%MAGENTA){}(%RESET)>: (%CYAN){}(%RESET)".format(f.f_code.co_filename, f.f_lineno, key, value))
+
     def variable(self, variable_name: str, variable):
         if self.disabled:
             return
@@ -637,6 +653,27 @@ class Logger:
         self.info("start upload file (%BLUE){}(%RESET) to notion property (%MAGENTA){}(%RESET), file size: (%MAGENTA){}(%RESET)".format(variable, variable_name, path(variable).file_size()))
         upload_file_to_row_property(self._notion_client, self._notion_page, variable, variable_name)
         self.info("successfully update file (%BLUE){}(%RESET)".format(variable_name))
+
+    @staticmethod
+    def hyper_from_logging_file(f_name):
+        hyper = table()
+        with open(f_name, "r") as finput:
+            for line in finput.readlines():
+                if "HYPER<" in line:
+                    match = re.search(r"HYPER<(.+)>: (.+)", line.rstrip())
+                    if match:
+                        variable_name = match.group(1)
+                        variable_str = match.group(2)
+                        if not variable_name or not variable_str:
+                            continue
+                        if variable_str[0].isdigit() or variable_str[0] == "-":
+                            variable = float(variable_str)
+                        elif variable_str[0] == "[" and variable_str[-1] == "]":
+                            variable = vector([float(x.strip()) for x in variable_str[1:-1].split(",")])
+                        else:
+                            variable = variable_str
+                        hyper[variable_name] = variable
+        return hyper
 
     @staticmethod
     def variable_from_logging_file(f_name):

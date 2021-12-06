@@ -40,13 +40,13 @@ class table(dict):
         object.__setattr__(self, "__key_locked", key_locked)
 
     @staticmethod
-    def hieratical(d: dict, delimiter="."):
+    def hieratical(d: dict, delimiter=".") -> "table":
         ret = table()
         for key, value in d.items():
             ret.pset(key.split(delimiter), value=value)
         return ret
 
-    def flatten(self, delimiter="."):
+    def flatten(self, delimiter=".") -> "table":
         ret = table()
         for key, value in self.items():
             if not isinstance(value, table):
@@ -74,7 +74,7 @@ class table(dict):
             ret.update(y)
             return ret
 
-    def update_exist(self, *args, **kwargs):
+    def update_exist(self, *args, **kwargs) -> "table":
 
         for arg in args:
             assert isinstance(arg, dict)
@@ -88,7 +88,7 @@ class table(dict):
 
         return self
 
-    def key_not_here(self, d):
+    def key_not_here(self, d) -> vector:
         ret = vector()
         for key in d.keys():
             if key not in self:
@@ -156,7 +156,7 @@ class table(dict):
 
         super().__setitem__(key, value)
 
-    def pset(self, *keys, value):
+    def pset(self, *keys, value) -> None:
         keys = totuple(keys)
         parent = self
         for key in keys[:-1]:
@@ -165,7 +165,7 @@ class table(dict):
             parent = parent[key]
         parent[keys[-1]] = value
 
-    def filter(self, key=None, value=None):
+    def filter(self, key=None, value=None) -> "table":
         if key is None and value is None:
             return self
         if key is None:
@@ -203,6 +203,15 @@ class table(dict):
 
     def values(self) -> vector:
         return vector(super().values())
+
+    def rvalues(self) -> vector:
+        ret = vector()
+        for v in super().values():
+            if isinstance(v, table):
+                ret.extend(v.rvalues())
+            else:
+                ret.append(v)
+        return ret
 
     def keys(self) -> vector:
         return vector(super().keys())
