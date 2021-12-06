@@ -24,6 +24,7 @@ from zytlib.sequence import sequence
 import pickle
 import time
 from zytlib import vector, sequence
+from zytlib.logging import Logger
 
 @advanced_data
 def f(*args, **kwargs):
