@@ -214,7 +214,7 @@ class Logger:
         self.__logger.info("> Specified Vars:")
         for item in different_vars:
             self.__logger.info(" " * 4 + item + "=" + format_result(virtaul_vars[item]))
-        self.__logger.info("> Defalut Vars:")
+        self.__logger.info("> Default Vars:")
         for item in same_vars:
             self.__logger.info(" " * 4 + item + "=" + format_result(virtaul_vars[item]))
         self.__logger.info("-" * 30)
@@ -679,6 +679,40 @@ class Logger:
                             variable = variable_str
                         hyper[variable_name] = variable
         return hyper
+
+    @staticmethod
+    def parser_from_logging_file(f_name):
+        parser_dict = table(specified=table(), default=table())
+        width = 0
+        with open(f_name, "r") as finput:
+            content = "start"
+            for line in finput.readlines():
+                line = line.strip()
+                if content == "start" and line.endswith("Argument Parser:"):
+                    content = "start@1"
+                    width = len(line) - len("Argument Parser:")
+                elif content == "start@1":
+                    content = "start@2"
+                elif content == "start@2":
+                    assert line.endswith("> Specified Vars:")
+                    content = "specified"
+                elif content == "specified":
+                    line = line[width:]
+                    if line.startswith(">"):
+                        content = "default"
+                    else:
+                        assert line.startswith(" " * 4)
+                        item, _, value = line.strip().partition("=")
+                        parser_dict.specified[item] = value
+                elif content == "default":
+                    line = line[width:]
+                    if line.startswith("-" * 30):
+                        content = "start"
+                    else:
+                        assert line.startswith(" " * 4)
+                        item, _, value = line.strip().partition("=")
+                        parser_dict.default[item] = value
+        return parser_dict
 
     @staticmethod
     def variable_from_logging_file(f_name):

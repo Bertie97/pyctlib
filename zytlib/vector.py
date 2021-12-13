@@ -3270,7 +3270,10 @@ class vector(list):
     @overload
     def sample(self, *size, replace=True, batch_size=1, p=None): ...
 
-    def sample(self, *args, replace=True, batch_size=1, p=None):
+    @overload
+    def sample(self, n=None, replace=True, batch_size=1, p=None): ...
+
+    def sample(self, *args, n=None, replace=True, batch_size=1, p=None):
         """sample.
 
         Parameters
@@ -3290,6 +3293,8 @@ class vector(list):
             vector.range(10).sample(10, replace=False)
         """
         args = totuple(args)
+        if len(args) == 0 and n is not None:
+            args = totuple(n)
         if len(args) == 0:
             return self.sample(1, replace=replace, batch_size=batch_size, p=p)[0]
         if len(args) == 1 and isinstance(args[0], float) and 0 < args[0] < 1:
