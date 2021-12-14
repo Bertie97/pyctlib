@@ -226,8 +226,14 @@ class table(dict):
                 base[key] = value.dict()
             elif isinstance(value, (list, tuple, vector)):
                 base[key] = type(value)(
-                    item.dict() if isinstance(item, type(self)) else
-                    item for item in value)
+                    item.dict() if isinstance(item, type(self)) else item for item in value)
             else:
                 base[key] = value
         return base
+
+    def pretty_print(self) -> None:
+        for key, value in self.items():
+            if isinstance(value, str):
+                print(f"{key}: \"{value}\"")
+            else:
+                print(f"{key}: {value}")
