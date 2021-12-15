@@ -1,10 +1,11 @@
-from typing import overload
+from typing import overload, Callable
 from .touch import touch, crash
 from .vector import vector
 from .utils import totuple
 import pickle
 import argparse
 import operator
+
 
 class table(dict):
 
@@ -74,8 +75,27 @@ class table(dict):
             ret.update(y)
             return ret
 
-    def update_exist(self, *args, **kwargs) -> "table":
+    @overload
+    def merge(self, new_dict: dict, reduce_func: Callable) -> "table": ...
 
+    @overload
+    def merge(self, new_dict: dict, reduce_func: Callable, default=None) -> "table": ...
+
+    def merge(self, new_dict: dict, reduce_func: Callable, **kwargs):
+        if (has_default:= "default" in kwargs):
+            default = kwargs["default"]
+
+        for key, value in new_dict.items():
+            if key not in self:
+                if has_default:
+                    self[key] = reduce_func(default, value)
+                else:
+                    self[key] = value
+            else:
+                self[key] = reduce_func(self[key], value)
+        return self
+
+    def update_exist(self, *args, **kwargs) -> "table":
         for arg in args:
             assert isinstance(arg, dict)
             for key in arg.keys():
