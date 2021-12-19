@@ -1008,7 +1008,7 @@ class vector(list):
                     new_func(content)
         return vector()
 
-    def map_where(self, *args, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None):
+    def map_where(self, *args, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None) -> "vector":
         assert len(args) % 2 == 1
         args_init = vector(args).map_k(lambda x: ([vector.__hook_function(_) for _ in x]), k=2, overlap=False)
         args_last = vector.__hook_function(args[-1])
@@ -1029,7 +1029,7 @@ class vector(list):
             _f = _f_split
         return self.map(_f, default=default, processing_bar=processing_bar, register_result=register_result, split_tuple=split_tuple, filter_function=filter_function)
 
-    def rmap_where(self, *args, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None):
+    def rmap_where(self, *args, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None) -> "vector":
         assert len(args) % 2 == 1
         args_init = vector(args).map_k(lambda x: ([vector.__hook_function(_) for _ in x]), k=2, overlap=False)
         args_last = vector.__hook_function(args[-1])
@@ -1050,7 +1050,7 @@ class vector(list):
             _f = _f_split
         return self.rmap(_f, default=default, processing_bar=processing_bar, register_result=register_result, split_tuple=split_tuple, filter_function=filter_function)
 
-    def chunk(self, k, drop_last=True):
+    def chunk(self, k, drop_last=True) -> "vector":
         func = int if drop_last else math.ceil
         return vector([self[i * k: (i + 1) * k] for i in range(func(self.length / k))])
 
@@ -1280,7 +1280,7 @@ class vector(list):
         return
 
     @staticmethod
-    def stack(*args, dim=0):
+    def stack(*args, dim=0) -> "vector":
         args = totuple(args)
         args = vector(vector(x) for x in args)
         assert args.all_equal(lambda x: x.shape)
@@ -1316,7 +1316,7 @@ class vector(list):
             for x in self:
                 command(x)
 
-    def int(self):
+    def int(self) -> "vector":
         def _int(x):
             if isinstance(x, str):
                 return ord(x)
@@ -1324,7 +1324,7 @@ class vector(list):
                 return int(x)
         return self.rmap(_int, split_tuple=False)
 
-    def float(self):
+    def float(self) -> "vector":
         return self.rmap(float, split_tuple=False)
 
     @property
@@ -1392,7 +1392,7 @@ class vector(list):
         return instance in element_type.__mro__
 
     @property
-    def enumerate(self):
+    def enumerate(self) -> "vector":
         return vector(enumerate(self))
 
     @staticmethod
@@ -1404,21 +1404,21 @@ class vector(list):
         else:
             return lambda x: func
 
-    def __and__(self, other):
+    def __and__(self, other) -> "vector":
         if isinstance(other, vector):
             if self.length == other.length:
                 return vector(zip(self, other)).map(lambda x: x[0] and x[1])
             raise RuntimeError("length of vector A [{}] isnot compatible with length of vector B [{}]".format(self.length, other.length))
         raise RuntimeError("can only support vector and vector")
 
-    def __or__(self, other):
+    def __or__(self, other) -> "vector":
         if isinstance(other, vector):
             if self.length == other.length:
                 return vector(zip(self, other)),map(lambda x: x[0] or x[1])
             raise RuntimeError("length of vector A [{}] isnot compatible with length of vector B [{}]".format(self.length, other.length))
         raise RuntimeError("can only support vector or vector")
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> "vector":
         """__mul__.
 
         Usages
@@ -1533,7 +1533,7 @@ class vector(list):
                 raise RuntimeError()
         return ret
 
-    def __pow__(self, other):
+    def __pow__(self, other) -> "vector":
         """__pow__.
         Cartesian Product of two vector
 
@@ -1561,7 +1561,7 @@ class vector(list):
 
         return vector([(i, j) for i in self for j in other])
 
-    def __add__(self, other: list):
+    def __add__(self, other: list) -> "vector":
         """__add__.
 
         Parameters
@@ -1571,17 +1571,17 @@ class vector(list):
         """
         return vector(super().__add__(other))
 
-    def __radd__(self, left):
+    def __radd__(self, left) -> "vector":
         return self.__add__(left)
 
-    def matrix_operation(self, other, op):
+    def matrix_operation(self, other, op) -> "vector":
         assert self.shape == other.shape
         if self.dim == 1:
             return vector.map_from([self, other], op)
         else:
             return vector.zip(self, other).map(lambda x, y: x.matrix_operation(y, op), split_tuple=True)
 
-    def _transform(self, element, func=None):
+    def _transform(self, element, func=None) -> "vector":
         """_transform.
 
         Parameters
@@ -1595,7 +1595,7 @@ class vector(list):
             return element
         return func(element)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> "vector":
         """__eq__.
 
         Parameters
@@ -1608,7 +1608,7 @@ class vector(list):
         else:
             return self.map(lambda x: x == other)
 
-    def __neq__(self, other):
+    def __neq__(self, other) -> "vector":
         """__neq__.
 
         Parameters
@@ -1621,7 +1621,7 @@ class vector(list):
         else:
             return self.map(lambda x: x != other)
 
-    def __lt__(self, element):
+    def __lt__(self, element) -> "vector":
         """__lt__.
 
         Parameters
@@ -1634,7 +1634,7 @@ class vector(list):
         else:
             return self.map(lambda x: x < element)
 
-    def __gt__(self, element):
+    def __gt__(self, element) -> "vector":
         """__gt__.
 
         Parameters
@@ -1647,7 +1647,7 @@ class vector(list):
         else:
             return self.map(lambda x: x > element)
 
-    def __le__(self, element):
+    def __le__(self, element) -> "vector":
         """__le__.
 
         Parameters
@@ -1660,7 +1660,7 @@ class vector(list):
         else:
             return self.map(lambda x: x < element)
 
-    def __ge__(self, element):
+    def __ge__(self, element) -> "vector":
         """__ge__.
 
         Parameters
@@ -1749,7 +1749,7 @@ class vector(list):
         else:
             return self.getitem(index_mapping.reverse_getitem(index), outboundary_value=outboundary_value)
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> "vector":
         """__sub__.
 
         Parameters
@@ -2089,7 +2089,7 @@ class vector(list):
     @overload
     def clip(self, min_value: float=None, max_value: float=None) -> "vector": ...
 
-    def clip(self, *args, **kwargs):
+    def clip(self, *args, **kwargs) -> "vector":
         min_value = max_value = None
         if len(args) >= 1:
             min_value = args[0]
@@ -2223,7 +2223,7 @@ class vector(list):
             return vector(numba_cumsum(self.to_numpy()))
         return self.cumulative_reduce(lambda x, y: x + y)
 
-    def smooth(self, window_len=11, window='hanning'):
+    def smooth(self, window_len=11, window='hanning') -> "vector":
         """smooth the data using a window with requested size.
 
         This method is based on the convolution of a scaled window with the signal.
@@ -2304,7 +2304,7 @@ class vector(list):
             raise TypeError("p can be a positive number or 0 or 'inf'")
         return self.__norm[p]
 
-    def normalization(self, p=1):
+    def normalization(self, p=1) -> "vector":
         """
         normaize the vector using p-norm
         is equivalent to self.map(lambda x: x / self.norm(p))
@@ -2318,7 +2318,7 @@ class vector(list):
             return self
         return self.map(lambda x: x / norm_p)
 
-    def normalization_(self, p=1):
+    def normalization_(self, p=1) -> "vector":
         """
         **inplace function:** normaize the vector using p-norm
         is equivalent to self.map(lambda x: x / self.norm(p))
@@ -2328,7 +2328,7 @@ class vector(list):
         norm_p = self.norm(p)
         return self.map_(lambda x: x / self.norm(p))
 
-    def softmax(self, beta=1):
+    def softmax(self, beta=1) -> "vector":
         """
         softmax function
 
@@ -2449,10 +2449,10 @@ class vector(list):
         return enumerate(self)
 
 
-    def join(self, sep: str):
-        return sep.join(self)
+    def join(self, sep: str) -> str:
+        return sep.join(self.map(str))
 
-    def flatten(self, depth=-1):
+    def flatten(self, depth=-1) -> "vector":
         """flatten.
         flatten the vector
 
@@ -2578,7 +2578,7 @@ class vector(list):
         return self.get(0, None)
 
     @property
-    def tail(self):
+    def tail(self) -> "vector":
         return self[1:]
 
     @property
@@ -2589,13 +2589,13 @@ class vector(list):
         return sum([1 if not isinstance(x, vector) else x.numel for x in self])
 
     @property
-    def length(self):
+    def length(self) -> int:
         """length.
         length of the vector
         """
         return len(self)
 
-    def onehot(self, max_length: int=-1, default_dict: Dict[Any, int]={}):
+    def onehot(self, max_length: int=-1, default_dict: Dict[Any, int]={}) -> "vector":
         """onehot.
         get onehot representation of the vector
 
@@ -2641,7 +2641,7 @@ class vector(list):
             return ret
         return temp_list.map(lambda x: create_onehot_vector(x, max_length))
 
-    def sort(self, key: Callable=lambda x: x, reverse: bool=False):
+    def sort(self, key: Callable=lambda x: x, reverse: bool=False) -> "vector":
         if key == None:
             return self
         if self.length == 0:
@@ -2651,7 +2651,7 @@ class vector(list):
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
         return self.map_index(index_mapping)
 
-    def sort_(self, key=lambda x: x, reverse: bool=False):
+    def sort_(self, key=lambda x: x, reverse: bool=False) -> None:
         if key == None:
             return
         if self.length == 0:
@@ -2661,7 +2661,7 @@ class vector(list):
         index_mapping = IndexMapping(index_mapping_reverse, reverse=True)
         self.map_index_(index_mapping)
 
-    def sort_by_index(self, key=lambda index: index):
+    def sort_by_index(self, key=lambda index: index) -> "vector":
         """sort_by_index.
         sort vector by function of index
 
@@ -2679,7 +2679,7 @@ class vector(list):
         afflicated_vector = vector(key(index) for index in range(self.length)).sort()
         return self.map_index(afflicated_vector.index_mapping)
 
-    def sort_by_index_(self, key=lambda index: index):
+    def sort_by_index_(self, key=lambda index: index) -> "vector":
         """sort_by_index.
         **Inplace function**: sort vector by function of index
 
@@ -2697,7 +2697,7 @@ class vector(list):
         afflicated_vector = vector(key(index) for index in range(self.length)).sort()
         self.map_index_(afflicated_vector.index_mapping)
 
-    def sort_by_vector(self, other, func=lambda x: x):
+    def sort_by_vector(self, other, func=lambda x: x) -> "vector":
         """sort_by_vector.
         sort vector A by vector B or func(B)
 
@@ -2718,7 +2718,7 @@ class vector(list):
         assert self.length == len(other)
         return self.sort_by_index(lambda index: func(other[index]))
 
-    def sort_by_vector_(self, other, func=lambda x: x):
+    def sort_by_vector_(self, other, func=lambda x: x) -> "vector":
         """sort_by_vector.
         **Inplace function**: sort vector A by vector B or func(B)
 
@@ -2740,7 +2740,7 @@ class vector(list):
         self.sort_by_index_(lambda index: func(other[index]))
 
     @staticmethod
-    def from_range(shape, func):
+    def from_range(shape, func) -> "vector":
         if isinstance(shape, int):
             return vector.range(shape).map(func, split_tuple=False)
         elif isinstance(shape, tuple):
@@ -2749,7 +2749,7 @@ class vector(list):
             raise RuntimeError()
 
     @staticmethod
-    def from_numpy(array):
+    def from_numpy(array) -> "vector":
         """from_numpy.
 
         Parameters
@@ -2767,7 +2767,7 @@ class vector(list):
             print("warning: input isn't pure np.ndarray")
             return vector(array.tolist())
 
-    def to_numpy(self):
+    def to_numpy(self) -> np.ndarray:
         if hasattr(self, "_vector__numpy"):
             return self.__numpy
         if self.length == 0:
@@ -2882,7 +2882,7 @@ class vector(list):
         return ax
 
     @staticmethod
-    def from_list(array):
+    def from_list(array) -> "vector":
         """from_list.
 
         Parameters
@@ -2894,7 +2894,7 @@ class vector(list):
             return array
         return vector(vector.from_list(x) for x in array)
 
-    def tolist(self):
+    def tolist(self) -> list:
         ret = list()
         for item in self:
             if isinstance(item, vector):
@@ -2903,16 +2903,16 @@ class vector(list):
                 ret.append(item)
         return ret
 
-    def numpy(self):
+    def numpy(self) -> np.ndarray:
         return np.array(self)
 
     @overload
     @staticmethod
-    def zeros(size: Iterable): ...
+    def zeros(size: Iterable) -> "vector": ...
 
     @overload
     @staticmethod
-    def zeros(*size): ...
+    def zeros(*size) -> "vector": ...
 
     @staticmethod
     def zeros(*args):
@@ -2927,7 +2927,7 @@ class vector(list):
         return vector.from_numpy(np.zeros(args))
 
     @staticmethod
-    def constant_vector(value, *args):
+    def constant_vector(value, *args) -> "vector":
         args = totuple(args)
         if len(args) == 0:
             return vector()
@@ -2938,11 +2938,11 @@ class vector(list):
 
     @overload
     @staticmethod
-    def ones(size: Iterable): ...
+    def ones(size: Iterable) -> "vector": ...
 
     @overload
     @staticmethod
-    def ones(*size): ...
+    def ones(*size) -> "vector": ...
 
     @staticmethod
     def ones(*args):
@@ -2959,12 +2959,12 @@ class vector(list):
         return ret
 
     @staticmethod
-    def linspace(low, high, nbins, endpoint=True):
+    def linspace(low, high, nbins, endpoint=True) -> "vector":
         step = (high - low) / max(nbins - bool(endpoint), 1)
         return vector.range(nbins).map(lambda x: x * step + low)
 
     @staticmethod
-    def logspace(low, high, nbins, endpoint=True):
+    def logspace(low, high, nbins, endpoint=True) -> "vector":
         """
         type: endpoint[True / False]
         """
@@ -2978,7 +2978,7 @@ class vector(list):
         return ret
 
     @staticmethod
-    def meshgrid(*args):
+    def meshgrid(*args) -> "vector":
         args = totuple(args)
         if len(args) == 0:
             return vector()
@@ -2992,7 +2992,7 @@ class vector(list):
         return vector(itertools.product(*args)).map(lambda x: x)
 
     @staticmethod
-    def rand(*args, low=0, high=1):
+    def rand(*args, low=0, high=1) -> "vector":
         """rand.
 
         Parameters
@@ -3006,13 +3006,13 @@ class vector(list):
         return ret
 
     @staticmethod
-    def randint(low, high=None, size=(1, )):
+    def randint(low, high=None, size=(1, )) -> "vector":
         ret = vector.from_numpy(np.random.randint(low, high=high, size=size))
         ret._shape = totuple(size)
         return ret
 
     @staticmethod
-    def randn(*args, mean=0, std=1, truncate_std=None):
+    def randn(*args, mean=0, std=1, truncate_std=None) -> "vector":
         """randn.
 
         Parameters
@@ -3069,7 +3069,7 @@ class vector(list):
             return vector.range(args[0]).map(lambda index: vector.meshrange(args[1:]).rmap(lambda other: tuple([index]) + other, split_tuple=False))
 
     @staticmethod
-    def from_randomwalk(start, transition_function, length):
+    def from_randomwalk(start, transition_function, length) -> "vector":
         ret = vector([start])
         temp = start
         for index in range(length-1):
@@ -3077,25 +3077,25 @@ class vector(list):
             ret.append(temp)
         return ret
 
-    def iid(self, sample_func, length, args=()):
+    def iid(self, sample_func, length, args=()) -> "vector":
         return vector([sample_func(*args) for _ in range(length)])
 
     @registered_property
-    def isleaf(self):
+    def isleaf(self) -> bool:
         return all(not isinstance(_, vector) for _ in self)
 
     @isleaf.setter
-    def isleaf(self, p: bool):
+    def isleaf(self, p: bool) -> bool:
         if not hasattr(self, "__registered_property"):
             self.__registered_property = dict()
         self.__registered_property["isleaf"] = p
 
     @registered_property
-    def ndim(self):
+    def ndim(self) -> int:
         return len(self.shape)
 
     @registered_property
-    def shape(self):
+    def shape(self) -> tuple:
         """shape.
         """
         if self.isleaf:
@@ -3109,10 +3109,10 @@ class vector(list):
         return (self.length, *(self[0].shape))
 
     @property
-    def dim(self):
+    def dim(self) -> int:
         return len(self)
 
-    def append(self, element, refuse_value=NoDefault):
+    def append(self, element, refuse_value=NoDefault) -> "vector":
         """append.
 
         Parameters
@@ -3130,7 +3130,7 @@ class vector(list):
         super().append(element)
         return self
 
-    def extend(self, other):
+    def extend(self, other) -> "vector":
         """extend.
 
         Parameters
@@ -3164,7 +3164,7 @@ class vector(list):
 
         return super().pop(*args)
 
-    def insert(self, location, element):
+    def insert(self, location, element) -> "vector":
         """insert.
 
         Parameters
@@ -3234,7 +3234,7 @@ class vector(list):
         touch(lambda: delattr(self, "_vector__norm"))
         touch(lambda: delattr(self, "_vector__numpy"))
 
-    def clear(self):
+    def clear(self) -> "vector":
         """clear
         """
         self.clear_appendix()
@@ -3242,7 +3242,7 @@ class vector(list):
         super().clear()
         return self
 
-    def remove(self, *args):
+    def remove(self, *args) -> "vector":
         """remove.
 
         Parameters
@@ -3316,7 +3316,7 @@ class vector(list):
             return self.map_index(index_mapping)
         return vector(np.random.choice(self, size=args, replace=replace, p=p), recursive=False)
 
-    def batch(self, batch_size=1, random=True, drop=True):
+    def batch(self, batch_size=1, random=True, drop=True) -> "vector":
         if random:
             if self.length % batch_size == 0:
                 return self.sample(self.length // batch_size, batch_size, replace=False)
@@ -3327,14 +3327,14 @@ class vector(list):
         else:
             return self[:(self.length - self.length % batch_size)].reshape(-1, batch_size)
 
-    def shuffle(self):
+    def shuffle(self) -> "vector":
         """
         shuffle the vector
         """
         index_mapping = IndexMapping(vector.range(self.length).sample(self.length, replace=False))
         return self.map_index(index_mapping)
 
-    def reverse(self):
+    def reverse(self) -> "vector":
         """
         reverse the vector
         vector(0,1,2).reverse()
@@ -3344,7 +3344,7 @@ class vector(list):
         index_mapping= IndexMapping(vector.range(self.length-1, -1, -1))
         return self.map_index(index_mapping)
 
-    def reverse_(self):
+    def reverse_(self) -> "vector":
         """
         **inplace function:** reverse the vector
         vector(0,1,2).reverse()
@@ -3354,14 +3354,14 @@ class vector(list):
         index_mapping= IndexMapping(vector.range(self.length-1, -1, -1))
         return self.map_index_(index_mapping)
 
-    def shuffle_(self):
+    def shuffle_(self) -> "vector":
         """
         **Inplace function:** shuffle the vector
         """
         index_mapping = IndexMapping(vector.range(self.length).sample(self.length, replace=False))
         self.map_index_(index_mapping)
 
-    def split(self, *args):
+    def split(self, *args) -> "vector":
         """
         split vector in given position
         """
@@ -3387,7 +3387,7 @@ class vector(list):
             ret.append(temp)
             return vector(ret)
 
-    def split_index(self, *args):
+    def split_index(self, *args) -> "vector":
         args = totuple(args)
         args = vector(args).sort()
         args.all(lambda x: 0 <= x <= self.length)
@@ -3417,7 +3417,7 @@ class vector(list):
         cumsum = split_num.cumsum()
         return tuple(self.shuffle().split_index(cumsum).map_index(sorted_index_mapping.reverse()))
 
-    def copy(self, deep_copy=False):
+    def copy(self, deep_copy=False) -> "vector":
         if not deep_copy:
             ret = vector(self)
         else:
@@ -3431,7 +3431,7 @@ class vector(list):
         ret.content_type = self.content_type
         return ret
 
-    def map_index(self, index_mapping: "IndexMapping"):
+    def map_index(self, index_mapping: "IndexMapping") -> "vector":
         """
         change the index_mapping of the current vector.
         for example:
@@ -3469,7 +3469,7 @@ class vector(list):
             ret = vector([super(vector, self).__getitem__(index) if index >= 0 else UnDefined for index in index_mapping.index_map_reverse], recursive=self._recursive, index_mapping=self.index_mapping.map(index_mapping), allow_undefined_value=True)
             return ret
 
-    def map_index_(self, index_mapping: "IndexMapping"):
+    def map_index_(self, index_mapping: "IndexMapping") -> None:
         """
         inplacement implementation of map_index
         """
@@ -3496,19 +3496,19 @@ class vector(list):
     def register_index_mapping_(self, index_mapping=IndexMapping()):
         self._index_mapping = index_mapping
 
-    def map_index_from(self, x):
+    def map_index_from(self, x) -> "vector":
         assert isinstance(x, vector)
         return self.map_index(x.index_mapping)
 
-    def map_index_from_(self, x):
+    def map_index_from_(self, x) -> None:
         assert isinstance(x, vector)
         self.map_index_(x.index_mapping)
 
-    def map_reverse_index(self, reverse_index_mapping: "IndexMapping"):
+    def map_reverse_index(self, reverse_index_mapping: "IndexMapping") -> "vector":
         assert isinstance(reverse_index_mapping, IndexMapping)
         return self.map_index(reverse_index_mapping.reverse())
 
-    def map_reverse_index_(self, reverse_index_mapping: "IndexMapping"):
+    def map_reverse_index_(self, reverse_index_mapping: "IndexMapping") -> None:
         assert isinstance(reverse_index_mapping, IndexMapping)
         self.map_index(reverse_index_mapping.reverse())
 
@@ -3537,7 +3537,7 @@ class vector(list):
         self.map_index_(self.index_mapping.reverse())
         self.clear_index_mapping_()
 
-    def roll(self, shift=1):
+    def roll(self, shift=1) -> "vector":
         index_mapping = IndexMapping([(index - shift) % self.length for index in range(self.length)], range_size=self.length, reverse=True)
         return self.map_index(index_mapping)
 
