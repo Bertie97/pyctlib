@@ -3029,6 +3029,13 @@ class vector(list):
             ret = ret.rmap(lambda x: std * x + mean)
         return ret
 
+    @staticmethod
+    def multinomial(n, pvals=None, size=None):
+        if pvals is None:
+            pvals = [1 / n] * n
+        ret = np.random.multinomial(n, pvals, size)
+        return self.from_numpy(ret)
+
     @overload
     @staticmethod
     def range(stop) -> "vector": ...

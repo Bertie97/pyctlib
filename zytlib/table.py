@@ -5,6 +5,7 @@ from .utils import totuple
 import pickle
 import argparse
 import operator
+import copy
 
 
 class table(dict):
@@ -257,3 +258,12 @@ class table(dict):
                 print(f"{key}: \"{value}\"")
             else:
                 print(f"{key}: {value}")
+
+    def copy(self) -> "table":
+        ret = table()
+        for key, value in super().items():
+            if isinstance(value, table):
+                ret[key] = value.copy()
+            else:
+                ret[key] = copy.deepcopy(value)
+        return ret
