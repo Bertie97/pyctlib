@@ -3030,11 +3030,9 @@ class vector(list):
         return ret
 
     @staticmethod
-    def multinomial(n, pvals=None, size=None):
-        if pvals is None:
-            pvals = [1 / n] * n
+    def multinomial(n, pvals, size=None):
         ret = np.random.multinomial(n, pvals, size)
-        return self.from_numpy(ret)
+        return vector.from_numpy(ret)
 
     @overload
     @staticmethod
