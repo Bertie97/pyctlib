@@ -2258,11 +2258,10 @@ class vector(list):
         if self.length < window_len // 2 + 1:
             raise ValueError("Input vector needs to be bigger than window size.")
 
-        if not self.check_type(int) and not self.check_type(float):
-            raise ValueError("smooth only accepts 1 dimension arrays.")
-
         if window_len<3:
             return self
+
+        self = self.map(lambda x: float(x))
 
         assert window_len % 2 == 1
 
