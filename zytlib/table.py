@@ -129,7 +129,7 @@ class table(dict):
         return self.__getitem__(item)
 
     def __missing__(self, name):
-        return KeyError(name)
+        raise KeyError(name)
 
     def __getstate__(self):
         return self.dict(), object.__getattribute__(self, "__key_locked")
