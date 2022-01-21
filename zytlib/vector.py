@@ -1572,7 +1572,7 @@ class vector(list):
         return vector(super().__add__(other))
 
     def __radd__(self, left) -> "vector":
-        return self.__add__(left)
+        return vector(left).__add__(self)
 
     def matrix_operation(self, other, op) -> "vector":
         assert self.shape == other.shape
