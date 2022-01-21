@@ -2120,7 +2120,9 @@ class vector(list):
         default :
             default
         """
-        if dim is None or self.shape == "undefined" or self.ndim <= 1:
+        if dim is None or self.shape is None or self.ndim <= 1:
+            if self.length == 0:
+                return default
             if hasattr(self, "_vector__sum"):
                 return self.__sum
             if self.check_type(int) or self.check_type(float):
