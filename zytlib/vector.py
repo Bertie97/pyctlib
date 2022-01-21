@@ -3552,7 +3552,7 @@ class vector(list):
     def __str__(self):
         if self.str_function is not None:
             return self.str_function(self)
-        if self.shape != "undefined" and len(self.shape) > 1:
+        if self.shape is not None and len(self.shape) > 1:
             ret: List[str] = vector()
             for index, child in self.enumerate():
                 if isinstance(child, str):
