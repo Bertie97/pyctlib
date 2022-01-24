@@ -109,6 +109,12 @@ class table(dict):
 
         return self
 
+    def update_where(self, target, condition):
+        for key, value in super().items():
+            if condition(value):
+                self[key] = target.get(key, self[key])
+        return self
+
     def key_not_here(self, d) -> vector:
         ret = vector()
         for key in d.keys():
