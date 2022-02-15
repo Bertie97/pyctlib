@@ -109,6 +109,19 @@ class table(dict):
 
         return self
 
+    def update_where(self, target, condition) -> "table":
+        for key, value in super().items():
+            if condition(value):
+                self[key] = target.get(key, self[key])
+        return self
+
+    def update_notexist(self, target) -> "table":
+        for key, value in target.items():
+            if key in self:
+                continue
+            self[key] = value
+        return self
+
     def key_not_here(self, d) -> vector:
         ret = vector()
         for key in d.keys():
@@ -129,7 +142,7 @@ class table(dict):
         return self.__getitem__(item)
 
     def __missing__(self, name):
-        return KeyError(name)
+        raise KeyError(name)
 
     def __getstate__(self):
         return self.dict(), object.__getattribute__(self, "__key_locked")
@@ -164,7 +177,14 @@ class table(dict):
             return
         with open(filepath, "rb") as input:
             ret = pickle.load(input)
-        return ret
+            def _dict_to_table(t):
+                for key, value in t.items():
+                    if isinstance(value, dict) and not isinstance(value, table):
+                        t[key] = _dict_to_table(value)
+                if isinstance(t, dict) and not isinstance(t, table):
+                    return table(t)
+                return t
+        return _dict_to_table(ret)
 
     def __setitem__(self, key, value):
         try:

@@ -1572,7 +1572,7 @@ class vector(list):
         return vector(super().__add__(other))
 
     def __radd__(self, left) -> "vector":
-        return self.__add__(left)
+        return vector(left).__add__(self)
 
     def matrix_operation(self, other, op) -> "vector":
         assert self.shape == other.shape
@@ -2120,7 +2120,9 @@ class vector(list):
         default :
             default
         """
-        if dim is None or self.shape == "undefined" or self.ndim <= 1:
+        if dim is None or self.shape is None or self.ndim <= 1:
+            if self.length == 0:
+                return default
             if hasattr(self, "_vector__sum"):
                 return self.__sum
             if self.check_type(int) or self.check_type(float):
@@ -2258,11 +2260,10 @@ class vector(list):
         if self.length < window_len // 2 + 1:
             raise ValueError("Input vector needs to be bigger than window size.")
 
-        if not self.check_type(int) and not self.check_type(float):
-            raise ValueError("smooth only accepts 1 dimension arrays.")
-
         if window_len<3:
             return self
+
+        self = self.map(lambda x: float(x))
 
         assert window_len % 2 == 1
 
@@ -3553,7 +3554,7 @@ class vector(list):
     def __str__(self):
         if self.str_function is not None:
             return self.str_function(self)
-        if self.shape != "undefined" and len(self.shape) > 1:
+        if self.shape is not None and len(self.shape) > 1:
             ret: List[str] = vector()
             for index, child in self.enumerate():
                 if isinstance(child, str):
