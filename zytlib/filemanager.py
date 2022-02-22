@@ -177,11 +177,13 @@ class pathList(vector):
     def filter(self, func=None, ignore_error=True) -> "pathList":
         if func is None:
             return self
-        if isinstance(func, str):
-            func = lambda x: x.ext == func
-        if isinstance(func, bytes):
-            func = lambda x: x | func
-        return pathList(super().filter(func, ignore_error=ignore_error), main_folder=self._main_folder)
+        elif isinstance(func, str):
+            newfunc = lambda x: x.ext == func
+        elif isinstance(func, bytes):
+            newfunc = lambda x: x | func
+        else:
+            newfunc = func
+        return pathList(super().filter(newfunc, ignore_error=ignore_error), main_folder=self._main_folder)
 
 class path(str):
 
