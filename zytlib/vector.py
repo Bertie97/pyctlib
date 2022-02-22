@@ -2796,6 +2796,7 @@ class vector(list):
 
     def plot_hist(self, bins=None, range=None, density=False, color=None, edgecolor=None, alpha=None, with_pdf=False, ax: Optional[Axes]=None, title: Optional[str]=None, saved_path: Optional[str]=None):
         from matplotlib import pyplot as plt
+        from matplotlib.backends.backend_pdf import PdfPages
         _has_ax = ax is not None
         if ax is None:
             ax = plt.gca()
@@ -2852,7 +2853,7 @@ class vector(list):
             if x is not None:
                 x = list(x)
             else:
-                x = list(range(len(self[0])))
+                x = list(range(len(splited_vector[0])))
             if color is None:
                 for sv in splited_vector:
                     ax.plot(x, sv.smooth(smooth), marker=marker, linestyle=linestyle)
