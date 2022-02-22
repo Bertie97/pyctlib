@@ -2825,7 +2825,7 @@ class vector(list):
                 plt.show()
         return ax
 
-    def plot(self, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None):
+    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, marker=None, color=None, linestyle=None):
         """
         plot line graph for vector
         title: title of the graph
@@ -2842,24 +2842,60 @@ class vector(list):
         else:
             assert saved_path is None
         if self.check_type(float) or self.check_type(int):
-            ax.plot(self.smooth(smooth))
+            if x is not None:
+                x = list(x)
+            else:
+                x = list(range(self.length))
+            ax.plot(x, self.smooth(smooth), marker=marker, color=color, linestyle=linestyle)
         elif (self.check_type(list) or self.check_type(tuple)) and self.map(len).all_equal():
             splited_vector = self.zip_split()
-            for sv in splited_vector:
-                ax.plot(sv.smooth(smooth))
+            if x is not None:
+                x = list(x)
+            else:
+                x = list(range(len(self[0])))
+            if color is None:
+                for sv in splited_vector:
+                    ax.plot(x, sv.smooth(smooth), marker=marker, linestyle=linestyle)
+            else:
+                for index, sv in enumerate(splited_vector):
+                    ax.plot(x, sv.smooth(smooth), marker=marker, color=color[index], linestyle=linestyle)
             if not legend:
                 legend = vector.range(len(splited_vector)).map(str)
         else:
             raise ValueError
         ymin, ymax = ax.get_ylim()
-        xmin, xmax = ax.get_xlim()
+        xmin, xmax = min(x), max(x)
         boundary_margin = 1 / 30 * (xmax - xmin)
-        plt.xlim(-boundary_margin, self.length - 1 + boundary_margin)
+        plt.xlim(xmin - boundary_margin, xmax + boundary_margin)
 
         if title:
             ax.set_title(title)
         if legend:
             ax.legend(legend)
+        if xlabel:
+            if isinstance(xlabel, str):
+                ax.set_xlabel(xlabel)
+            else:
+                ax.set_xlabel(xlabel[0], fontsize=xlabel[1])
+        if ylabel:
+            if isinstance(ylabel, str):
+                ax.set_ylabel(ylabel)
+            else:
+                ax.set_ylabel(ylabel[0], fontsize=ylabel[1])
+        if xticks:
+            ax.set_xticks(xticks)
+        if yticks:
+            ax.set_yticks(yticks)
+        if xticklabels:
+            if isinstance(xticklabels, list) and isinstance(xticklabels[0], str):
+                ax.set_xticklabels(xticklabels)
+            else:
+                ax.set_xticklabels(xticklabels[0], fontsize=xticklabels[1])
+        if yticklabels:
+            if isinstance(yticklabels, list) and isinstance(yticklabels[0], str):
+                ax.set_yticklabels(yticklabels)
+            else:
+                ay.set_yticklabels(yticklabels[0], fontsize=yticklabels[1])
         for index in range(2):
             if index == 0 and touch(lambda: "top" in hline):
                 h_line = self.max(recursive=True)

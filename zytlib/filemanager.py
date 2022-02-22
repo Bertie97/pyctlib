@@ -64,7 +64,7 @@ def cp(src, dst):
     assert isinstance(src, path)
     assert isinstance(dst, path)
     assert dst.isdir()
-    shutil.copy2(src, dst)
+    shutil.copy2(src, dst / src.file)
 
 def filepath_generator_wrapper(*args, **kwargs):
     if len(args) == 1 and callable(raw_function(args[0])):
@@ -178,7 +178,7 @@ class pathList(vector):
         if func is None:
             return self
         if isinstance(func, str):
-            func = lambda x: x | func
+            func = lambda x: x.ext == func
         if isinstance(func, bytes):
             func = lambda x: x | func
         return pathList(super().filter(func, ignore_error=ignore_error), main_folder=self._main_folder)
@@ -554,6 +554,9 @@ class path(str):
     def readlines(self):
         assert self.isfile()
         return file(self).readlines()
+
+    def cp2(self, dst: "path"):
+        cp(self, dst)
 
     # def __getattribute__(self, name):
     #     try:
