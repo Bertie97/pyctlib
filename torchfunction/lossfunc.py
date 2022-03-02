@@ -37,6 +37,8 @@ def softmax_cross_entropy_with_logits(x: torch.Tensor, targets: torch.Tensor, in
 def softmax_cross_entropy_with_logits_sparse(x: torch.Tensor, target: torch.LongTensor, class_index=-1, reduction: str="mean", keepdim: bool=False, smoothing: float=0, mask=None) -> torch.Tensor:
     if reduction != "none":
         keepdim = False
+    class_index = class_index % len(x.shape)
+    assert (*x.shape[:class_index], *x.shape[class_index+1:]) == target.shape
     if smoothing == 0:
         negative_logsoftmax = - torch.nn.LogSoftmax(class_index)(x)
         if mask is not None:

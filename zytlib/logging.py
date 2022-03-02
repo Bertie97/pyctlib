@@ -786,11 +786,11 @@ class Logger:
             ax = plt.subplot(rows, cols, index + 1)
             temp = variable_dict[float_variable[index]]
             if isinstance(temp, vector):
-                temp.plot(ax, title=float_variable[index], smooth=smooth, hline=hline)
+                temp.plot(ax=ax, title=float_variable[index], smooth=smooth, hline=hline)
             elif isinstance(temp, dict):
                 x = vector.zip(temp.values()).map(lambda x: vector(x))
                 legend = vector(temp.keys())
-                x.plot(ax, title=float_variable[index], smooth=smooth, legend=legend, hline=hline)
+                x.plot(ax=ax, title=float_variable[index], smooth=smooth, legend=legend, hline=hline)
         if tight_layout:
             plt.tight_layout()
         if saved_path is not None:

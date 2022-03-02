@@ -1572,7 +1572,7 @@ class vector(list):
         return vector(super().__add__(other))
 
     def __radd__(self, left) -> "vector":
-        return self.__add__(left)
+        return vector(left).__add__(self)
 
     def matrix_operation(self, other, op) -> "vector":
         assert self.shape == other.shape
@@ -2120,7 +2120,9 @@ class vector(list):
         default :
             default
         """
-        if dim is None or self.shape == "undefined" or self.ndim <= 1:
+        if dim is None or self.shape is None or self.ndim <= 1:
+            if self.length == 0:
+                return default
             if hasattr(self, "_vector__sum"):
                 return self.__sum
             if self.check_type(int) or self.check_type(float):
@@ -2794,6 +2796,7 @@ class vector(list):
 
     def plot_hist(self, bins=None, range=None, density=False, color=None, edgecolor=None, alpha=None, with_pdf=False, ax: Optional[Axes]=None, title: Optional[str]=None, saved_path: Optional[str]=None):
         from matplotlib import pyplot as plt
+        from matplotlib.backends.backend_pdf import PdfPages
         _has_ax = ax is not None
         if ax is None:
             ax = plt.gca()
@@ -2823,7 +2826,7 @@ class vector(list):
                 plt.show()
         return ax
 
-    def plot(self, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None):
+    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, marker=None, color=None, linestyle=None):
         """
         plot line graph for vector
         title: title of the graph
@@ -2840,24 +2843,60 @@ class vector(list):
         else:
             assert saved_path is None
         if self.check_type(float) or self.check_type(int):
-            ax.plot(self.smooth(smooth))
+            if x is not None:
+                x = list(x)
+            else:
+                x = list(range(self.length))
+            ax.plot(x, self.smooth(smooth), marker=marker, color=color, linestyle=linestyle)
         elif (self.check_type(list) or self.check_type(tuple)) and self.map(len).all_equal():
             splited_vector = self.zip_split()
-            for sv in splited_vector:
-                ax.plot(sv.smooth(smooth))
+            if x is not None:
+                x = list(x)
+            else:
+                x = list(range(len(splited_vector[0])))
+            if color is None:
+                for sv in splited_vector:
+                    ax.plot(x, sv.smooth(smooth), marker=marker, linestyle=linestyle)
+            else:
+                for index, sv in enumerate(splited_vector):
+                    ax.plot(x, sv.smooth(smooth), marker=marker, color=color[index], linestyle=linestyle)
             if not legend:
                 legend = vector.range(len(splited_vector)).map(str)
         else:
             raise ValueError
         ymin, ymax = ax.get_ylim()
-        xmin, xmax = ax.get_xlim()
+        xmin, xmax = min(x), max(x)
         boundary_margin = 1 / 30 * (xmax - xmin)
-        plt.xlim(-boundary_margin, self.length - 1 + boundary_margin)
+        plt.xlim(xmin - boundary_margin, xmax + boundary_margin)
 
         if title:
             ax.set_title(title)
         if legend:
             ax.legend(legend)
+        if xlabel:
+            if isinstance(xlabel, str):
+                ax.set_xlabel(xlabel)
+            else:
+                ax.set_xlabel(xlabel[0], fontsize=xlabel[1])
+        if ylabel:
+            if isinstance(ylabel, str):
+                ax.set_ylabel(ylabel)
+            else:
+                ax.set_ylabel(ylabel[0], fontsize=ylabel[1])
+        if xticks:
+            ax.set_xticks(xticks)
+        if yticks:
+            ax.set_yticks(yticks)
+        if xticklabels:
+            if isinstance(xticklabels, list) and isinstance(xticklabels[0], str):
+                ax.set_xticklabels(xticklabels)
+            else:
+                ax.set_xticklabels(xticklabels[0], fontsize=xticklabels[1])
+        if yticklabels:
+            if isinstance(yticklabels, list) and isinstance(yticklabels[0], str):
+                ax.set_yticklabels(yticklabels)
+            else:
+                ay.set_yticklabels(yticklabels[0], fontsize=yticklabels[1])
         for index in range(2):
             if index == 0 and touch(lambda: "top" in hline):
                 h_line = self.max(recursive=True)
@@ -3552,7 +3591,7 @@ class vector(list):
     def __str__(self):
         if self.str_function is not None:
             return self.str_function(self)
-        if self.shape != "undefined" and len(self.shape) > 1:
+        if self.shape is not None and len(self.shape) > 1:
             ret: List[str] = vector()
             for index, child in self.enumerate():
                 if isinstance(child, str):
