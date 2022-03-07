@@ -76,6 +76,8 @@ def todevice(x, device="cuda"):
             return x.map(lambda x: todevice(x, device))
         elif isinstance(x, list):
             return [todevice(t, device) for t in x]
+        else:
+            return x
     raise ValueError
 
 def get_device(device="cuda"):
