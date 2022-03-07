@@ -1,6 +1,7 @@
 import torch
 from pyctlib import vector, recursive_apply
 from pynvml import *
+from torch import nn
 
 available_gpu_ids = list(range(torch.cuda.device_count()))
 available_gpus = [torch.cuda.device(i) for i in available_gpu_ids]
@@ -76,6 +77,8 @@ def todevice(x, device="cuda"):
             return x.map(lambda x: todevice(x, device))
         elif isinstance(x, list):
             return [todevice(t, device) for t in x]
+        elif isinstance(x, nn.Module):
+            return x.to(device)
         else:
             return x
     raise ValueError
