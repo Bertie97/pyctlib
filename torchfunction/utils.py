@@ -50,3 +50,14 @@ def low_rank(self, n, r, name="J"):
     if not hasattr(self, name):
         setattr(self.__class__, name, property(func))
     return load_state_dict
+
+def pad(tensors, dim=0, padded=0):
+
+    assert len(tensors) > 1
+    shape = tensors[0].shape
+    for t in tensors:
+        len(shape) == len(t.shape)
+    shape_max = [0 for _ in range(len(shape))]
+    for t in tensors:
+        for index in range(len(shape)):
+            raise NotImplementedError()
