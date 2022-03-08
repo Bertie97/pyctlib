@@ -14,7 +14,7 @@ from .vector import recursive_apply, vector, generator_wrapper, ctgenerator, Ind
 from .table import table
 from .sequence import sequence
 # from .wrapper import *
-from .filemanager import path, pathList, file
+from .filemanager import path, pathList
 from .terminal import *
 from .timing import *
 from .logging import Logger

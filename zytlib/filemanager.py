@@ -20,7 +20,7 @@ __all__ = """
 
 import os, re, struct, shutil
 from .touch import touch
-from pyoverload import *
+# from pyoverload import *
 from .wrapper import raw_function, registered_property
 from functools import wraps, reduce, partial
 import typing
@@ -566,353 +566,353 @@ class path(str):
     #     except:
     #         raise RuntimeError("{} is not a method/attribute of path, the most similar name is {}".format(name, vector(dir(self)).fuzzy_search(name, 3)))
 
-class file(path):
+# class file(path):
 
-    endl = "\n"
-    Integer = b'\x01'
-    Float = b'\x02'
-    Str = b'\x03'
-    List = b'\x04'
-    Numpy = b'\x05'
-    Tuple = b'\x06'
-    Dict = b'\x07'
-    Set = b'\x08'
-    torch_Tensor = b'\x09'
-    Tensor_plus = b'\x0A'
-    Vector = b'\x0B'
-    torch_Module = b'\x0C'
+#     endl = "\n"
+#     Integer = b'\x01'
+#     Float = b'\x02'
+#     Str = b'\x03'
+#     List = b'\x04'
+#     Numpy = b'\x05'
+#     Tuple = b'\x06'
+#     Dict = b'\x07'
+#     Set = b'\x08'
+#     torch_Tensor = b'\x09'
+#     Tensor_plus = b'\x0A'
+#     Vector = b'\x0B'
+#     torch_Module = b'\x0C'
 
-    class streamstring:
+#     class streamstring:
 
-        def __init__(self, s):
-            self.s = s
+#         def __init__(self, s):
+#             self.s = s
 
-        def read(self, length=-1):
-            if length == -1:
-                length = len(self.s)
-            result = self.s[:length]
-            self.s = self.s[length:]
-            return result
+#         def read(self, length=-1):
+#             if length == -1:
+#                 length = len(self.s)
+#             result = self.s[:length]
+#             self.s = self.s[length:]
+#             return result
 
-        def __bool__(self):
-            return len(self.s) > 0
+#         def __bool__(self):
+#             return len(self.s) > 0
 
-    def __new__(cls, *init_texts):
-        self = super().__new__(cls, *init_texts)
-        self.fp = None
-        return self
+#     def __new__(cls, *init_texts):
+#         self = super().__new__(cls, *init_texts)
+#         self.fp = None
+#         return self
 
-    @generator_wrapper
-    def readlines(self):
-        with open(self) as _input:
-            while True:
-                line = _input.readline()
-                if not line:
-                    break
-                yield line.rstrip(self.endl)
+#     @generator_wrapper
+#     def readlines(self):
+#         with open(self) as _input:
+#             while True:
+#                 line = _input.readline()
+#                 if not line:
+#                     break
+#                 yield line.rstrip(self.endl)
 
 
-    def writelines(self, content):
-        with open(self, "w") as _output:
-            for line in content:
-                _output.writelines(str(line) + self.endl)
+#     def writelines(self, content):
+#         with open(self, "w") as _output:
+#             for line in content:
+#                 _output.writelines(str(line) + self.endl)
 
-    def __iter__(self):
-        with open(self) as _input:
-            # while (line := _input.readline()):
-            while True:
-                line = _input.readline()
-                if not line:
-                    break
-                yield line.rstrip(self.endl)
+#     def __iter__(self):
+#         with open(self) as _input:
+#             # while (line := _input.readline()):
+#             while True:
+#                 line = _input.readline()
+#                 if not line:
+#                     break
+#                 yield line.rstrip(self.endl)
 
-    @staticmethod
-    def pack(data):
-        if isinstance(data, int):
-            return struct.pack("q", data)
-        elif isinstance(data, float):
-            return struct.pack("d", data)
-        elif isinstance(data, str):
-            return bytes(data, encoding="utf-8")
-        else:
-            raise TypeError("unknown type for pack")
+#     @staticmethod
+#     def pack(data):
+#         if isinstance(data, int):
+#             return struct.pack("q", data)
+#         elif isinstance(data, float):
+#             return struct.pack("d", data)
+#         elif isinstance(data, str):
+#             return bytes(data, encoding="utf-8")
+#         else:
+#             raise TypeError("unknown type for pack")
 
-    @staticmethod
-    def pack_tag(tag, tag_type="B"):
-        return struct.pack(tag_type, tag)
+#     @staticmethod
+#     def pack_tag(tag, tag_type="B"):
+#         return struct.pack(tag_type, tag)
 
-    @overload
-    @staticmethod
-    def _to_byte__default__(data):
-        try:
-            import torch
-            import torchplus
-        except ImportError: pass
-        if touch(lambda: isinstance(data, torchplus.Tensor)):
-            np_array = data.cpu().detach().numpy()
-            np_array_content, np_array_content_len = file._to_byte(np_array)
-            assert len(np_array_content) == np_array_content_len
-            return file.Tensor_plus + np_array_content, np_array_content_len + 1
-        if touch(lambda: isinstance(data, torch.Tensor)):
-            np_array = data.cpu().detach().numpy()
-            np_array_content, np_array_content_len = file._to_byte(np_array)
-            assert len(np_array_content) == np_array_content_len
-            return file.torch_Tensor + np_array_content, np_array_content_len + 1
-        if touch(lambda: isinstance(data, torch.nn.Module)):
-            module_state_content, module_state_content_len = file._to_byte(data.state_dict())
-            return file.torch_Module + module_state_content, module_state_content_len + 1
+#     @overload
+#     @staticmethod
+#     def _to_byte__default__(data):
+#         try:
+#             import torch
+#             import torchplus
+#         except ImportError: pass
+#         if touch(lambda: isinstance(data, torchplus.Tensor)):
+#             np_array = data.cpu().detach().numpy()
+#             np_array_content, np_array_content_len = file._to_byte(np_array)
+#             assert len(np_array_content) == np_array_content_len
+#             return file.Tensor_plus + np_array_content, np_array_content_len + 1
+#         if touch(lambda: isinstance(data, torch.Tensor)):
+#             np_array = data.cpu().detach().numpy()
+#             np_array_content, np_array_content_len = file._to_byte(np_array)
+#             assert len(np_array_content) == np_array_content_len
+#             return file.torch_Tensor + np_array_content, np_array_content_len + 1
+#         if touch(lambda: isinstance(data, torch.nn.Module)):
+#             module_state_content, module_state_content_len = file._to_byte(data.state_dict())
+#             return file.torch_Module + module_state_content, module_state_content_len + 1
 
-    @overload
-    @staticmethod
-    def _to_byte(data: int):
-        result = b""
-        result += file.Integer
-        result += file.pack(data)
-        return result, 9
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: int):
+#         result = b""
+#         result += file.Integer
+#         result += file.pack(data)
+#         return result, 9
 
-    @overload
-    @staticmethod
-    def _to_byte(data: str):
-        length = len(data)
-        start_off = 0
-        total_length = 2
-        result = b""
-        result += file.Str
-        while length > 0:
-            consume_length = min(255, length)
-            result += file.pack_tag(consume_length)
-            result += file.pack(data[start_off:start_off + consume_length])
-            length -= consume_length
-            start_off += consume_length
-            total_length += 1 + consume_length
-        result += file.pack_tag(0)
-        return result, total_length
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: str):
+#         length = len(data)
+#         start_off = 0
+#         total_length = 2
+#         result = b""
+#         result += file.Str
+#         while length > 0:
+#             consume_length = min(255, length)
+#             result += file.pack_tag(consume_length)
+#             result += file.pack(data[start_off:start_off + consume_length])
+#             length -= consume_length
+#             start_off += consume_length
+#             total_length += 1 + consume_length
+#         result += file.pack_tag(0)
+#         return result, total_length
 
-    @overload
-    @staticmethod
-    def _to_byte(data: float):
-        result = b""
-        result += file.Float
-        result += file.pack(data)
-        return result, 9
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: float):
+#         result = b""
+#         result += file.Float
+#         result += file.pack(data)
+#         return result, 9
 
-    @overload
-    @staticmethod
-    def _to_byte(data: vector):
-        return file._to_byte_iterable(data, file.Vector)
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: vector):
+#         return file._to_byte_iterable(data, file.Vector)
 
-    @overload
-    @staticmethod
-    def _to_byte(data: list):
-        return file._to_byte_iterable(data, file.List)
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: list):
+#         return file._to_byte_iterable(data, file.List)
 
-    @overload
-    @staticmethod
-    def _to_byte(data: tuple):
-        return file._to_byte_iterable(data, file.Tuple)
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: tuple):
+#         return file._to_byte_iterable(data, file.Tuple)
 
-    @overload
-    @staticmethod
-    def _to_byte(data: set):
-        return file._to_byte_iterable(data, file.Set)
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: set):
+#         return file._to_byte_iterable(data, file.Set)
 
-    @overload
-    @staticmethod
-    def _to_byte(data: dict):
-        items = vector(data.items())
-        content = file.Dict + file._to_byte(items.map(lambda x: x[0]))[0] + file._to_byte(items.map(lambda x: x[1]))[0]
-        return content, len(content)
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: dict):
+#         items = vector(data.items())
+#         content = file.Dict + file._to_byte(items.map(lambda x: x[0]))[0] + file._to_byte(items.map(lambda x: x[1]))[0]
+#         return content, len(content)
 
-    @overload
-    @staticmethod
-    def _to_byte(data: 'numpy.ndarray'):
-        content = data.tobytes()
-        shape = data.shape
-        dtype = str(data.dtype)
-        result = file.Numpy
-        shape_bytes, _ = file._to_byte(list(shape))
-        dtype_bytes, _ = file._to_byte(dtype)
-        total_length = len(shape_bytes) + len(dtype_bytes) + len(content)
-        result += file.pack_tag(total_length, "I")
-        result += shape_bytes
-        result += dtype_bytes
-        result += content
-        return result, len(result)
+#     @overload
+#     @staticmethod
+#     def _to_byte(data: 'numpy.ndarray'):
+#         content = data.tobytes()
+#         shape = data.shape
+#         dtype = str(data.dtype)
+#         result = file.Numpy
+#         shape_bytes, _ = file._to_byte(list(shape))
+#         dtype_bytes, _ = file._to_byte(dtype)
+#         total_length = len(shape_bytes) + len(dtype_bytes) + len(content)
+#         result += file.pack_tag(total_length, "I")
+#         result += shape_bytes
+#         result += dtype_bytes
+#         result += content
+#         return result, len(result)
 
-    @staticmethod
-    def _to_byte_iterable(data, type_tag):
-        list_content = b""
-        list_content_length = 0
-        for t in data:
-            r, l = file._to_byte(t)
-            list_content += r
-            list_content_length += l
-        assert list_content_length == len(list_content)
-        result = type_tag + file.pack_tag(list_content_length, "I") + list_content
-        return result, list_content_length + 5
+#     @staticmethod
+#     def _to_byte_iterable(data, type_tag):
+#         list_content = b""
+#         list_content_length = 0
+#         for t in data:
+#             r, l = file._to_byte(t)
+#             list_content += r
+#             list_content_length += l
+#         assert list_content_length == len(list_content)
+#         result = type_tag + file.pack_tag(list_content_length, "I") + list_content
+#         return result, list_content_length + 5
 
-    def __lshift__(self, data):
-        if self.fp is None:
-            with open(self, "ab") as _output:
-                _output.write(file._to_byte(data)[0])
-        else:
-            self.fp.write(file._to_byte(data)[0])
-        return self
+#     def __lshift__(self, data):
+#         if self.fp is None:
+#             with open(self, "ab") as _output:
+#                 _output.write(file._to_byte(data)[0])
+#         else:
+#             self.fp.write(file._to_byte(data)[0])
+#         return self
 
-    def __rshift__(self, data):
-        try:
-            import torch
-            if isinstance(data, torch.nn.Module):
-                module_data = self.get()
-                data.load_state_dict(module_data)
-        except ImportError:
-            pass
-        return self
+#     def __rshift__(self, data):
+#         try:
+#             import torch
+#             if isinstance(data, torch.nn.Module):
+#                 module_data = self.get()
+#                 data.load_state_dict(module_data)
+#         except ImportError:
+#             pass
+#         return self
 
-    @staticmethod
-    def _read(fp: TextIO):
-        data_type = fp.read(1)
-        if data_type == file.Integer:
-            data = struct.unpack("q", fp.read(8))[0]
-        elif data_type == file.Float:
-            data = struct.unpack("d", fp.read(8))[0]
-        elif data_type == file.Str:
-            data = file._read_seperated_data(fp).decode('utf-8')
-        elif data_type == file.List or data_type == file.Tuple or data_type == file.Set or data_type == file.Vector:
-            list_content_length = file.pointer_length(fp)
-            ss = file.streamstring(fp.read(list_content_length))
-            data = []
-            while ss:
-                data.append(file._read(ss))
-            if data_type == file.Tuple:
-                data = tuple(data)
-            if data_type == file.Set:
-                data = set(data)
-            if data_type == file.Vector:
-                data = vector(data)
-        elif data_type == file.Dict:
-            keys = file._read(fp)
-            values = file._read(fp)
-            data = {x: y for x, y in zip(keys, values)}
-        elif data_type == file.Numpy:
-            data = file._read_numpy(fp)
-        elif data_type == file.torch_Tensor:
-            try:
-                import torch
-                data = file._read(fp)
-                data = torch.Tensor(data.copy())
-            except: return None
-        elif data_type == file.torch_Module:
-            try:
-                import torch
-                state_dict = file._read(fp)
-                return state_dict
-            except:
-                return None
-        elif data_type == file.Tensor_plus:
-            try:
-                import torchplus
-                data = file._read(fp)
-                data = torchplus.Tensor(data.copy())
-            except: return None
-        elif len(data_type) == 0:
-            return None
-        return data
+#     @staticmethod
+#     def _read(fp: TextIO):
+#         data_type = fp.read(1)
+#         if data_type == file.Integer:
+#             data = struct.unpack("q", fp.read(8))[0]
+#         elif data_type == file.Float:
+#             data = struct.unpack("d", fp.read(8))[0]
+#         elif data_type == file.Str:
+#             data = file._read_seperated_data(fp).decode('utf-8')
+#         elif data_type == file.List or data_type == file.Tuple or data_type == file.Set or data_type == file.Vector:
+#             list_content_length = file.pointer_length(fp)
+#             ss = file.streamstring(fp.read(list_content_length))
+#             data = []
+#             while ss:
+#                 data.append(file._read(ss))
+#             if data_type == file.Tuple:
+#                 data = tuple(data)
+#             if data_type == file.Set:
+#                 data = set(data)
+#             if data_type == file.Vector:
+#                 data = vector(data)
+#         elif data_type == file.Dict:
+#             keys = file._read(fp)
+#             values = file._read(fp)
+#             data = {x: y for x, y in zip(keys, values)}
+#         elif data_type == file.Numpy:
+#             data = file._read_numpy(fp)
+#         elif data_type == file.torch_Tensor:
+#             try:
+#                 import torch
+#                 data = file._read(fp)
+#                 data = torch.Tensor(data.copy())
+#             except: return None
+#         elif data_type == file.torch_Module:
+#             try:
+#                 import torch
+#                 state_dict = file._read(fp)
+#                 return state_dict
+#             except:
+#                 return None
+#         elif data_type == file.Tensor_plus:
+#             try:
+#                 import torchplus
+#                 data = file._read(fp)
+#                 data = torchplus.Tensor(data.copy())
+#             except: return None
+#         elif len(data_type) == 0:
+#             return None
+#         return data
 
-    @staticmethod
-    def _read_numpy(fp: TextIO):
-        try:
-            import numpy as np
-            total_length = file.pointer_length(fp)
-            ss = file.streamstring(fp.read(total_length))
-            shape = file._read(ss)
-            dtype = file._read(ss)
-            content = ss.read()
-            return np.frombuffer(content, dtype=np.dtype(dtype)).reshape(shape)
-        except ImportError: return None
+#     @staticmethod
+#     def _read_numpy(fp: TextIO):
+#         try:
+#             import numpy as np
+#             total_length = file.pointer_length(fp)
+#             ss = file.streamstring(fp.read(total_length))
+#             shape = file._read(ss)
+#             dtype = file._read(ss)
+#             content = ss.read()
+#             return np.frombuffer(content, dtype=np.dtype(dtype)).reshape(shape)
+#         except ImportError: return None
 
-    @staticmethod
-    def pointer_length(fp: TextIO):
-        return struct.unpack("I", fp.read(4))[0]
+#     @staticmethod
+#     def pointer_length(fp: TextIO):
+#         return struct.unpack("I", fp.read(4))[0]
 
-    @generator_wrapper
-    def get_all(self):
-        with open(self, "rb") as fp:
-            # while (a := file._read(fp)) is not None:
-            while True:
-                a = file._read(fp)
-                if a is None:
-                    break
-                yield a
+#     @generator_wrapper
+#     def get_all(self):
+#         with open(self, "rb") as fp:
+#             # while (a := file._read(fp)) is not None:
+#             while True:
+#                 a = file._read(fp)
+#                 if a is None:
+#                     break
+#                 yield a
 
-    def get(self, number=1):
-        if self.fp is None:
-            self.open("rb")
-            # raise ValueError("read of closed file")
-        index = 0
-        result = vector()
-        # while (index < number or number == -1) and (a := file._read(self.fp)) is not None:
-        while (index < number or number == -1):
-            a = file._read(self.fp)
-            if a is None:
-                break
-            result.append(a)
-            index += 1
-        if number == -1:
-            self.close()
-        if not result:
-            return None
-        if number == 1:
-            return result[0]
-        else:
-            return result
+#     def get(self, number=1):
+#         if self.fp is None:
+#             self.open("rb")
+#             # raise ValueError("read of closed file")
+#         index = 0
+#         result = vector()
+#         # while (index < number or number == -1) and (a := file._read(self.fp)) is not None:
+#         while (index < number or number == -1):
+#             a = file._read(self.fp)
+#             if a is None:
+#                 break
+#             result.append(a)
+#             index += 1
+#         if number == -1:
+#             self.close()
+#         if not result:
+#             return None
+#         if number == 1:
+#             return result[0]
+#         else:
+#             return result
 
-    @staticmethod
-    def _read_seperated_data(fp: TextIO):
-        result = b""
-        while True:
-            data_length = struct.unpack("B", fp.read(1))[0]
-            if data_length == 0:
-                break
-            result += fp.read(data_length)
-            # print(data_length, result)
-        return result
+#     @staticmethod
+#     def _read_seperated_data(fp: TextIO):
+#         result = b""
+#         while True:
+#             data_length = struct.unpack("B", fp.read(1))[0]
+#             if data_length == 0:
+#                 break
+#             result += fp.read(data_length)
+#             # print(data_length, result)
+#         return result
 
-    def open(self, tag):
-        try:
-            self.close()
-            self.fp = open(self, tag)
-            return self
-        except Exception as e:
-            print("can not open file %s" % self, e)
+#     def open(self, tag):
+#         try:
+#             self.close()
+#             self.fp = open(self, tag)
+#             return self
+#         except Exception as e:
+#             print("can not open file %s" % self, e)
 
-    def close(self):
-        try:
-            if self.fp: self.fp.close()
-        except Exception as e:
-            print("can not cloase file %s" % self, e)
-        self.fp = None
+#     def close(self):
+#         try:
+#             if self.fp: self.fp.close()
+#         except Exception as e:
+#             print("can not cloase file %s" % self, e)
+#         self.fp = None
 
-    def __enter__(self):
-        pass
+#     def __enter__(self):
+#         pass
 
-    def __exit__(self, type, value, traceback):
-        self.close()
+#     def __exit__(self, type, value, traceback):
+#         self.close()
 
-    def clear(self):
-        with open(self, "w"):
-            pass
-        self.fp = None
+#     def clear(self):
+#         with open(self, "w"):
+#             pass
+#         self.fp = None
 
-    def read(self, length=-1, tag="b"):
-        if self.fp is not None:
-            return self.fp(length)
-        with open(self, "r" + tag) as _input:
-            return _input.read(length)
+#     def read(self, length=-1, tag="b"):
+#         if self.fp is not None:
+#             return self.fp(length)
+#         with open(self, "r" + tag) as _input:
+#             return _input.read(length)
 
-    def __len__(self):
-        with open(self, "rb") as _input:
-            return len(_input.read())
+#     def __len__(self):
+#         with open(self, "rb") as _input:
+#             return len(_input.read())
 
 class filepath_generator(ctgenerator):
 

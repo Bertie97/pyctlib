@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "zytlib",
-    version = "0.3.273",
+    version = "0.3.277",
     keywords = ("pip", "zytlib"),
     description = "This is A foundamental package containing some basic self-designed functions and types for Project PyCTLib. ",
     long_description = open("./pyctlib/README.md").read(),
@@ -25,5 +25,5 @@ setup(
     packages = find_packages(),
     include_package_data = True,
     platforms = "any",
-    install_requires = ["pyoverload", "rapidfuzz", "numpy", "wrapt_timeout_decorator", "notion"]
+    install_requires = ["pyoverload", "rapidfuzz", "numpy", "wrapt_timeout_decorator", "notion", "pycamia", "matplotlib"]
 )

@@ -9,7 +9,7 @@ import pathlib
 import numpy as np
 from zytlib import vector, IndexMapping, scope, vhelp
 from zytlib.vector import chain_function
-from zytlib.filemanager import path, get_relative_path, file
+from zytlib.filemanager import path, get_relative_path
 from zytlib import touch
 from zytlib.wrapper import generate_typehint_wrapper
 import argparse
