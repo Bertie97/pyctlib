@@ -151,6 +151,6 @@ def pad_to(tensor, shape, value=0, ignore_dim=None):
             pd = (0, shape[index] - tensor.shape[index], *pd)
         return F.pad(tensor, pd, mode="constant", value=value)
     elif isinstance(tensor, (list, tuple)):
-        return type(tensor)(pad_to(t, shape, value=0, ignore_dim=ignore_dim) for t in tensor)
+        return type(tensor)(pad_to(t, shape, value=value, ignore_dim=ignore_dim) for t in tensor)
     else:
         raise ValueError()
