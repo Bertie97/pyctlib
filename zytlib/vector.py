@@ -2834,6 +2834,12 @@ class vector(list):
         saved_path: path to save the graph
         legend: list of legend string
         hline: list, can be None or contains "top" or/and "bottom", to plot a horizontal line corresponding to the biggest or smallest value
+        x/yticks: list
+        x/yticklabels: list[string] or (list[string], fontsize)
+        x/ylabel: str or (str, fontsize)
+        marker: str
+        color: str
+        linestyle: str
         """
         from matplotlib import pyplot as plt
         _has_ax = ax is not None
