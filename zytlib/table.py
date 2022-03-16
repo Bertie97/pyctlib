@@ -41,10 +41,9 @@ class table(dict):
                 self[key] = value
         object.__setattr__(self, "__key_locked", key_locked)
 
-    @staticmethod
-    def hieratical(d: dict, delimiter=".") -> "table":
+    def hieratical(self, delimiter=".") -> "table":
         ret = table()
-        for key, value in d.items():
+        for key, value in self.items():
             ret.pset(key.split(delimiter), value=value)
         return ret
 
