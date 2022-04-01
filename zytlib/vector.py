@@ -2826,7 +2826,7 @@ class vector(list):
                 plt.show()
         return ax
 
-    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, marker=None, color=None, linestyle=None):
+    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, marker=None, color=None, linestyle=None, **kwargs):
         """
         plot line graph for vector
         title: title of the graph
@@ -2853,7 +2853,7 @@ class vector(list):
                 x = list(x)
             else:
                 x = list(range(self.length))
-            ax.plot(x, self.smooth(smooth), marker=marker, color=color, linestyle=linestyle)
+            ax.plot(x, self.smooth(smooth), marker=marker, color=color, linestyle=linestyle, **kwargs)
         elif (self.check_type(list) or self.check_type(tuple)) and self.map(len).all_equal():
             splited_vector = self.zip_split()
             if x is not None:
@@ -2862,10 +2862,10 @@ class vector(list):
                 x = list(range(len(splited_vector[0])))
             if color is None:
                 for sv in splited_vector:
-                    ax.plot(x, sv.smooth(smooth), marker=marker, linestyle=linestyle)
+                    ax.plot(x, sv.smooth(smooth), marker=marker, linestyle=linestyle, **kwargs)
             else:
                 for index, sv in enumerate(splited_vector):
-                    ax.plot(x, sv.smooth(smooth), marker=marker, color=color[index], linestyle=linestyle)
+                    ax.plot(x, sv.smooth(smooth), marker=marker, color=color[index], linestyle=linestyle, **kwargs)
             if not legend:
                 legend = vector.range(len(splited_vector)).map(str)
         else:
