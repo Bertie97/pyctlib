@@ -2751,6 +2751,7 @@ class vector(list):
 
     @staticmethod
     def from_tensor(tensor) -> "vector":
+        import torch
         if isinstance(tensor, np.ndarray):
             return tensor
         elif isinstance(tensor, torch.Tensor):
