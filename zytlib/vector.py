@@ -2750,6 +2750,14 @@ class vector(list):
             raise RuntimeError()
 
     @staticmethod
+    def from_tensor(tensor) -> "vector":
+        if isinstance(tensor, np.ndarray):
+            return tensor
+        elif isinstance(tensor, torch.Tensor):
+            return vector.from_numpy(tensor.detach().cpu().numpy())
+        return tensor
+
+    @staticmethod
     def from_numpy(array) -> "vector":
         """from_numpy.
 
