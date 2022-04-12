@@ -4,6 +4,7 @@ import random
 import os
 import torch.nn as nn
 import torch.nn.functional as F
+import re
 
 def seed_torch(seed=1024):
     random.seed(seed)
@@ -154,3 +155,130 @@ def pad_to(tensor, shape, value=0, ignore_dim=None):
         return type(tensor)(pad_to(t, shape, value=value, ignore_dim=ignore_dim) for t in tensor)
     else:
         raise ValueError()
+
+equation_full_re = re.compile("([+-]([a-zA-Z0-9]+(,[a-zA-Z0-9]+)*))+->[a-zA-Z]*")
+left_equation_re = re.compile("([+-])([a-zA-Z0-9]+(,[a-zA-Z0-9]+)*)")
+
+def einsum(equation, *operands):
+    assert len(operands) > 0
+    if len(operands) == 1 and isinstance(operands[0], (list, tuple)):
+        operands = list(operands[0])
+    else:
+        operands = list(operands)
+    if equation[0] not in ["+", "-"]:
+        equation = "+" + equation
+    equation_len = len(equation)
+
+    index = 0
+    ret = 0
+    left_equation_list = list()
+    left_slice_list = list()
+    left_equation = ""
+    left_slice = tuple()
+    left_flag = True
+    left_operands_equation_list = list()
+    left_operands_slice_list = list()
+    left_operands_sgn_list = list()
+    right_equation = ""
+    positive_or_negative = None
+    while index < equation_len:
+        ec = equation[index]
+        if ec == " ":
+            index += 1
+            continue
+        if left_flag is True:
+            if positive_or_negative is None:
+                if ec in ["+", "-"]:
+                    if index + 1 >= len(equation):
+                        raise RuntimeError(f"invalid equation {equation}")
+                    if equation[index + 1] == ">":
+                        left_flag = False
+                        index += 2
+                        continue
+                    positive_or_negative = ec
+                else:
+                    raise RuntimeError(f"invalid equation {equation}")
+                index += 1
+                continue
+            else:
+                if ec.isalpha():
+                    left_equation = left_equation + ec
+                    left_slice = (*left_slice, slice(None))
+                    index += 1
+                    continue
+                elif ec.isdigit():
+                    left_slice = (*left_slice, int(ec))
+                    index += 1
+                    continue
+                elif ec == ",":
+                    left_equation_list.append(left_equation)
+                    left_slice_list.append(left_slice)
+                    left_equation = ""
+                    left_slice = tuple()
+                    index += 1
+                    continue
+                elif ec == "+" or ec == "-":
+                    left_equation_list.append(left_equation)
+                    left_slice_list.append(left_slice)
+                    left_operands_equation_list.append(left_equation_list)
+                    left_operands_slice_list.append(left_slice_list)
+                    left_operands_sgn_list.append(positive_or_negative)
+                    left_equation = ""
+                    left_slice = tuple()
+                    left_equation_list = list()
+                    left_slice_list = list()
+                    positive_or_negative = None
+                    continue
+                else:
+                    raise RuntimeError(f"invalid character [{ec}]")
+        else:
+            right_equation = equation[index:]
+            index = len(equation)
+
+    if left_equation != "":
+        left_equation_list.append(left_equation)
+        left_slice_list.append(left_slice)
+        left_operands_equation_list.append(left_equation_list)
+        left_operands_slice_list.append(left_slice_list)
+        left_operands_sgn_list.append(positive_or_negative)
+        left_equation = ""
+        left_slice = tuple()
+        left_equation_list = list()
+        left_slice_list = list()
+        positive_or_negative = None
+
+
+    total_num = 0
+    ret = 0
+    for pindex in range(len(left_operands_equation_list)):
+        num = len(left_operands_equation_list[pindex])
+        left_eqn = ",".join(left_operands_equation_list[pindex])
+        opers = list()
+        for i in range(num):
+            if total_num + i >= len(operands):
+                raise RuntimeError("not enough tensor are provided")
+            if (ope:= operands[total_num + i]).dim() != len(left_operands_slice_list[pindex][i]):
+                def _from_slice_eqn_to_full_eqn(slc, eqn):
+                    fulleqn=""
+                    p = 0
+                    for index in range(len(slc)):
+                        if isinstance(slc[index], slice):
+                            fulleqn += eqn[p]
+                            p += 1
+                        elif isinstance(slc[index], int):
+                            fulleqn += str(slc[index])
+                        else:
+                            raise RuntimeError()
+                    return fulleqn
+                fulleqn = _from_slice_eqn_to_full_eqn(left_operands_slice_list[pindex][i], left_operands_equation_list[pindex][i])
+                raise RuntimeError(f"dimension of the {total_num+i+1}-th tensor (shape: {ope.shape}) is not compatible with what is said in the equation [{fulleqn}]")
+            opers.append(operands[total_num+i][left_operands_slice_list[pindex][i]])
+        result = torch.einsum(f"{left_eqn}->{right_equation}", opers)
+        total_num += num
+        if left_operands_sgn_list[pindex] == "+":
+            ret += result
+        else:
+            ret -= result
+    if total_num + i < len(operands):
+        raise RuntimeError(f"{len(operands) - total_num - i} more tensor.")
+    return ret
