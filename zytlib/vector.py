@@ -1831,7 +1831,7 @@ class vector(list):
         else:
             return hash(tuple(self))
 
-    def unique(self) -> "vector":
+    def unique(self, key=None) -> "vector":
         """unique.
         get unique values in the vector
 
@@ -1843,15 +1843,17 @@ class vector(list):
         if len(self) == 0:
             return vector([], recursive=False)
         hashable = self.ishashable()
-        if self.ishashable():
-            return vector(self.set(), recursive=False)
+        if key is not None:
+            hashable = isinstance(key(self[0]), Hashable)
+        else:
+            key = lambda x: x
         explored = set() if hashable else list()
         pushfunc = explored.add if hashable else explored.append
         unique_elements = list()
         for x in self:
-            if x not in explored:
+            if key(x) not in explored:
                 unique_elements.append(x)
-                pushfunc(x)
+                pushfunc(key(x))
         return vector(unique_elements, recursive=False)
 
     def count_all(self) -> Counter:
