@@ -1831,6 +1831,10 @@ class vector(list):
         else:
             return hash(tuple(self))
 
+    def combinations(self, L):
+        import itertools
+        return vector(itertools.combinations(self, L))
+
     def unique(self, key=None) -> "vector":
         """unique.
         get unique values in the vector
