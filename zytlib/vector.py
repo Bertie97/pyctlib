@@ -1691,8 +1691,12 @@ class vector(list):
         if isinstance(index, int):
             return super().__getitem__(index)
         if isinstance(index, slice):
+            if self.length == 0:
+                return vector()
             return self.map_index(IndexMapping(index, self.length, True))
         if isinstance(index, list):
+            if self.length == 0:
+                return vector()
             if len(self) != len(index) and vector(index).check_type(int) and vector(index).all(lambda x: -self.length <= x < self.length):
                 index = vector(index).map(lambda x: x if x >= 0 else x + self.length)
                 return self.map_index(IndexMapping(index, self.length, True))

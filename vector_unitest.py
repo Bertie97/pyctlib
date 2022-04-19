@@ -16,7 +16,6 @@ import argparse
 from time import sleep
 from zytlib import totuple
 from zytlib.touch import once
-import seaborn as sns
 import matplotlib.pyplot as plt
 from zytlib.visual.animation import TimeStamp
 from zytlib import table
@@ -99,7 +98,3 @@ with scope("register_result"):
     assert all(f1 == f2)
     assert list(t._vector__map_register.keys()) == ["plus 1"]
     assert list(t._vector__filter_register.keys()) == [">0"]
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--test", "-t", action="store_true")
-parser.parse_known_args()
