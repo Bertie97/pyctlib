@@ -120,6 +120,8 @@ def low_rank(self, n, r, name="J"):
     return load_state_dict
 
 def pad_cat(tensors, dim=0, value=0):
+    if len(tensors) == 1:
+        return tensors[0]
     assert len(tensors) > 1
     shape = tensors[0].shape
     for t in tensors:
