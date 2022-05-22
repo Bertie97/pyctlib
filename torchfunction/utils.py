@@ -5,6 +5,7 @@ import os
 import torch.nn as nn
 import torch.nn.functional as F
 import re
+from zytlib.utils import totuple
 
 def seed_torch(seed=1024):
     random.seed(seed)
@@ -284,3 +285,9 @@ def einsum(equation, *operands):
     if total_num + i < len(operands):
         raise RuntimeError(f"{len(operands) - total_num - i} more tensor.")
     return ret
+
+def meshgrid(*args):
+    args = totuple(args)
+    if len(args) == 0:
+        return torch.Tensor()
+    return torch.stack(torch.meshgrid(*args), -1).view(-1, len(args))

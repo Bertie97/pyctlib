@@ -2845,7 +2845,7 @@ class vector(list):
                 plt.show()
         return ax
 
-    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, marker=None, color=None, linestyle=None, **kwargs):
+    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, xlim=None, ylim=None, marker=None, color=None, linestyle=None, **kwargs):
         """
         plot line graph for vector
         title: title of the graph
@@ -2889,10 +2889,18 @@ class vector(list):
                 legend = vector.range(len(splited_vector)).map(str)
         else:
             raise ValueError
-        ymin, ymax = ax.get_ylim()
-        xmin, xmax = min(x), max(x)
-        boundary_margin = 1 / 30 * (xmax - xmin)
-        plt.xlim(xmin - boundary_margin, xmax + boundary_margin)
+        if xlim is not None:
+            ax.set_xlim(*xlim)
+            xmin, xmax = xlim
+        else:
+            xmin, xmax = min(x), max(x)
+            boundary_margin = 1 / 30 * (xmax - xmin)
+            plt.xlim(xmin - boundary_margin, xmax + boundary_margin)
+        if ylim is not None:
+            ax.set_ylim(*ylim)
+            ymin, ymax = ylim
+        else:
+            ymin, ymax = ax.get_ylim()
 
         if title:
             ax.set_title(title)
