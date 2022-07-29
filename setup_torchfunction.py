@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
  
 setup(
     name = "torchfunction",
-    version = "0.0.62",
+    version = "0.0.63",
     keywords = ("pip", "pyctlib", "pytorch"),
     description = "This package is based on pytorch and try to provide a more user-friendly interface for pytorch. ",
     long_description = open("./torchplus/README.md").read(),
@@ -25,5 +25,5 @@ setup(
     packages = find_packages(),
     include_package_data = True,
     platforms = "any",
-    install_requires = ["numpy", "pyctlib", "torch>=1.7.0", "pynvml"]
+    install_requires = ["numpy", "pyctlib", "pynvml"]
 )

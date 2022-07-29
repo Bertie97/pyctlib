@@ -41,10 +41,9 @@ class table(dict):
                 self[key] = value
         object.__setattr__(self, "__key_locked", key_locked)
 
-    @staticmethod
-    def hieratical(d: dict, delimiter=".") -> "table":
+    def hieratical(self, delimiter=".") -> "table":
         ret = table()
-        for key, value in d.items():
+        for key, value in self.items():
             ret.pset(key.split(delimiter), value=value)
         return ret
 
@@ -137,7 +136,7 @@ class table(dict):
             self[name] = value
 
     def __getattr__(self, item: str):
-        if item.startswith("_"):
+        if item.startswith("__"):
             return object.__getattribute__(self, item)
         return self.__getitem__(item)
 
@@ -287,3 +286,6 @@ class table(dict):
             else:
                 ret[key] = copy.deepcopy(value)
         return ret
+
+    def __dir__(self):
+        return ["keys", "items", "copy", "dict", "values", "rvalues", "map", "rmap", "hieratical", "flatten", "merge", "update_exist", "update_where", "update_notexist", "key_not_here", "lock_key", "unlock_key", "load", "pset", "filter", "pretty_print"] + self.keys()

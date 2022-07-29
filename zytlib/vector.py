@@ -1691,8 +1691,12 @@ class vector(list):
         if isinstance(index, int):
             return super().__getitem__(index)
         if isinstance(index, slice):
+            if self.length == 0:
+                return vector()
             return self.map_index(IndexMapping(index, self.length, True))
         if isinstance(index, list):
+            if self.length == 0:
+                return vector()
             if len(self) != len(index) and vector(index).check_type(int) and vector(index).all(lambda x: -self.length <= x < self.length):
                 index = vector(index).map(lambda x: x if x >= 0 else x + self.length)
                 return self.map_index(IndexMapping(index, self.length, True))
@@ -1831,7 +1835,11 @@ class vector(list):
         else:
             return hash(tuple(self))
 
-    def unique(self) -> "vector":
+    def combinations(self, L):
+        import itertools
+        return vector(itertools.combinations(self, L))
+
+    def unique(self, key=None) -> "vector":
         """unique.
         get unique values in the vector
 
@@ -1843,15 +1851,17 @@ class vector(list):
         if len(self) == 0:
             return vector([], recursive=False)
         hashable = self.ishashable()
-        if self.ishashable():
-            return vector(self.set(), recursive=False)
+        if key is not None:
+            hashable = isinstance(key(self[0]), Hashable)
+        else:
+            key = lambda x: x
         explored = set() if hashable else list()
         pushfunc = explored.add if hashable else explored.append
         unique_elements = list()
         for x in self:
-            if x not in explored:
+            if key(x) not in explored:
                 unique_elements.append(x)
-                pushfunc(x)
+                pushfunc(key(x))
         return vector(unique_elements, recursive=False)
 
     def count_all(self) -> Counter:
@@ -2750,6 +2760,15 @@ class vector(list):
             raise RuntimeError()
 
     @staticmethod
+    def from_tensor(tensor) -> "vector":
+        import torch
+        if isinstance(tensor, np.ndarray):
+            return tensor
+        elif isinstance(tensor, torch.Tensor):
+            return vector.from_numpy(tensor.detach().cpu().numpy())
+        return tensor
+
+    @staticmethod
     def from_numpy(array) -> "vector":
         """from_numpy.
 
@@ -2826,7 +2845,7 @@ class vector(list):
                 plt.show()
         return ax
 
-    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, marker=None, color=None, linestyle=None):
+    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, xlim=None, ylim=None, marker=None, color=None, linestyle=None, **kwargs):
         """
         plot line graph for vector
         title: title of the graph
@@ -2853,7 +2872,7 @@ class vector(list):
                 x = list(x)
             else:
                 x = list(range(self.length))
-            ax.plot(x, self.smooth(smooth), marker=marker, color=color, linestyle=linestyle)
+            ax.plot(x, self.smooth(smooth), marker=marker, color=color, linestyle=linestyle, **kwargs)
         elif (self.check_type(list) or self.check_type(tuple)) and self.map(len).all_equal():
             splited_vector = self.zip_split()
             if x is not None:
@@ -2862,18 +2881,26 @@ class vector(list):
                 x = list(range(len(splited_vector[0])))
             if color is None:
                 for sv in splited_vector:
-                    ax.plot(x, sv.smooth(smooth), marker=marker, linestyle=linestyle)
+                    ax.plot(x, sv.smooth(smooth), marker=marker, linestyle=linestyle, **kwargs)
             else:
                 for index, sv in enumerate(splited_vector):
-                    ax.plot(x, sv.smooth(smooth), marker=marker, color=color[index], linestyle=linestyle)
+                    ax.plot(x, sv.smooth(smooth), marker=marker, color=color[index], linestyle=linestyle, **kwargs)
             if not legend:
                 legend = vector.range(len(splited_vector)).map(str)
         else:
             raise ValueError
-        ymin, ymax = ax.get_ylim()
-        xmin, xmax = min(x), max(x)
-        boundary_margin = 1 / 30 * (xmax - xmin)
-        plt.xlim(xmin - boundary_margin, xmax + boundary_margin)
+        if xlim is not None:
+            ax.set_xlim(*xlim)
+            xmin, xmax = xlim
+        else:
+            xmin, xmax = min(x), max(x)
+            boundary_margin = 1 / 30 * (xmax - xmin)
+            plt.xlim(xmin - boundary_margin, xmax + boundary_margin)
+        if ylim is not None:
+            ax.set_ylim(*ylim)
+            ymin, ymax = ylim
+        else:
+            ymin, ymax = ax.get_ylim()
 
         if title:
             ax.set_title(title)

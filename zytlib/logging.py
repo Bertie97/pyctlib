@@ -674,7 +674,10 @@ class Logger:
                         if variable_str[0].isdigit() or variable_str[0] == "-":
                             variable = float(variable_str)
                         elif variable_str[0] == "[" and variable_str[-1] == "]":
-                            variable = vector([float(x.strip()) for x in variable_str[1:-1].split(",")])
+                            numbers = vector(variable_str[1: -1].split(","))
+                            numbers = numbers.map(lambda x: x.split(" ")).map(vector).flatten()
+                            numbers = numbers.filter(lambda x: len(x)).map(lambda x: float(x.strip()))
+                            variable = numbers
                         else:
                             variable = variable_str
                         hyper[variable_name] = variable
@@ -729,7 +732,10 @@ class Logger:
                         if variable_str[0].isdigit() or variable_str[0] == "-":
                             variable = float(variable_str)
                         elif variable_str[0] == "[" and variable_str[-1] == "]":
-                            variable = vector([float(x.strip()) for x in variable_str[1:-1].split(",")])
+                            numbers = vector(variable_str[1:-1].split(","))
+                            numbers = numbers.map(lambda x: x.split(" ")).map(vector).flatten()
+                            numbers = numbers.filter(lambda x: len(x)).map(lambda x: float(x.strip()))
+                            variable = numbers
                         else:
                             print("unknown variable", variable_str)
                             continue

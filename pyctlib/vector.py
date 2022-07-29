@@ -1481,8 +1481,12 @@ class vector(list):
         if isinstance(index, int):
             return super().__getitem__(index)
         if isinstance(index, slice):
+            if self.length == 0:
+                return vector()
             return self.map_index(IndexMapping(index, self.length, True))
         if isinstance(index, list):
+            if self.length == 0:
+                return vector()
             assert len(self) == len(index)
             return vector(zip(self, index), recursive=self._recursive, allow_undefined_value=self.allow_undefined_value).filter(lambda x: x[1]).map(lambda x: x[0])
         if isinstance(index, tuple):
