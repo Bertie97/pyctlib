@@ -291,3 +291,16 @@ def meshgrid(*args):
     if len(args) == 0:
         return torch.Tensor()
     return torch.stack(torch.meshgrid(*args), -1).view(-1, len(args))
+
+def tonumpy(x):
+    if isinstance(x, np.ndarray):
+        return x
+    elif isinstance(x, list):
+        if len(x) == 0 or isinstance(x[0], (int, float)):
+            return np.array(x)
+        else:
+            return np.array([tonumpy(t) for t in x])
+    elif isinstance(x, torch.Tensor):
+        return x.detach().cpu().numpy()
+    else:
+        return x
