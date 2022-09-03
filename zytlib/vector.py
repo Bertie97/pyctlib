@@ -1008,6 +1008,12 @@ class vector(list):
                     new_func(content)
         return vector()
 
+    def map_add(self, value: Any)->"vector":
+        return self.map(lambda x: x + value)
+
+    def map_mul(self, value: Any)->"vector":
+        return self.map(lambda x: x * value)
+
     def map_where(self, *args, default=NoDefault, processing_bar=False, register_result=False, split_tuple=None, filter_function=None) -> "vector":
         assert len(args) % 2 == 1
         args_init = vector(args).map_k(lambda x: ([vector.__hook_function(_) for _ in x]), k=2, overlap=False)
