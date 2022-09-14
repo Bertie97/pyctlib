@@ -359,7 +359,7 @@ class path(str):
         else:
             return path(path.extsep.join([self.name, ext]))
 
-    def without_exit() -> "path":
+    def without_ext() -> "path":
         return self.with_ext()
 
     @registered_property
