@@ -119,7 +119,7 @@ def upload_file_to_row_property(client, row, path, property_name):
 
 class Logger:
 
-    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, deltatime: bool=False, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False, notion_page_link=None):
+    def __init__(self, stream_log_level=logging.DEBUG, file_log_level=None, deltatime: bool=False, name: str="logger", c_format=None, file_path=None, file_name=None, f_format=None, disable=False, autoplot_variable=False, notion_page_link=None, overwrite=True):
         self.name = name
         if stream_log_level is True:
             self.stream_log_level = logging.DEBUG
@@ -142,6 +142,7 @@ class Logger:
         self.variable_dict = {}
         self.autoplot_variable = autoplot_variable
         self.notion_page_link = notion_page_link
+        self.overwrite = True
         self.__update_notion_buffer = dict()
         self.__update_notion_file_buffer = dict()
         atexit.register(self.record_elapsed)
@@ -355,7 +356,7 @@ class Logger:
             return None
         if hasattr(self, "_Logger__f_fullpath"):
             return self.__f_fullpath
-        if not (self.f_path / self._f_name).isfile():
+        if self.overwrite or not (self.f_path / self._f_name).isfile():
             self.__f_fullpath: path = self.f_path / self._f_name
             return self.__f_fullpath
         index = 1
