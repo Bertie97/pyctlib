@@ -1003,9 +1003,17 @@ class vector(list):
                 continue
             if touch(lambda: new_func(content)) is None:
                 if split_tuple and isinstance(content, tuple):
-                    new_func(*content)
+                    try:
+                        new_func(*content)
+                    except Exception as e:
+                        print(f"map error! happend at index {index} for value {content}")
+                        raise e
                 else:
-                    new_func(content)
+                    try:
+                        new_func(content)
+                    except Exception as e:
+                        print(f"map error! happend at index {index} for value {content}")
+                        raise e
         return vector()
 
     def map_add(self, value: Any)->"vector":
