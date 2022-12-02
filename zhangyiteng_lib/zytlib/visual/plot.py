@@ -16,8 +16,8 @@ try:
 except ImportError:
     raise ImportError("'pyctlib.watch.debugger' cannot be used without dependency 'matplotlib'. ")
 
-from ..vector import vector
-from ..touch import touch
+from zytlib.container.vector import vector
+from zytlib.utils.touch import touch
 """
 from zytlib import vector
 from zytlib import touch

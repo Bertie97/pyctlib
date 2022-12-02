@@ -3,8 +3,8 @@ from pyctlib import vector, recursive_apply
 from pynvml import *
 from torch import nn
 
-available_gpu_ids = list(range(torch.cuda.device_count()))
-available_gpus = [torch.cuda.device(i) for i in available_gpu_ids]
+available_gpu_ids = vector.range(torch.cuda.device_count())
+available_gpus = available_gpu_ids.map(lambda i: torch.cuda.device(i))
 
 if torch.cuda.is_available():
     nvmlInit()
@@ -28,6 +28,18 @@ if torch.cuda.is_available():
         h = nvmlDeviceGetHandleByIndex(device_number)
         return nvmlDeviceGetPowerUsage(h) / nvmlDeviceGetPowerManagementLimit(h)
 
+    def fanspeed(device_number):
+        h = nvmlDeviceGetHandleByIndex(device_number)
+        try:
+            speed = nvmlDeviceGetFanSpeed(h)
+        except:
+            speed = -1
+        return speed
+
+    available_gpu_fan_speed = available_gpu_ids.map(lambda i: fanspeed(i))
+    available_gpu_ids = available_gpu_ids.map_index_from(available_gpu_fan_speed.filter(lambda x: x > 0))
+    available_gpus = available_gpu_ids.map(lambda i: torch.cuda.device(i))
+
     available_gpus_memory = vector([free_memory_amount(i) for i in available_gpu_ids])
     all_gpus_memory = vector([all_memory_amount(i) for i in available_gpu_ids])
     available_gpu_name = vector(available_gpu_ids).map(device_name)
@@ -44,7 +56,7 @@ else:
     warning_free_memory_threshold = 0
 
 if torch.cuda.is_available():
-    most_available_gpus = vector.map_from([available_gpus_memory, gpu_power_usage], lambda m, p: m * max(1 - p, 0)**0.5).max(with_index=True)[1]
+    most_available_gpus = vector.map_from([available_gpus_memory, gpu_power_usage], lambda m, p: m * max(1 - p, 0)).max(with_index=True)[1]
 
     if available_gpus_memory[most_available_gpus] < warning_free_memory_threshold * 1.074e+9:
         print("Warning: the best gpu device is device {}".format(most_available_gpus))

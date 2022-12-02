@@ -11,10 +11,10 @@ from setuptools import setup, find_packages
  
 setup(
     name = "zytlib",
-    version = "0.3.299",
+    version = "0.3.301",
     keywords = ("pip", "zytlib"),
     description = "This is A foundamental package containing some basic self-designed functions and types for Project PyCTLib. ",
-    long_description = open("./pyctlib/README.md").read(),
+    long_description = open("./zytlib/README.md").read(),
     long_description_content_type="text/markdown",
     license = "MIT Licence",
 

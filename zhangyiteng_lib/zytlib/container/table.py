@@ -1,7 +1,7 @@
 from typing import overload, Callable
-from .touch import touch, crash
+from zytlib.utils.touch import touch, crash
 from .vector import vector
-from .utils import totuple
+from zytlib.utils.utils import totuple
 import pickle
 import argparse
 import operator

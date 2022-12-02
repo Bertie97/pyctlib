@@ -23,7 +23,7 @@ __all__ = """
 from types import GeneratorType
 from collections import Counter
 from functools import wraps, reduce, partial
-from .touch import touch, crash, once
+from zytlib.utils.touch import touch, crash, once
 import copy
 import numpy as np
 from pyoverload import iterable
@@ -38,14 +38,14 @@ import types
 import traceback
 import inspect
 import os
-from .strtools import delete_surround
-from .wrapper import empty_wrapper, registered_method, registered_property, destory_registered_property
+from zytlib.utils.strtools import delete_surround
+from zytlib.utils.wrapper import empty_wrapper, registered_method, registered_property, destory_registered_property
 import os.path
 import time
 import pydoc
 from collections.abc import Hashable
 from matplotlib.axes._subplots import Axes
-from .utils import constant, str_type, totuple
+from zytlib.utils.utils import constant, str_type, totuple
 import functools
 import multiprocessing
 try:
@@ -2136,12 +2136,12 @@ class vector(list):
     def relu(self) -> "vector":
         return self.map_numba_function(numba_relu)
 
-    def sum(self, dim=None, default=None):
+    def sum(self, dim=None, *, default=None):
         """sum.
 
         Parameters
         ----------
-        default :
+        default:
             default
         """
         if dim is None or self.shape is None or self.ndim <= 1:

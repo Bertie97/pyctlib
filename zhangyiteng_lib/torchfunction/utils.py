@@ -5,7 +5,7 @@ import os
 import torch.nn as nn
 import torch.nn.functional as F
 import re
-from zytlib.utils import totuple
+from zytlib.utils.utils import totuple
 
 def seed_torch(seed=1024):
     random.seed(seed)

@@ -10,7 +10,7 @@ __all__ = """
     display
 """.split()
 
-from ..touch import touch, get_environ_vars, SPrint
+from zytlib.utils.touch import touch, get_environ_vars, SPrint
 
 def display(content=None, name='', format = '%.4f', **kwargs):
     output = SPrint()
