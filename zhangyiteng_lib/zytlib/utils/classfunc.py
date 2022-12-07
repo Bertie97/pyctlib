@@ -1,5 +1,5 @@
 from inspect import getargspec
-from .table import table
+from zytlib.container.table import table
 from typing import Union, Tuple
 
 __all__ = ["save_args"]

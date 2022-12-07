@@ -10,6 +10,7 @@ import time
 
 from .container.vector import vector
 from .container.table import table
+from .inout.filemanager import path
 
 # start = time.time()
 # from .touch import touch, crash, retry

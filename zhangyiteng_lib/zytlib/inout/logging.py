@@ -1,7 +1,7 @@
 import logging
 from .filemanager import path
-from .touch import touch
-from .vector import vector
+from zytlib.utils.touch import touch
+from zytlib.container.vector import vector
 import time
 from datetime import timedelta, datetime
 import atexit
@@ -11,7 +11,7 @@ from typing import Callable, Dict, Union, overload
 import random
 import string
 import argparse
-from .wrapper import timeout, TimeoutException
+from zytlib.utils.wrapper import timeout, TimeoutException
 import re
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -22,7 +22,7 @@ from notion.client import NotionClient
 import mimetypes
 import requests
 import random
-from .table import table
+from zytlib.container.table import table
 """
 from zytlib import vector, touch
 from zytlib.basicwrapper import timeout, TimeoutException

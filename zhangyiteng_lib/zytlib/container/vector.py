@@ -48,6 +48,7 @@ from matplotlib.axes._subplots import Axes
 from zytlib.utils.utils import constant, str_type, totuple
 import functools
 import multiprocessing
+from subprocess import Popen, PIPE
 try:
     import numba as nb
     jit = nb.jit
@@ -3694,6 +3695,37 @@ class vector(list):
 
     def __bool__(self):
         return self.length > 0
+
+    def popen(self, *, max_process=-1, delay_time=0.1, interval=0.1, popen_kwargs={}):
+        if not self:
+            return
+        assert all([isinstance(x, list) for x in self])
+        assert all([all([isinstance(y, str) for y in x]) for x in self])
+
+        proc_vector = list(self.copy())
+        running_procs = list()
+
+        while proc_vector and (max_process <= 0 or len(running_procs) < max_process):
+            cmd = proc_vector[0]
+            proc_vector = proc_vector[1:]
+            running_procs.append(Popen(cmd))
+            time.sleep(delay_time)
+
+        while proc_vector or running_procs:
+            while running_procs:
+                for proc in running_procs:
+                    retcode = proc.poll()
+                    if retcode is not None: # process finished.
+                        running_procs.remove(proc)
+                        if proc_vector:
+                            cmd = proc_vector[0]
+                            proc_vector = proc_vector[1:]
+                            running_procs.append(Popen(cmd), **popen_kwargs)
+                            time.sleep(delay_time)
+                        break
+                    else: # no process is done, wait a bit and check again.
+                        time.sleep(interval)
+                        continue
 
     def function_search(self, search_func, query="", max_k=NoDefault, str_func=str, str_display=None, display_info=None, sorted_function=None, pre_sorted_function=None, history=None, show_line_number=False, return_tuple=False, stdscr=None):
         """

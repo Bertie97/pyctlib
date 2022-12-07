@@ -89,3 +89,7 @@ class TestVector(unittest.TestCase):
         self.assertEqual(list(t1.map(t2).index_map), [4, -1, 3, -1, 2, -1, 1, -1, 0, -1])
         t3 = IndexMapping(slice(0, 2, 1), range_size=5, reverse=True)
         self.assertEqual(list(t1.map(t3).index_map), [0, -1, 1, -1, -1, -1, -1, -1, -1, -1])
+
+    def test_popen(self):
+        x = vector(["sleep 1"] * 2).map(lambda x: x.split())
+        x.popen()

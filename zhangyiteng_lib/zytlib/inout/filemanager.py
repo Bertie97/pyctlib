@@ -19,13 +19,13 @@ __all__ = """
 """.split()
 
 import os, re, struct, shutil
-from .touch import touch
+from zytlib.utils.touch import touch
 # from pyoverload import *
-from .wrapper import raw_function, registered_property
+from zytlib.utils.wrapper import raw_function, registered_property
 from functools import wraps, reduce, partial
 import typing
 from typing import TextIO, Optional
-from .vector import NoDefault, UnDefined, OutBoundary, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass
+from zytlib.container.vector import NoDefault, UnDefined, OutBoundary, vector, generator_wrapper, ctgenerator, IndexMapping, EmptyClass
 from rapidfuzz import fuzz
 
 """
