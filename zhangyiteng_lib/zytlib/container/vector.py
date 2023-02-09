@@ -3696,7 +3696,7 @@ class vector(list):
     def __bool__(self):
         return self.length > 0
 
-    def popen(self, *, max_process=-1, delay_time=0.1, interval=0.1, popen_kwargs={}):
+    def popen(self, *, max_process=-1, delay_time=0.1, interval=0.1, popen_kwargs={}, info=False):
         if not self:
             return
         assert all([isinstance(x, list) for x in self])
@@ -3708,19 +3708,21 @@ class vector(list):
         while proc_vector and (max_process <= 0 or len(running_procs) < max_process):
             cmd = proc_vector[0]
             proc_vector = proc_vector[1:]
-            running_procs.append(Popen(cmd))
+            running_procs.append(Popen(cmd, **popen_kwargs))
             time.sleep(delay_time)
 
         while proc_vector or running_procs:
             while running_procs:
                 for proc in running_procs:
                     retcode = proc.poll()
+                    if info:
+                        print(retcode)
                     if retcode is not None: # process finished.
                         running_procs.remove(proc)
                         if proc_vector:
                             cmd = proc_vector[0]
                             proc_vector = proc_vector[1:]
-                            running_procs.append(Popen(cmd), **popen_kwargs)
+                            running_procs.append(Popen(cmd, **popen_kwargs))
                             time.sleep(delay_time)
                         break
                     else: # no process is done, wait a bit and check again.
