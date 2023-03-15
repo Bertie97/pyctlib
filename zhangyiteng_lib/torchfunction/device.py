@@ -56,7 +56,8 @@ else:
     warning_free_memory_threshold = 0
 
 if torch.cuda.is_available():
-    most_available_gpus = vector.map_from([available_gpus_memory, gpu_power_usage], lambda m, p: m * max(1 - p, 0)).max(with_index=True)[1]
+    print(gpu_power_usage)
+    most_available_gpus = vector.map_from([available_gpus_memory, gpu_power_usage], lambda m, p: m * max(1 - p, 0) ** 2).max(with_index=True)[1]
 
     if available_gpus_memory[most_available_gpus] < warning_free_memory_threshold * 1.074e+9:
         print("Warning: the best gpu device is device {}".format(most_available_gpus))
