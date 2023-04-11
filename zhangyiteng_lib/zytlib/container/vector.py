@@ -44,7 +44,6 @@ import os.path
 import time
 import pydoc
 from collections.abc import Hashable
-from matplotlib.axes._subplots import Axes
 from zytlib.utils.utils import constant, str_type, totuple
 import functools
 import multiprocessing
@@ -2828,7 +2827,7 @@ class vector(list):
                 return x
         return self.rmap(func, split_tuple=False)
 
-    def plot_hist(self, bins=None, range=None, density=False, color=None, edgecolor=None, alpha=None, with_pdf=False, ax: Optional[Axes]=None, title: Optional[str]=None, saved_path: Optional[str]=None):
+    def plot_hist(self, bins=None, range=None, density=False, color=None, edgecolor=None, alpha=None, with_pdf=False, ax: Optional=None, title: Optional[str]=None, saved_path: Optional[str]=None):
         from matplotlib import pyplot as plt
         from matplotlib.backends.backend_pdf import PdfPages
         _has_ax = ax is not None
@@ -2860,7 +2859,7 @@ class vector(list):
                 plt.show()
         return ax
 
-    def plot(self, x=None, ax: Optional[Axes]=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, xlim=None, ylim=None, marker=None, color=None, linestyle=None, **kwargs):
+    def plot(self, x=None, ax: Optional=None, title: Optional[str]=None, smooth: int=-1, saved_path: Optional[str]=None, legend: Optional[List[str]]=None, hline: Optional[List[str]]=None, xticks=None, xticklabels=None, xlabel=None, yticks=None, yticklabels=None, ylabel=None, xlim=None, ylim=None, marker=None, color=None, linestyle=None, **kwargs):
         """
         plot line graph for vector
         title: title of the graph
