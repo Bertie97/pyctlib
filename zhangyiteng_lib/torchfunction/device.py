@@ -1,5 +1,6 @@
 import torch
-from pyctlib import vector, recursive_apply
+from zytlib import vector
+from zytlib.container.vector import recursive_apply
 from pynvml import *
 from torch import nn
 
