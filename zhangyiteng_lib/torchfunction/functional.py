@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from pyctlib import vector
+from zytlib import vector
 import torch
 
 def one_hot_max(x: torch.Tensor, axis=-1) -> torch.Tensor:

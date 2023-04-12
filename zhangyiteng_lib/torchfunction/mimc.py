@@ -1,4 +1,4 @@
-from pyctlib import vector, totuple
+from zytlib import vector, totuple
 from typing import Union
 
 class MimcMatrix:

@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 import torch.nn.init as init
 import torch.nn.functional as F
-from pyctlib import vector, touch
+from zytlib import vector, torch
 
 def identity(x):
     return x
