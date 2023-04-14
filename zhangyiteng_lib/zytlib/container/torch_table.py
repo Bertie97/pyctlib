@@ -291,7 +291,7 @@ class torch_table(dict):
     def __dir__(self):
         return ["keys", "items", "copy", "dict", "values", "rvalues", "map", "rmap", "hieratical", "flatten", "merge", "update_exist", "update_where", "update_notexist", "key_not_here", "lock_key", "unlock_key", "load", "pset", "filter", "pretty_print"] + self.keys()
 
-    def concate(self, name: int, x: torch.Tensor, dim: int=0)->"torch_table":
+    def concate(self, name: str, x: torch.Tensor, dim: int=0)->"torch_table":
         assert isinstance(x, torch.Tensor)
         if name not in self.keys():
             self[name] = x.unsqueeze(dim).clone()
@@ -299,7 +299,7 @@ class torch_table(dict):
             self[name] = torch.cat([self[name], x.unsqueeze(dim).clone()], dim)
         return self
 
-    def cat(self, name: int, x: torch.Tensor, dim: int=0) -> "torch_table":
+    def cat(self, name: str, x: torch.Tensor, dim: int=0) -> "torch_table":
         assert isinstance(x, torch.Tensor)
         if name not in self.keys():
             self[name] = x.clone()
