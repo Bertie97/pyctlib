@@ -17,7 +17,7 @@ class torch_table(dict):
         if len(args) == 1 and isinstance(args[0], argparse.Namespace):
             for key, value in vars(args[0]).items():
                 self[key] = self._hook(value)
-        elif len(args) == 1 and isinstance(args[0], table) and len(kwargs) == 0:
+        elif len(args) == 1 and isinstance(args[0], torch_table) and len(kwargs) == 0:
             super().__init__(args[0])
             if not kwargs_has_locked:
                 key_locked = object.__getattribute__(args[0], "__key_locked")
@@ -42,16 +42,16 @@ class torch_table(dict):
                 self[key] = value
         object.__setattr__(self, "__key_locked", key_locked)
 
-    def hieratical(self, delimiter=".") -> "table":
-        ret = table()
+    def hieratical(self, delimiter=".") -> "torch_table":
+        ret = torch_table()
         for key, value in self.items():
             ret.pset(key.split(delimiter), value=value)
         return ret
 
-    def flatten(self, delimiter=".") -> "table":
-        ret = table()
+    def flatten(self, delimiter=".") -> "torch_table":
+        ret = torch_table()
         for key, value in self.items():
-            if not isinstance(value, table):
+            if not isinstance(value, torch_table):
                 ret[key] = value
             else:
                 for _k, _v in value.flatten().items():
@@ -68,19 +68,19 @@ class torch_table(dict):
 
     def __add__(x, y):
         if isinstance(y, dict):
-            y = table(y)
+            y = torch_table(y)
             if set(x.keys()) & set(y.keys()):
-                raise ValueError("table+table requires keys in two table are different")
-            ret = table()
+                raise ValueError("torch_table+torch_table requires keys in two torch_table are different")
+            ret = torch_table()
             ret.update(x)
             ret.update(y)
             return ret
 
     @overload
-    def merge(self, new_dict: dict, reduce_func: Callable) -> "table": ...
+    def merge(self, new_dict: dict, reduce_func: Callable) -> "torch_table": ...
 
     @overload
-    def merge(self, new_dict: dict, reduce_func: Callable, default=None) -> "table": ...
+    def merge(self, new_dict: dict, reduce_func: Callable, default=None) -> "torch_table": ...
 
     def merge(self, new_dict: dict, reduce_func: Callable, **kwargs):
         if (has_default:= "default" in kwargs):
@@ -96,7 +96,7 @@ class torch_table(dict):
                 self[key] = reduce_func(self[key], value)
         return self
 
-    def update_exist(self, *args, **kwargs) -> "table":
+    def update_exist(self, *args, **kwargs) -> "torch_table":
         for arg in args:
             assert isinstance(arg, dict)
             for key in arg.keys():
@@ -109,13 +109,13 @@ class torch_table(dict):
 
         return self
 
-    def update_where(self, target, condition) -> "table":
+    def update_where(self, target, condition) -> "torch_table":
         for key, value in super().items():
             if condition(value):
                 self[key] = target.get(key, self[key])
         return self
 
-    def update_notexist(self, target) -> "table":
+    def update_notexist(self, target) -> "torch_table":
         for key, value in target.items():
             if key in self:
                 continue
@@ -131,7 +131,7 @@ class torch_table(dict):
 
     def __setattr__(self, name, value):
         if hasattr(self.__class__, name):
-            raise AttributeError("'table' object attribute "
+            raise AttributeError("'torch_table' object attribute "
                                  "'{0}' is read-only".format(name))
         else:
             self[name] = value
@@ -169,7 +169,7 @@ class torch_table(dict):
             pickle.dump(self, output)
 
     @staticmethod
-    def load(filepath) -> "table":
+    def load(filepath) -> "torch_table":
         try:
             import pickle
         except:
@@ -177,14 +177,14 @@ class torch_table(dict):
             return
         with open(filepath, "rb") as input:
             ret = pickle.load(input)
-            def _dict_to_table(t):
+            def _dict_to_torch_table(t):
                 for key, value in t.items():
-                    if isinstance(value, dict) and not isinstance(value, table):
-                        t[key] = _dict_to_table(value)
-                if isinstance(t, dict) and not isinstance(t, table):
-                    return table(t)
+                    if isinstance(value, dict) and not isinstance(value, torch_table):
+                        t[key] = _dict_to_torch_table(value)
+                if isinstance(t, dict) and not isinstance(t, torch_table):
+                    return torch_table(t)
                 return t
-        return _dict_to_table(ret)
+        return _dict_to_torch_table(ret)
 
     def __setitem__(self, key, value):
         try:
@@ -202,11 +202,11 @@ class torch_table(dict):
         parent = self
         for key in keys[:-1]:
             if key not in parent:
-                parent[key] = table()
+                parent[key] = torch_table()
             parent = parent[key]
         parent[keys[-1]] = value
 
-    def filter(self, key=None, value=None) -> "table":
+    def filter(self, key=None, value=None) -> "torch_table":
         if key is None and value is None:
             return self
         if key is None:
@@ -217,9 +217,9 @@ class torch_table(dict):
         for x, y in self.items():
             if key(x) and value(y):
                 ret[x] = y
-        return table(ret)
+        return torch_table(ret)
 
-    def map(self, key=None, value=None) -> "table":
+    def map(self, key=None, value=None) -> "torch_table":
         if key is None and value is None:
             return self
         if key is None:
@@ -229,14 +229,14 @@ class torch_table(dict):
         ret = dict()
         for x, y in super().items():
             ret[key(x)] = value(y)
-        return table(ret)
+        return torch_table(ret)
 
-    def rmap(self, func) -> "table":
+    def rmap(self, func) -> "torch_table":
         if func is None:
             return self
-        ret = table()
+        ret = torch_table()
         for x, y in super().items():
-            if not isinstance(y, table):
+            if not isinstance(y, torch_table):
                 ret[x] = func(y)
             else:
                 ret[x] = y.rmap(func)
@@ -248,7 +248,7 @@ class torch_table(dict):
     def rvalues(self) -> vector:
         ret = vector()
         for v in super().values():
-            if isinstance(v, table):
+            if isinstance(v, torch_table):
                 ret.extend(v.rvalues())
             else:
                 ret.append(v)
@@ -279,10 +279,10 @@ class torch_table(dict):
             else:
                 print(f"{key}: {value}")
 
-    def copy(self) -> "table":
-        ret = table()
+    def copy(self) -> "torch_table":
+        ret = torch_table()
         for key, value in super().items():
-            if isinstance(value, table):
+            if isinstance(value, torch_table):
                 ret[key] = value.copy()
             else:
                 ret[key] = copy.deepcopy(value)
