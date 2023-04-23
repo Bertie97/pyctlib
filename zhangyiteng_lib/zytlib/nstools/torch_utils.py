@@ -55,13 +55,14 @@ def condition_average(x: torch.Tensor, condition_num: Union[int, Tuple[int]], co
             ret.count[c] = ci.sum()
         return ret
     elif isinstance(condition_num, tuple):
-        assert len(condition_num) == condition.dim()
+        assert condition.dim() == 2
+        assert len(condition_num) == condition.shape[-1]
         new_condition = torch.zeros_like(condition[:, -1])
         basis = 1
-        for i in range(condition.dim()-1, -1, -1):
+        for i in range(condition.dim() - 1, -1, -1):
             new_condition += condition[:, i] * basis
             basis *= condition_num[i]
-        ret_shape = tuple(list(x.shape[:dim]) + list(condition_num) + list(x.shape[dim+1:]))
+        ret_shape = tuple(list(x.shape[:dim]) + list(condition_num) + list(x.shape[dim + 1:]))
         temp_ret = condition_average(x, basis, new_condition, dim=dim)
         ret = ConditionAverage(temp_ret.avg_tensor.reshape(ret_shape), temp_ret.count.reshape(condition_num))
         return ret
