@@ -36,6 +36,30 @@ def corrcoef(x: torch.Tensor, y: torch.Tensor, dim: int=-1, *, eps: float=1e-10)
     return cov_xy / (eps + cov_x * cov_y).sqrt()
 
 def einflatten(cmd: str, x: torch.Tensor) -> torch.Tensor:
+    """
+    Flattens the input tensor `x` according to the specified `cmd` argument.
+
+    Args:
+        cmd (str): A string specifying the desired shape of the flattened tensor.
+                   It contains two parts separated by "->" sign. The left part 
+                   specifies the current shape of the tensor, and the right part 
+                   specifies the desired shape of the flattened tensor.
+        x (torch.Tensor): The input tensor to be flattened.
+
+    Returns:
+        torch.Tensor: A flattened version of the input tensor `x`, according to 
+                      the specified `cmd` argument.
+
+    Raises:
+        AssertionError: If the left command is not valid with the input tensor 
+                        `x`, or if the right command is not valid.
+
+    Example:
+        # Flattening a 2x3x4 tensor into a 24-element vector
+        x = torch.randn(2, 3, 4)
+        flattened = einflatten("abc->[abc]", x)
+        assert flattened.shape == (24,)
+    """
     if "->" not in cmd:
         return x.flatten()
     left_cmd, right_cmd = cmd.split("->")
@@ -71,6 +95,40 @@ def einflatten(cmd: str, x: torch.Tensor) -> torch.Tensor:
 ConditionAverage = namedtuple("ConditionAverage", ["avg_tensor", "count"])
 
 def condition_average(x: torch.Tensor, condition_num: Union[int, Tuple[int]], condition: torch.Tensor, *, dim: int=-1) -> ConditionAverage:
+    """
+    Computes the average of the input tensor `x` over different conditions specified by the `condition` tensor.
+    If `condition_num` is an integer, the function computes the average of `x` over `condition_num` conditions,
+    where the condition of each element of `x` is specified by the corresponding element of `condition`.
+    If `condition_num` is a tuple, the function computes the average of `x` over the conditions specified by
+    the multi-dimensional `condition` tensor. Each dimension of `condition` specifies a different level of condition.
+
+    Args:
+        x (torch.Tensor): The input tensor to be averaged.
+        condition_num (Union[int, Tuple[int]]): An integer or tuple specifying the number of conditions.
+        condition (torch.Tensor): A tensor specifying the condition of each element of `x`.
+                                  The shape of `condition` should match the shape of `x` except in the dimension `dim`.
+                                  If `condition_num` is an integer, `condition` should have shape `(x.shape[dim],)`.
+                                  If `condition_num` is a tuple, `condition` should have shape
+                                  `(x.shape[0], x.shape[1], ..., x.shape[dim-1], condition_num[0], condition_num[1], ..., condition_num[-1], x.shape[dim+1], ..., x.shape[-1])`.
+        dim (int): The dimension along which to average the input tensor `x`. Default is `-1` (the last dimension).
+
+    Returns:
+        ConditionAverage: A named tuple containing two elements: `avg_tensor` and `count`.
+                          `avg_tensor` is a tensor containing the average of `x` over different conditions.
+                          `count` is a tensor containing the number of elements in each condition.
+
+    Raises:
+        AssertionError: If the input arguments do not meet the requirements.
+
+    Example:
+        # Computing the average of a 2x3x4 tensor over 5 conditions specified by a 2x2 condition tensor
+        x = torch.randn(2, 3, 4)
+        condition_num = (2, 2)
+        condition = torch.tensor([[[0, 0], [0, 1]], [[1, 1], [0, 1]]])
+        result = condition_average(x, condition_num, condition)
+        assert result.avg_tensor.shape == (2, 2, 3, 4)
+        assert result.count.shape == (2, 2)
+    """
     dim = dim % x.dim()
     if isinstance(condition_num, int):
         assert condition_num > 0
