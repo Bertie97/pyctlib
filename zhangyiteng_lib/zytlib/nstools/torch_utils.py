@@ -3,6 +3,7 @@ import numpy as np
 from typing import Callable, Any, List, Union, Tuple
 from collections import namedtuple
 from ..container.vector import vector
+import re
 
 def to_LongTensor(x: Any) -> torch.LongTensor:
     if isinstance(x, torch.Tensor):
@@ -33,6 +34,39 @@ def corrcoef(x: torch.Tensor, y: torch.Tensor, dim: int=-1, *, eps: float=1e-10)
     cov_y = (y).pow(2).sum(dim)
 
     return cov_xy / (eps + cov_x * cov_y).sqrt()
+
+def einflatten(cmd: str, x: torch.Tensor) -> torch.Tensor:
+    if "->" not in cmd:
+        return x.flatten()
+    left_cmd, right_cmd = cmd.split("->")
+    if not right_cmd:
+        return x.flatten()
+    assert len(left_cmd) == x.dim()
+    assert len(left_cmd) == len(set(left_cmd))
+    new_shape: List[int] = list()
+    i, j = 0, 0
+    while i < len(left_cmd):
+        if right_cmd[j].isalpha():
+            assert left_cmd[i] == right_cmd[j]
+            new_shape.append(x.shape[i])
+            i += 1
+            j += 1
+        else:
+            assert right_cmd[j] == "["
+            j += 1
+            t = -1
+            while j < len(right_cmd):
+                if right_cmd[j] == "]":
+                    t = t * -1
+                    j += 1
+                    break
+                assert right_cmd[j] == left_cmd[i]
+                t *= x.shape[i]
+                i += 1
+                j += 1
+            assert t > 0
+            new_shape.append(t)
+    return x.reshape(tuple(new_shape))
 
 ConditionAverage = namedtuple("ConditionAverage", ["avg_tensor", "count"])
 
