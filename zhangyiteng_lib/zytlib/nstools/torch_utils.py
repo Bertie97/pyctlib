@@ -20,9 +20,18 @@ def demean(x: torch.Tensor, dim: int=-1) -> torch.Tensor:
     return x - x.mean(dim, keepdim=True)
 
 def corrcoef(x: torch.Tensor, y: torch.Tensor, dim: int=-1, *, eps: float=1e-10) -> torch.Tensor:
-    # x: [*, trial]
-    # y: [*, trial]
-    # correlation between x and y in the dim axis
+    """
+    Computes the correlation coefficient between two input tensors `x` and `y` along a given dimension.
+
+    Args:
+        x (torch.Tensor): Input tensor of shape [*, trial], where `*` represents any number of dimensions.
+        y (torch.Tensor): Input tensor of the same shape as `x`.
+        dim (int, optional): The dimension along which to compute the correlation coefficient. Default is -1 (last dimension).
+        eps (float, optional): A small value added to the denominator to prevent division by zero. Default is 1e-10.
+
+    Returns:
+        torch.Tensor: A tensor containing the correlation coefficient between `x` and `y` along the specified dimension. The shape of the output tensor is the same as the shape of `x` and `y` with the specified dimension removed.
+    """
     assert x.dim() == y.dim()
     assert x.shape == y.shape
 
