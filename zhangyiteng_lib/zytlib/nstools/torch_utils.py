@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from typing import Callable, Any, List, Union, Tuple
+from typing import Callable, Any, List, Union, Tuple, Optional
 from collections import namedtuple
 from ..container.vector import vector
 import re
@@ -18,6 +18,40 @@ def to_LongTensor(x: Any) -> torch.LongTensor:
 
 def demean(x: torch.Tensor, dim: int=-1) -> torch.Tensor:
     return x - x.mean(dim, keepdim=True)
+
+def remove_projection(x: torch.Tensor, projection_basis: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    """
+    Remove the projection of `x` onto the subspace spanned by the columns of `projection_basis`.
+    If `dim` is not None, `x` is assumed to have its working dimensions starting at `dim`.
+
+    Args:
+        x (torch.Tensor): The input tensor.
+        projection_basis (torch.Tensor): The basis for the subspace.
+        dim (int, optional): The dimension along which to apply the operation. If not specified, defaults to the last dim.
+
+    Returns:
+        The tensor with the projection of `x` removed along the specified dimension.
+    """
+
+    # Check inputs
+    if not isinstance(x, torch.Tensor) or not isinstance(projection_basis, torch.Tensor):
+        raise TypeError("Expected torch.Tensor for both inputs")
+    if projection_basis.dim() != 2:
+        raise ValueError("projection_basis must be a matrix")
+    dim = dim % x.dim()
+    if x.shape[dim] != projection_basis.shape[0]:
+        raise ValueError("Dimension mismatch: x and projection_basis must agree along the specified dimension")
+
+    # Compute projection
+    projection_basis, _ = torch.linalg.qr(projection_basis)
+    perm = list(range(x.dim()))
+    perm[dim], perm[-1] = perm[-1], perm[dim]
+    x_reshaped = x.permute(*perm)
+    x_proj = (x_reshaped @ projection_basis) @ projection_basis.T
+    x_no_proj = x_reshaped - x_proj
+    x_no_proj = x_no_proj.permute(*perm)
+
+    return x_no_proj
 
 def corrcoef(x: torch.Tensor, y: torch.Tensor, dim: int=-1, *, eps: float=1e-10) -> torch.Tensor:
     """
