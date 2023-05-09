@@ -194,7 +194,7 @@ def condition_average(x: torch.Tensor, condition_num: Union[int, Tuple[int]], co
         assert len(condition_num) == condition.shape[-1]
         new_condition = torch.zeros_like(condition[:, -1])
         basis = 1
-        for i in range(condition.dim() - 1, -1, -1):
+        for i in range(condition.shape[1] - 1, -1, -1):
             new_condition += condition[:, i] * basis
             basis *= condition_num[i]
         ret_shape = tuple(list(x.shape[:dim]) + list(condition_num) + list(x.shape[dim + 1:]))
