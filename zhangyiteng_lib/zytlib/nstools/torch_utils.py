@@ -206,11 +206,28 @@ def condition_residual(x: torch.Tensor, condition_num: Union[int, Tuple[int]], c
     dim = dim % x.dim()
     avg_x = condition_average(x, condition_num, condition, dim=dim).avg_tensor
 
+    ret = torch.zeros_like(x)
+
     for i in range(x.shape[dim]):
         x_idx = [slice(None)] * (dim - 1) + [i] + [slice(None)] * (x.dim() - dim - 1)
         if condition.dim() == 1:
             avg_idx = [slice(None)] * (dim - 1) + [condition[i].item()] + [slice(None)] *(x.dim() - dim - 1)
         else:
             avg_idx = [slice(None)] * (dim - 1) + list(condition[i, :].detach().cpu().numpy()) + [slice(None)] *(x.dim() - dim - 1)
-        x[tuple(x_idx)] = x[tuple(x_idx)] - avg_x[tuple(avg_idx)]
-    return x
+        ret[tuple(x_idx)] = x[tuple(x_idx)] - avg_x[tuple(avg_idx)]
+    return ret
+
+def replaced_by_condition_average(x: torch.Tensor, condition_num: Union[int, Tuple[int]], condition: torch.Tensor, *, dim: int=-1) -> torch.Tensor:
+    dim = dim % x.dim()
+    avg_x = condition_average(x, condition_num, condition, dim=dim).avg_tensor
+
+    ret = torch.zeros_like(x)
+
+    for i in range(x.shape[dim]):
+        x_idx = [slice(None)] * (dim - 1) + [i] + [slice(None)] * (x.dim() - dim - 1)
+        if condition.dim() == 1:
+            avg_idx = [slice(None)] * (dim - 1) + [condition[i].item()] + [slice(None)] *(x.dim() - dim - 1)
+        else:
+            avg_idx = [slice(None)] * (dim - 1) + list(condition[i, :].detach().cpu().numpy()) + [slice(None)] *(x.dim() - dim - 1)
+        ret[tuple(x_idx)] = avg_x[tuple(avg_idx)]
+    return ret
