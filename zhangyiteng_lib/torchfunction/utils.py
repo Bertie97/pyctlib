@@ -304,3 +304,16 @@ def tonumpy(x):
         return x.detach().cpu().numpy()
     else:
         return x
+
+def totorch(x, device=None):
+    if isinstance(x, torch.Tensor):
+        return x.to(device)
+    elif isinstance(x, list):
+        if len(x) == 0 or isinstance(x[0], (int, float)):
+            return torch.tensor(x, device=device)
+        else:
+            return torch.stack([totorch(t, device=device) for t in x], 0)
+    elif isinstance(x, np.ndarray):
+        return torch.tensor(x, device=device)
+    else:
+        return x

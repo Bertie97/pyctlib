@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from typing import Callable, Any, List, Union, Tuple, Optional, Bool
+from typing import Callable, Any, List, Union, Tuple, Optional
 from collections import namedtuple
 from ..container.vector import vector
 import re
@@ -137,7 +137,7 @@ def einflatten(cmd: str, x: torch.Tensor) -> torch.Tensor:
 
 ConditionAverage = namedtuple("ConditionAverage", ["avg_tensor", "count"])
 
-def condition_average(x: torch.Tensor, condition_num: Union[int, Tuple[int]], condition: torch.Tensor, *, dim: int=-1, keep_shape: Bool=False) -> ConditionAverage:
+def condition_average(x: torch.Tensor, condition_num: Union[int, Tuple[int]], condition: torch.Tensor, *, dim: int=-1, keep_shape: bool=False) -> ConditionAverage:
     """
     Computes the average of the input tensor `x` over different conditions specified by the `condition` tensor.
     If `condition_num` is an integer, the function computes the average of `x` over `condition_num` conditions,
