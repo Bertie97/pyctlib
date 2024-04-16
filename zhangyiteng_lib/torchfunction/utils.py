@@ -305,7 +305,7 @@ def tonumpy(x):
     else:
         return x
 
-def totorch(x, device=None):
+def totensor(x, device=None):
     if isinstance(x, torch.Tensor):
         return x.to(device)
     elif isinstance(x, list):

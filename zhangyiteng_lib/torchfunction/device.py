@@ -72,6 +72,8 @@ if torch.cuda.is_available():
     AutoDeviceId = igpu
     AutoDevice = torch.device(f"cuda:{igpu}")
     print(f"Using GPU device {igpu}...")
+elif torch.backends.mps.is_available():
+    AutoDevice = torch.device("mps")
 else:
     AutoDevice = torch.device("cpu")
 
